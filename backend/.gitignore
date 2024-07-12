@@ -1,0 +1,9 @@
+__pycache__/
+downloads/
+portrait_clips/
+raw_videos/
+subtitle_clips_arx/
+subtitled_portrait_clips/
+subtitled_portrait_clips_archive/
+.env
+interesting_segments.json
