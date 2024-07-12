@@ -39,39 +39,39 @@ app.config.update(
 def process_video_thread(video_link, video_id):
     with app.app_context():
         try:
-            time.sleep(10)
-            # downloaded_video_path, downloaded_audio_path, video_name = download_video(video_link, video_path)
-            # print("Transcribing audio...")
-            # result = model.transcribe(downloaded_audio_path, word_timestamps=True)
-            # segments = result["segments"]
-            # word_timings = []
-            # transcript = ''
-            # for segment in segments:
-            #     words = segment['words']
-            #     for word in words:
-            #         word_timings.append({
-            #             'start': word['start'],
-            #             'end': word['end'],
-            #             'word': word['word'].strip().lower()
-            #         })
-            #         transcript += word['word']
+            # time.sleep(10)
+            downloaded_video_path, downloaded_audio_path, video_name = download_video(video_link, video_path)
+            print("Transcribing audio...")
+            result = model.transcribe(downloaded_audio_path, word_timestamps=True)
+            segments = result["segments"]
+            word_timings = []
+            transcript = ''
+            for segment in segments:
+                words = segment['words']
+                for word in words:
+                    word_timings.append({
+                        'start': word['start'],
+                        'end': word['end'],
+                        'word': word['word'].strip().lower()
+                    })
+                    transcript += word['word']
             
-            # transcript = transcript.strip()
-            # with open("transcript.txt", 'w') as file:
-            #     file.write(transcript)
+            transcript = transcript.strip()
+            with open("transcript.txt", 'w') as file:
+                file.write(transcript)
             
-            # print("Audio transcribed successfully!")
+            print("Audio transcribed successfully!")
             
-            # interesting_data = get_interesting_segments(transcript, word_timings)
+            interesting_data = get_interesting_segments(transcript, word_timings)
             
-            # with open("interesting_segments.json", 'w') as f:
-            #     json.dump(interesting_data, f)
+            with open("interesting_segments.json", 'w') as f:
+                json.dump(interesting_data, f)
 
-            # crop_to_portrait_with_faces(downloaded_video_path, interesting_data, face_detection)
-            # add_subtitles(interesting_data)
+            crop_to_portrait_with_faces(downloaded_video_path, interesting_data, face_detection)
+            add_subtitles(interesting_data)
 
-            with open("interesting_segments.json", 'r') as f:
-                interesting_data = json.load(f)
+            # with open("interesting_segments.json", 'r') as f:
+            #     interesting_data = json.load(f)
 
             clips = []
             grades = ["A", "A+", "A-", "B", "B+"]
