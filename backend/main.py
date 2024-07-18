@@ -24,7 +24,6 @@ load_dotenv(find_dotenv())
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 
-
 def patched_get_throttling_function_name(js: str) -> str:
     """Extract the name of the function that computes the throttling parameter.
 
@@ -63,7 +62,6 @@ def patched_get_throttling_function_name(js: str) -> str:
 
 # Apply the patch
 pytube.cipher.get_throttling_function_name = patched_get_throttling_function_name
-
 
 
 def download_video(url, path, quality='high'):
@@ -393,6 +391,29 @@ def add_subtitles(segments, num_faces=1, portrait_clips_folder='./portrait_clips
             txt_clip = txt_clip.set_position(position).set_start(start_time).set_duration(end_time - start_time)
             return txt_clip
 
+        def group_words(word_timings):
+            grouped_words = []
+            current_phrase = []
+            current_start = word_timings[0]['start']
+            for i, wt in enumerate(word_timings):
+                current_phrase.append(wt['word'])
+                if i < len(word_timings) - 1:
+                    next_word_start = word_timings[i + 1]['start']
+                    if next_word_start - wt['end'] > 0.5:  # Threshold to start a new phrase (0.5 seconds gap)
+                        grouped_words.append({
+                            'phrase': ' '.join(current_phrase),
+                            'start': current_start,
+                            'end': wt['end']
+                        })
+                        current_phrase = []
+                        current_start = next_word_start
+            if current_phrase:
+                grouped_words.append({
+                    'phrase': ' '.join(current_phrase),
+                    'start': current_start,
+                    'end': word_timings[-1]['end']
+                })
+            return grouped_words
 
         def annotate(clip, word_timings):
             if num_faces == 1:
@@ -404,8 +425,9 @@ def add_subtitles(segments, num_faces=1, portrait_clips_folder='./portrait_clips
             
             result = CompositeVideoClip([clip] + txt_clips)
             return result
-    
-        annotated_segment = annotate(video, word_timings)
+
+        grouped_word_timings = group_words(word_timings)
+        annotated_segment = annotate(video, grouped_word_timings)
         annotated_segment.write_videofile(f"{output_folder}/{title}.mp4", codec='libx264')
         print("subtitles added successfully!")
 
