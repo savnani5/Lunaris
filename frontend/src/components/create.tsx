@@ -41,9 +41,11 @@ export function Create() {
   const [processingTimeframe, setProcessingTimeframe] = useState(50);
   const [keywords, setKeywords] = useState("");
 
+  const backend_url = "" //"http://127.0.0.1:5001";
+
   const handleProcessClick = async () => {
     setProcessing(true);
-    const response = await fetch("http://127.0.0.1:5001/api/process-video", {
+    const response = await fetch(`${backend_url}/api/process-video`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -67,7 +69,7 @@ export function Create() {
 
   const pollVideoStatus = async (videoId: string) => {
     const interval = setInterval(async () => {
-      const response = await fetch(`http://127.0.0.1:5001/api/video-status/${videoId}`);
+      const response = await fetch(`${backend_url}/api/video-status/${videoId}`);
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'completed') {
@@ -87,7 +89,7 @@ export function Create() {
   };
 
   const fetchProcessedClips = async (videoId: string) => {
-    const response = await fetch(`http://127.0.0.1:5001/api/get-video/${videoId}`);
+    const response = await fetch(`${backend_url}/api/get-video/${videoId}`);
     if (response.ok) {
       const data = await response.json();
       setProcessedClips(data.clips);
