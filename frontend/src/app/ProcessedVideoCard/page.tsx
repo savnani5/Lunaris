@@ -1,10 +1,23 @@
 'use client';
 
-import React from 'react';
-import { Badge } from "@/components/ui/badge";
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 
-const ProcessedVideoCard = ({ videoUrl, metadata }) => {
+interface Metadata {
+  title: string;
+  description: string;
+  score: number;
+  hook: number;
+  flow: number;
+  engagement: number;
+  trend: number;
+}
+
+interface ProcessedVideoCardProps {
+  videoUrl: string;
+  metadata: Metadata;
+}
+
+const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ videoUrl, metadata }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9); // Default aspect ratio
 
   useEffect(() => {
