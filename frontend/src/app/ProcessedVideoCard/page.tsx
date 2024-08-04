@@ -1,20 +1,19 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-
-interface Metadata {
-  title: string;
-  description: string;
-  score: number;
-  hook: number;
-  flow: number;
-  engagement: number;
-  trend: number;
-}
+import { Badge } from "@/components/ui/badge";
 
 interface ProcessedVideoCardProps {
   videoUrl: string;
-  metadata: Metadata;
+  metadata: {
+    title: string;
+    description: string;
+    score: number;
+    hook: string;
+    flow: string;
+    engagement: string;
+    trend: string;
+  };
 }
 
 const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ videoUrl, metadata }) => {
