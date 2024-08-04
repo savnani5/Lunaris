@@ -3,17 +3,29 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
-import { LogInIcon, ClockIcon, UploadIcon } from "@/components/icons";
-import ProcessedVideoCard from "@/app/ProcessedVideoCard/page";
-import ProcessingBar from "@/app/ProcessingBar/page";
+
+import ProcessedVideoCard from '@/components/ProcessedVideoCard';
+import ProcessingBar from "@/components/ProcessingBar";
 
 import lunarisLogo from "@/assets/lunaris_solid.svg";
+
+interface Clip {
+  video_url: string;
+  metadata: {
+    title: string;
+    description: string;
+    score: number;
+    hook: string;
+    flow: string;
+    engagement: string;
+    trend: string;
+  };
+}
 
 export function Create() {
   const router = useRouter(); 
@@ -21,7 +33,7 @@ export function Create() {
   const [videoThumbnail, setVideoThumbnail] = useState("");
   const [processing, setProcessing] = useState(false);
   const [clipLength, setClipLength] = useState("Auto (0m~3m)");
-  const [processedClips, setProcessedClips] = useState([]);
+  const [processedClips, setProcessedClips] = useState<Clip[]>([]);
   const [progress, setProgress] = useState(0);
   // const [addCaption, setAddCaption] = useState(false);
   const [genre, setGenre] = useState("Auto");
@@ -53,7 +65,7 @@ export function Create() {
     }
   };
 
-  const pollVideoStatus = async (videoId) => {
+  const pollVideoStatus = async (videoId: string) => {
     const interval = setInterval(async () => {
       const response = await fetch(`http://127.0.0.1:5001/api/video-status/${videoId}`);
       if (response.ok) {
@@ -74,7 +86,7 @@ export function Create() {
     }, 3000);
   };
 
-  const fetchProcessedClips = async (videoId) => {
+  const fetchProcessedClips = async (videoId: string) => {
     const response = await fetch(`http://127.0.0.1:5001/api/get-video/${videoId}`);
     if (response.ok) {
       const data = await response.json();
@@ -82,7 +94,7 @@ export function Create() {
     }
   };
 
-  const handleClipLengthClick = (length) => {
+  const handleClipLengthClick = (length: string) => {
     setClipLength(length);
   };
 
@@ -203,4 +215,4 @@ export function Create() {
       </main>
     </div>
   );
-  }
+}

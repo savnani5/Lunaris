@@ -1,6 +1,10 @@
 import React from 'react';
 
-const ProcessingBar = ({ progress }) => {
+interface ProcessingBarProps {
+  progress: number;
+}
+
+const ProcessingBar: React.FC<ProcessingBarProps> = ({ progress }) => {
   return (
     <div className="w-full max-w-2xl bg-gray-800 p-4 rounded-lg mt-8">
       <h2 className="text-lg font-bold">Processing...</h2>

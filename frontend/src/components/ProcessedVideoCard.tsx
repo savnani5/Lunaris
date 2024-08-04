@@ -1,8 +1,7 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
-import { Badge } from "@/components/ui/badge";
 
+// Define the props type
 interface ProcessedVideoCardProps {
   videoUrl: string;
   metadata: {
@@ -23,14 +22,14 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ videoUrl, metad
     const video = document.createElement('video');
     video.src = videoUrl;
 
-    video.addEventListener('loadedmetadata', () => {
+    const updateAspectRatio = () => {
       setAspectRatio(video.videoWidth / video.videoHeight);
-    });
+    };
+
+    video.addEventListener('loadedmetadata', updateAspectRatio);
 
     return () => {
-      video.removeEventListener('loadedmetadata', () => {
-        setAspectRatio(video.videoWidth / video.videoHeight);
-      });
+      video.removeEventListener('loadedmetadata', updateAspectRatio);
     };
   }, [videoUrl]);
 
