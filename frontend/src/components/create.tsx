@@ -13,6 +13,8 @@ import { LogInIcon, ClockIcon, UploadIcon } from "@/components/icons";
 import ProcessedVideoCard from "@/app/ProcessedVideoCard/page";
 import ProcessingBar from "@/app/ProcessingBar/page";
 
+import lunarisLogo from "@/assets/lunaris_solid.svg";
+
 export function Create() {
   const router = useRouter(); 
   const [videoLink, setVideoLink] = useState("");
@@ -21,6 +23,11 @@ export function Create() {
   const [clipLength, setClipLength] = useState("Auto (0m~3m)");
   const [processedClips, setProcessedClips] = useState([]);
   const [progress, setProgress] = useState(0);
+  // const [addCaption, setAddCaption] = useState(false);
+  const [genre, setGenre] = useState("Auto");
+  const [videoQuality, setVideoQuality] = useState("Auto");
+  const [processingTimeframe, setProcessingTimeframe] = useState(50);
+  const [keywords, setKeywords] = useState("");
 
   const handleProcessClick = async () => {
     setProcessing(true);
@@ -29,7 +36,12 @@ export function Create() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ link: videoLink, clipLength }),
+      body: JSON.stringify({ link: videoLink, 
+        genre,
+        videoQuality,
+        processingTimeframe,
+        clipLength,
+        keywords }),
     });
 
     if (response.ok) {
@@ -78,8 +90,8 @@ export function Create() {
     <div className="min-h-screen bg-black text-white p-4">
       <header className="flex items-center justify-between py-4">
         <div className="flex items-center space-x-4">
-          <LogInIcon className="w-8 h-8" />
-          <h1 className="text-2xl font-bold">Lunaris</h1>
+          <img src={lunarisLogo.src} width={45} height={45} alt="Lunaris" />
+          <span className="ml-2 text-white text-2xl font-bold">Lunaris</span>
         </div>
         <nav className="flex items-center space-x-4"></nav>
         <div className="flex items-center space-x-4"></div>
@@ -96,26 +108,53 @@ export function Create() {
             {processing ? "Processing..." : "Get viral clips"}
           </Button>
         </div>
-        <div className="flex items-center w-full max-w-2xl space-x-4 border border-gray-600 rounded-lg p-4">
+        {/* <div className="flex items-center w-full max-w-2xl space-x-4 border border-gray-600 rounded-lg p-4">
           <span>Choose a file (mp4, mov, mkv, webm), or drag it here</span>
           <UploadIcon className="w-6 h-6 text-gray-400" />
-        </div>
+        </div> */}
         <div className="w-full max-w-2xl bg-gray-800 p-4 rounded-lg">
-          <h2 className="text-lg font-bold">Only add caption without clipping?</h2>
+          {/* <h2 className="text-lg font-bold">Only add caption without clipping?</h2>
           <div className="flex justify-between items-center mb-4">
-            <input type="checkbox" className="toggle-checkbox" />
-          </div>
+            <input 
+              type="checkbox" 
+              className="toggle-checkbox" 
+              checked={addCaption}
+              onChange={(e) => setAddCaption(e.target.checked)}
+            />
+          </div> */}
           <h2 className="text-lg font-bold">Genre of video </h2>
-          <select className="w-full bg-gray-800 text-white rounded-md p-2 mb-4">
+          <select 
+            className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
+            value={genre}
+            onChange={(e) => setGenre(e.target.value)}
+          >
             <option>Auto</option>
             <option>Podcast</option>
             <option>Anime</option>
-            <option>Gaming</option>
+            {/* <option>Gaming</option> */}
             <option>TV shows</option>
+          </select>
+          <h2 className="text-lg font-bold">Video Quality</h2>
+          <select 
+            className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
+            value={videoQuality}
+            onChange={(e) => setVideoQuality(e.target.value)}
+          >
+            <option>1080p</option>
+            <option>720p</option>
+            <option>480p</option>
+            <option>360p</option>
           </select>
           <h2 className="text-lg font-bold">Processing timeframe</h2>
           <div className="w-full mb-4">
-            <input type="range" min="0" max="100" className="slider" />
+            <input 
+              type="range" 
+              min="0" 
+              max="100" 
+              className="slider"
+              value={processingTimeframe}
+              onChange={(e) => setProcessingTimeframe(Number(e.target.value))}
+            />
           </div>
           <h2 className="text-lg font-bold">Preferred clip length</h2>
           <div className="flex space-x-2 mb-4">
@@ -149,7 +188,13 @@ export function Create() {
             </button>
           </div>
           <h2 className="text-lg font-bold">Topic filter by keywords (optional)</h2>
-          <input type="text" className="w-full bg-gray-800 text-white rounded-md p-2 mb-4" placeholder="Add keywords, comma-separated" />
+          <input 
+            type="text" 
+            className="w-full bg-gray-800 text-white rounded-md p-2 mb-4" 
+            placeholder="Add keywords, comma-separated"
+            value={keywords}
+            onChange={(e) => setKeywords(e.target.value)}
+          />
         </div>
         {processing && <ProcessingBar progress={progress} />}
         {processedClips.map((clip, index) => (
@@ -158,4 +203,4 @@ export function Create() {
       </main>
     </div>
   );
-}
+  }

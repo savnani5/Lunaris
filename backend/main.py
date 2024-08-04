@@ -63,25 +63,27 @@ def patched_get_throttling_function_name(js: str) -> str:
 # Apply the patch
 pytube.cipher.get_throttling_function_name = patched_get_throttling_function_name
 
+from pytube. innertube import _default_clients
 
-def download_video(url, path, quality='high'):
+_default_clients[ "ANDROID"][ "context"]["client"]["clientVersion"] = "19.08.35"
+_default_clients["IOS"]["context"]["client"]["clientVersion"] = "19.08.35"
+_default_clients[ "ANDROID_EMBED"][ "context"][ "client"]["clientVersion"] = "19.08.35"
+_default_clients[ "IOS_EMBED"][ "context"]["client"]["clientVersion"] = "19.08.35"
+_default_clients["IOS_MUSIC"][ "context"]["client"]["clientVersion"] = "6.41"
+_default_clients[ "ANDROID_MUSIC"] = _default_clients[ "ANDROID_CREATOR" ]
+
+
+
+def download_video(url, path, quality='1080p'):
     yt = YouTube(url)
+
     try:
-        if quality == 'high':
-            video_stream = yt.streams.filter(adaptive=True, file_extension='mp4', res="1080p").first()
-        elif quality == 'medium':
-            video_stream = yt.streams.filter(adaptive=True, file_extension='mp4', res="720p").first()
-        elif quality == 'low':
-            video_stream = yt.streams.filter(adaptive=True, file_extension='mp4', res="480p").first()
-        else:
-            video_stream = yt.streams.filter(adaptive=True, file_extension='mp4').order_by('resolution').first()
+        video_stream = yt.streams.filter(adaptive=True, file_extension='mp4', res=quality).first()
     except Exception as e:
         print(e)
 
     if video_stream is None:
         video_stream = yt.streams.filter(adaptive=True, file_extension='mp4').order_by('resolution').desc().first()
-    
-    audio_stream = yt.streams.filter(only_audio=True).first()
     
     audio_stream = yt.streams.filter(only_audio=True).first()
     
@@ -391,43 +393,19 @@ def add_subtitles(segments, num_faces=1, portrait_clips_folder='./portrait_clips
             txt_clip = txt_clip.set_position(position).set_start(start_time).set_duration(end_time - start_time)
             return txt_clip
 
-        def group_words(word_timings):
-            grouped_words = []
-            current_phrase = []
-            current_start = word_timings[0]['start']
-            for i, wt in enumerate(word_timings):
-                current_phrase.append(wt['word'])
-                if i < len(word_timings) - 1:
-                    next_word_start = word_timings[i + 1]['start']
-                    if next_word_start - wt['end'] > 0.5:  # Threshold to start a new phrase (0.5 seconds gap)
-                        grouped_words.append({
-                            'phrase': ' '.join(current_phrase),
-                            'start': current_start,
-                            'end': wt['end']
-                        })
-                        current_phrase = []
-                        current_start = next_word_start
-            if current_phrase:
-                grouped_words.append({
-                    'phrase': ' '.join(current_phrase),
-                    'start': current_start,
-                    'end': word_timings[-1]['end']
-                })
-            return grouped_words
 
         def annotate(clip, word_timings):
             if num_faces == 1:
                 position = ('center', video.h * 0.75)  # 75% from top
             else:
                 position = ('center', video.h * 0.5)  # 50% from top
+            # print(word_timings)
             txt_clips = [make_textclip(wt['word'], wt['start'] - segment_start, wt['end'] - segment_start, color='yellow', position=position)
-                         for wt in word_timings]
-            
+                        for wt in word_timings]
             result = CompositeVideoClip([clip] + txt_clips)
             return result
 
-        grouped_word_timings = group_words(word_timings)
-        annotated_segment = annotate(video, grouped_word_timings)
+        annotated_segment = annotate(video, word_timings)
         annotated_segment.write_videofile(f"{output_folder}/{title}.mp4", codec='libx264')
         print("subtitles added successfully!")
 
@@ -485,4 +463,3 @@ if __name__=="__main__":
 
     crop_to_portrait_with_faces(downloaded_video_path, interesting_data)
     add_subtitles(interesting_data)
-   

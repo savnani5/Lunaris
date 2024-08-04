@@ -36,67 +36,64 @@ app.config.update(
     PREFERRED_URL_SCHEME='http'
 )
 
-def process_video_thread(video_link, video_id):
+def process_video_thread(video_link, video_id, quality):
     with app.app_context():
-        try:
-            # time.sleep(10)
-            downloaded_video_path, downloaded_audio_path, video_name = download_video(video_link, video_path)
-            print("Transcribing audio...")
-            result = model.transcribe(downloaded_audio_path, word_timestamps=True)
-            segments = result["segments"]
-            word_timings = []
-            transcript = ''
-            for segment in segments:
-                words = segment['words']
-                for word in words:
-                    word_timings.append({
-                        'start': word['start'],
-                        'end': word['end'],
-                        'word': word['word'].strip().lower()
-                    })
-                    transcript += word['word']
-            
-            transcript = transcript.strip()
-            with open("transcript.txt", 'w') as file:
-                file.write(transcript)
-            
-            print("Audio transcribed successfully!")
-            
-            interesting_data = get_interesting_segments(transcript, word_timings)
-            
-            with open("interesting_segments.json", 'w') as f:
-                json.dump(interesting_data, f)
-
-            crop_to_portrait_with_faces(downloaded_video_path, interesting_data, face_detection)
-            add_subtitles(interesting_data)
-
-            # with open("interesting_segments.json", 'r') as f:
-            #     interesting_data = json.load(f)
-
-            clips = []
-            grades = ["A", "A+", "A-", "B", "B+"]
-            for segment in interesting_data:
-                clip_filename = segment["title"] + ".mp4"
-                clip_path = os.path.join(output_path, clip_filename)
-                clips.append({
-                    "video_url": url_for('send_clip', filename=clip_filename, _external=True),
-                    "metadata": {
-                        "title": segment["title"],
-                        "score": random.randint(70, 100),
-                        "hook": random.choice(grades),
-                        "flow": random.choice(grades),
-                        "engagement": random.choice(grades),
-                        "trend": random.choice(grades),
-                        "description": segment["text"]
-                    }
+      
+        # time.sleep(10)
+        downloaded_video_path, downloaded_audio_path, video_name = download_video(video_link, video_path, quality)
+        print("Transcribing audio...")
+        result = model.transcribe(downloaded_audio_path, word_timestamps=True)
+        segments = result["segments"]
+        word_timings = []
+        transcript = ''
+        for segment in segments:
+            words = segment['words']
+            for word in words:
+                word_timings.append({
+                    'start': word['start'],
+                    'end': word['end'],
+                    'word': word['word'].strip().lower()
                 })
+                transcript += word['word']
+    
+        transcript = transcript.strip()
+        with open("transcript.txt", 'w') as file:
+            file.write(transcript)
+        
+        print("Audio transcribed successfully!")
+        
+        interesting_data = get_interesting_segments(transcript, word_timings)
+        
+        with open("interesting_segments.json", 'w') as f:
+            json.dump(interesting_data, f)
 
-            processing_videos[video_id]['status'] = 'completed'
-            processing_videos[video_id]['clips'] = clips
-            app.logger.info(f'Successfully processed video: {video_link}')
-        except Exception as e:
-            processing_videos[video_id]['status'] = 'failed'
-            app.logger.error(f'Error processing video: {e}')
+        crop_to_portrait_with_faces(downloaded_video_path, interesting_data, face_detection)
+        add_subtitles(interesting_data)
+
+        # with open("interesting_segments.json", 'r') as f:
+        #     interesting_data = json.load(f)
+
+        clips = []
+        grades = ["A", "A+", "A-", "B", "B+"]
+        for segment in interesting_data:
+            clip_filename = segment["title"] + ".mp4"
+            clip_path = os.path.join(output_path, clip_filename)
+            clips.append({
+                "video_url": url_for('send_clip', filename=clip_filename, _external=True),
+                "metadata": {
+                    "title": segment["title"],
+                    "score": random.randint(70, 100),
+                    "hook": random.choice(grades),
+                    "flow": random.choice(grades),
+                    "engagement": random.choice(grades),
+                    "trend": random.choice(grades),
+                    "description": segment["text"]
+                }
+            })
+
+        processing_videos[video_id]['status'] = 'completed'
+        processing_videos[video_id]['clips'] = clips
+        app.logger.info(f'Successfully processed video: {video_link}')
 
 
 @app.route('/api/process-video', methods=['POST'])
@@ -107,12 +104,20 @@ def process_video():
         return jsonify({'error': 'No video link provided'}), 400
 
     video_link = data['link']
+    
+    print(data['clipLength'],
+        # data['addCaption'],
+        data['genre'],
+        data['processingTimeframe'],
+        data['keywords'])
+    
+    # time.sleep(20)
     app.logger.info(f'Received video link: {video_link}')
     
     video_id = str(len(processing_videos) + 1)
     processing_videos[video_id] = {'status': 'processing'}
 
-    thread = Thread(target=process_video_thread, args=(video_link, video_id))
+    thread = Thread(target=process_video_thread, args=(video_link, video_id, data['videoQuality']))
     thread.start()
     
     return jsonify({'message': 'Video processing started', 'video_id': video_id}), 202
