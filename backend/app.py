@@ -1,14 +1,11 @@
 from flask import Flask, request, jsonify, send_file, url_for, send_from_directory
 from flask_cors import CORS
 from threading import Thread
-import time
 import random
 import os
-import whisper
 import json
-import mediapipe as mp
 import logging
-from main import download_video, get_interesting_segments, crop_to_portrait_with_faces, add_subtitles
+from main import VideoProcessor
 
 app = Flask(__name__)
 CORS(app)
@@ -17,13 +14,6 @@ CORS(app)
 # logging.basicConfig(level=logging.DEBUG)
 
 processing_videos = {}
-
-# Initialize Whisper
-model = whisper.load_model("base")
-
-# Initialize Mediapipe face detection
-mp_face_detection = mp.solutions.face_detection
-face_detection = mp_face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
 
 # Video path
 video_path = "./downloads"
@@ -36,48 +26,27 @@ app.config.update(
     PREFERRED_URL_SCHEME='http'
 )
 
-def process_video_thread(video_link, video_id, quality):
+# Initialize VideoProcessor
+video_processor = VideoProcessor()
+
+def process_video_thread(video_link, video_id, video_quality):
     with app.app_context():
-      
-        # time.sleep(10)
-        downloaded_video_path, downloaded_audio_path, video_name = download_video(video_link, video_path, quality)
-        print("Transcribing audio...")
-        result = model.transcribe(downloaded_audio_path, word_timestamps=True)
-        segments = result["segments"]
-        word_timings = []
-        transcript = ''
-        for segment in segments:
-            words = segment['words']
-            for word in words:
-                word_timings.append({
-                    'start': word['start'],
-                    'end': word['end'],
-                    'word': word['word'].strip().lower()
-                })
-                transcript += word['word']
-    
-        transcript = transcript.strip()
-        with open("transcript.txt", 'w') as file:
-            file.write(transcript)
+        # Download video
+        downloaded_video_path, downloaded_audio_path = video_processor.download_video(video_link, video_path, video_quality)
         
-        print("Audio transcribed successfully!")
+        # Transcribe audio
+        transcript, word_timings = video_processor.transcribe_audio(downloaded_audio_path)
         
-        interesting_data = get_interesting_segments(transcript, word_timings)
+        # Get interesting segments
+        interesting_data = video_processor.get_interesting_segments(transcript, word_timings)
         
-        with open("interesting_segments.json", 'w') as f:
-            json.dump(interesting_data, f)
-
-        crop_to_portrait_with_faces(downloaded_video_path, interesting_data, face_detection)
-        add_subtitles(interesting_data)
-
-        # with open("interesting_segments.json", 'r') as f:
-        #     interesting_data = json.load(f)
+        # Crop and add subtitles
+        video_processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_path)
 
         clips = []
         grades = ["A", "A+", "A-", "B", "B+"]
         for segment in interesting_data:
             clip_filename = segment["title"] + ".mp4"
-            clip_path = os.path.join(output_path, clip_filename)
             clips.append({
                 "video_url": url_for('send_clip', filename=clip_filename, _external=True),
                 "metadata": {
@@ -95,7 +64,6 @@ def process_video_thread(video_link, video_id, quality):
         processing_videos[video_id]['clips'] = clips
         app.logger.info(f'Successfully processed video: {video_link}')
 
-
 @app.route('/api/process-video', methods=['POST'])
 def process_video():
     data = request.get_json()
@@ -106,12 +74,10 @@ def process_video():
     video_link = data['link']
     
     print(data['clipLength'],
-        # data['addCaption'],
         data['genre'],
         data['processingTimeframe'],
         data['keywords'])
     
-    # time.sleep(20)
     app.logger.info(f'Received video link: {video_link}')
     
     video_id = str(len(processing_videos) + 1)
@@ -140,11 +106,10 @@ def get_video(video_id):
 def send_clip(filename):
     return send_from_directory('subtitled_portrait_clips', filename)
 
-
 if __name__ == '__main__':
     if not os.path.exists('./downloads'):
         os.makedirs('./downloads')
     if not os.path.exists(output_path):
         os.makedirs(output_path)
     
-    app.run(debug=False, port=5001)
+    app.run(host='0.0.0.0', debug=False, port=5001)

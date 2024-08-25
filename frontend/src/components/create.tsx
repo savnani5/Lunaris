@@ -41,7 +41,7 @@ export function Create() {
   const [processingTimeframe, setProcessingTimeframe] = useState(50);
   const [keywords, setKeywords] = useState("");
 
-  const backend_url = "" //"http://127.0.0.1:5001";
+  const backend_url = "" || "http://127.0.0.1:5001";
 
   const handleProcessClick = async () => {
     setProcessing(true);

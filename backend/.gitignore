@@ -8,3 +8,5 @@ subtitled_portrait_clips/
 subtitled_portrait_clips_archive/
 .env
 interesting_segments.json
+*.mp4
+transcript.txt
