@@ -1,12 +1,11 @@
 __pycache__/
 .DS_Store/
 downloads/
-portrait_clips/
 raw_videos/
-subtitle_clips_arx/
-subtitled_portrait_clips/
-subtitled_portrait_clips_archive/
+raw_audio/
+subtitled_clips/
 .env
 interesting_segments.json
 *.mp4
 transcript.txt
+try.py
