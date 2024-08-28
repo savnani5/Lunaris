@@ -1,7 +1,9 @@
+import {Create} from "@/components/create";
+
 export default function Home() {
   return (
     <div>
-      <a href="/home">Application</a>
+      <Create />
     </div>
   )
 }

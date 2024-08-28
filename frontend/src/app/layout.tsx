@@ -1,29 +1,37 @@
-import './globals.css';
-import { Inter } from 'next/font/google';
-import React, { ReactNode } from 'react';
+import {
+  ClerkProvider,
+  SignInButton,
+  SignedIn,
+  SignedOut,
+  UserButton
+} from '@clerk/nextjs'
+import lunarisLogo from "@/assets/lunaris_solid.svg";
+import './globals.css'
 
-const fontHeading = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-heading',
-});
-
-const fontBody = Inter({
-  subsets: ['latin'],
-  display: 'swap',
-  variable: '--font-body',
-});
-
-interface LayoutProps {
-  children: ReactNode;
-}
-
-export default function Layout({ children }: LayoutProps) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
-    <html lang="en">
-      <body className={`${fontHeading.variable} ${fontBody.variable}`}>
-        {children}
-      </body>
-    </html>
-  );
+    <ClerkProvider afterSignOutUrl="/">
+      <html lang="en">
+        <body>
+          <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+            <img src={lunarisLogo.src} width={40} height={40} alt="Lunaris" />
+              <span style={{ marginLeft: '0.5rem', fontWeight: 'bold', fontSize: '1.25rem' }}>Lunaris</span>
+            </div>
+            <SignedOut>
+              <SignInButton />
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+            </SignedIn>
+          </nav>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
+  )
 }

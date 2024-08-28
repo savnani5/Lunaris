@@ -4,15 +4,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+
 
 import ProcessedVideoCard from '@/components/ProcessedVideoCard';
 import ProcessingBar from "@/components/ProcessingBar";
-
-import lunarisLogo from "@/assets/lunaris_solid.svg";
 
 interface Clip {
   video_url: string;
@@ -38,6 +34,7 @@ export function Create() {
   // const [addCaption, setAddCaption] = useState(false);
   const [genre, setGenre] = useState("Auto");
   const [videoQuality, setVideoQuality] = useState("Auto");
+  const [videoType, setVideoType] = useState("Portrait");
   const [processingTimeframe, setProcessingTimeframe] = useState(50);
   const [keywords, setKeywords] = useState("");
 
@@ -53,6 +50,7 @@ export function Create() {
       body: JSON.stringify({ link: videoLink, 
         genre,
         videoQuality,
+        videoType,
         processingTimeframe,
         clipLength,
         keywords }),
@@ -103,10 +101,6 @@ export function Create() {
   return (
     <div className="min-h-screen bg-black text-white p-4">
       <header className="flex items-center justify-between py-4">
-        <div className="flex items-center space-x-4">
-          <img src={lunarisLogo.src} width={45} height={45} alt="Lunaris" />
-          <span className="ml-2 text-white text-2xl font-bold">Lunaris</span>
-        </div>
         <nav className="flex items-center space-x-4"></nav>
         <div className="flex items-center space-x-4"></div>
       </header>
@@ -158,6 +152,15 @@ export function Create() {
             <option>720p</option>
             <option>480p</option>
             <option>360p</option>
+          </select>
+          <h2 className="text-lg font-bold">Video Type</h2>
+          <select 
+            className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
+            value={videoType}
+            onChange={(e) => setVideoType(e.target.value)}
+          >
+            <option>Portrait</option>
+            <option>Landscape</option>
           </select>
           <h2 className="text-lg font-bold">Processing timeframe</h2>
           <div className="w-full mb-4">
