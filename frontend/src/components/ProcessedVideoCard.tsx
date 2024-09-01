@@ -3,24 +3,29 @@ import React, { useState, useEffect } from 'react';
 
 // Define the props type
 interface ProcessedVideoCardProps {
-  videoUrl: string;
-  metadata: {
-    title: string;
-    description: string;
-    score: number;
-    hook: string;
-    flow: string;
-    engagement: string;
-    trend: string;
-  };
+  clip: Clip;
 }
 
-const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ videoUrl, metadata }) => {
+interface Clip {
+  _id: string;
+  project_id: string;
+  title: string;
+  transcript: string;
+  s3_uri: string;
+  score: number;
+  hook: string;
+  flow: string;
+  engagement: string;
+  trend: string;
+  created_at: string;
+}
+
+const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9); // Default aspect ratio
 
   useEffect(() => {
     const video = document.createElement('video');
-    video.src = videoUrl;
+    video.src = clip.s3_uri;
 
     const updateAspectRatio = () => {
       setAspectRatio(video.videoWidth / video.videoHeight);
@@ -31,22 +36,22 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ videoUrl, metad
     return () => {
       video.removeEventListener('loadedmetadata', updateAspectRatio);
     };
-  }, [videoUrl]);
+  }, [clip.s3_uri]);
 
   return (
     <div className="w-full max-w-2xl bg-gray-800 p-4 rounded-lg">
       <div className="relative" style={{ paddingTop: `${(1 / aspectRatio) * 40}%` }}>
-        <video src={videoUrl} className="absolute top-0 left-0 w-full h-full" controls />
+        <video src={clip.s3_uri} className="absolute top-0 left-0 w-full h-full" controls />
       </div>
       <div className="mt-4">
-        <h2 className="text-lg font-bold">{metadata.title}</h2>
-        <p>{metadata.description}</p>
+        <h2 className="text-lg font-bold">{clip.title}</h2>
+        <p>{clip.transcript}</p>
         <div className="mt-2">
-          <span className="text-sm">Score: {metadata.score}</span>
-          <span className="text-sm ml-2">Hook: {metadata.hook}</span>
-          <span className="text-sm ml-2">Flow: {metadata.flow}</span>
-          <span className="text-sm ml-2">Engagement: {metadata.engagement}</span>
-          <span className="text-sm ml-2">Trend: {metadata.trend}</span>
+          <span className="text-sm">Score: {clip.score}</span>
+          <span className="text-sm ml-2">Hook: {clip.hook}</span>
+          <span className="text-sm ml-2">Flow: {clip.flow}</span>
+          <span className="text-sm ml-2">Engagement: {clip.engagement}</span>
+          <span className="text-sm ml-2">Trend: {clip.trend}</span>
         </div>
       </div>
     </div>

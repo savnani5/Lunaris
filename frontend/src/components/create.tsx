@@ -5,22 +5,24 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
+import { useUser } from "@clerk/nextjs";
 
 import ProcessedVideoCard from '@/components/ProcessedVideoCard';
 import ProcessingBar from "@/components/ProcessingBar";
 
+
 interface Clip {
-  video_url: string;
-  metadata: {
-    title: string;
-    description: string;
-    score: number;
-    hook: string;
-    flow: string;
-    engagement: string;
-    trend: string;
-  };
+  _id: string;
+  project_id: string;
+  title: string;
+  transcript: string;
+  s3_uri: string;
+  score: number;
+  hook: string;
+  flow: string;
+  engagement: string;
+  trend: string;
+  created_at: string;
 }
 
 export function Create() {
@@ -37,11 +39,17 @@ export function Create() {
   const [videoType, setVideoType] = useState("Portrait");
   const [processingTimeframe, setProcessingTimeframe] = useState(50);
   const [keywords, setKeywords] = useState("");
+  const { user } = useUser();
 
   const backend_url = "" || "http://127.0.0.1:5001";
 
   const handleProcessClick = async () => {
     setProcessing(true);
+    
+    // Use the user object from the hook
+    const userId = user?.id;
+    const email = user?.primaryEmailAddress?.emailAddress;
+
     const response = await fetch(`${backend_url}/api/process-video`, {
       method: "POST",
       headers: {
@@ -53,32 +61,36 @@ export function Create() {
         videoType,
         processingTimeframe,
         clipLength,
-        keywords }),
+        keywords,
+        userId,
+        email,
+       }),
     });
 
     if (response.ok) {
       const data = await response.json();
-      pollVideoStatus(data.video_id);
+      pollVideoStatus(data.project_id);
     } else {
       setProcessing(false);
       // Handle error
     }
   };
 
-  const pollVideoStatus = async (videoId: string) => {
+  const pollVideoStatus = async (project_id: string) => {
     const interval = setInterval(async () => {
-      const response = await fetch(`${backend_url}/api/video-status/${videoId}`);
+      const response = await fetch(`${backend_url}/api/video-status/${project_id}`);
       if (response.ok) {
         const data = await response.json();
         if (data.status === 'completed') {
           clearInterval(interval);
           setProcessing(false);
           setProgress(100);
-          fetchProcessedClips(videoId);
+          fetchProcessedClips(project_id);
         } else if (data.status === 'failed') {
           clearInterval(interval);
           setProcessing(false);
-          // Handle error
+          // TODO: Handle error
+          // Failed project card appears
         } else {
           setProgress((prev) => (prev < 90 ? prev + 10 : prev));
         }
@@ -86,8 +98,8 @@ export function Create() {
     }, 3000);
   };
 
-  const fetchProcessedClips = async (videoId: string) => {
-    const response = await fetch(`${backend_url}/api/get-video/${videoId}`);
+  const fetchProcessedClips = async (project_id: string) => {
+    const response = await fetch(`${backend_url}/api/get-video/${project_id}`);
     if (response.ok) {
       const data = await response.json();
       setProcessedClips(data.clips);
@@ -214,8 +226,8 @@ export function Create() {
           />
         </div>
         {processing && <ProcessingBar progress={progress} />}
-        {processedClips.map((clip, index) => (
-          <ProcessedVideoCard key={index} videoUrl={clip.video_url} metadata={clip.metadata} />
+        {processedClips.map((clip_data, index) => (
+          <ProcessedVideoCard key={index} clip={clip_data} />
         ))}
       </main>
     </div>

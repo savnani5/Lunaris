@@ -2,19 +2,22 @@
 # If no faces -> detect a human body and use the bounding box of the human body
 # Sliding change of frames -> smooth moving bbox
 
-
+from flask import url_for
 import moviepy.editor as mp_edit
 import mediapipe as mp
 import whisper
 import os
+import random
 import glob
+import tempfile
 import subprocess
 import json
 from openai import OpenAI
 import cv2
 from moviepy.editor import TextClip, CompositeVideoClip
 from moviepy.editor import VideoFileClip, AudioFileClip
-
+from models.clip import Clip
+from botocore.exceptions import ClientError
 
 from dotenv import find_dotenv, load_dotenv
 
@@ -23,10 +26,11 @@ load_dotenv(find_dotenv())
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 
 class VideoProcessor:
-    def __init__(self):
+    def __init__(self, db):
         self.face_detection = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
         self.whisper_model = whisper.load_model("base")
         self.openai_client = OpenAI()
+        self.db = db
 
     def download_video(self, url, path, quality):
         quality = quality.replace('p', '')
@@ -49,7 +53,7 @@ class VideoProcessor:
         audio_path = video_path.replace(video_extension, ".mp3")
         subprocess.run(["ffmpeg", "-i", video_path, "-q:a", "0", "-map", "a", audio_path])
         print("Audio extracted successfully!")
-        return video_path, audio_path
+        return video_path, audio_path, video_title
 
     def extract_audio(self, video_path, audio_path):
         video = mp_edit.VideoFileClip(video_path)
@@ -110,8 +114,6 @@ class VideoProcessor:
 
         # Parse the JSON output
         segment_json = clean_llm_output(segment_json)
-        # with open('segments.json', 'w') as f:
-        #     f.write(segment_json)
         
         segments = json.loads(segment_json)
 
@@ -177,78 +179,159 @@ class VideoProcessor:
             return face_bboxes
         return []
 
-    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', output_folder='./subtitled_clips'):
-        if not os.path.exists(output_folder):
+    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False):
+        if debug and not os.path.exists(output_folder):
             os.makedirs(output_folder)
         
         video = mp_edit.VideoFileClip(video_path)
         video_duration = video.duration
         
         prev_box1 = None
+        processed_clip_ids = []
 
         for segment in segments:
-            start = segment['start']
-            end = segment['end']
-            title = segment['title']
-            word_timings = segment['word_timings']
-
-            if end > video_duration:
-                end = video_duration
-            if start >= end:
+            clip = self.process_segment(video, segment, video_duration)
+            if clip is None:
                 continue
             
-            clip = video.subclip(start, end)
+            processed_clip = self.process_clip(clip, output_video_type, prev_box1)
+            final_clip = self.add_subtitles(processed_clip, segment['word_timings'], segment['start'], output_video_type)
             
-            def process_frame(get_frame, t):
-                nonlocal prev_box1
-                frame = get_frame(t)
-
-                if output_video_type == 'portrait':
-                    frame_height, frame_width, _ = frame.shape
-                    target_width, target_height = 1080, 1920
-                    faces = self.detect_faces_and_draw_boxes(frame)
-                    
-                    if faces:
-                        face = faces[0]
-                        (x, y, w, h) = face
-                        new_box = self.adjust_bounding_box(x, y, w, h, frame_height, frame_width)
-                        if prev_box1 is None or self.is_significant_change(prev_box1, new_box):
-                            prev_box1 = new_box
-                        x, y, w, h = prev_box1
-                        face_crop = frame[y:y+h, x:x+w]
-                        processed_frame = cv2.resize(face_crop, (target_width, target_height))
-                    elif prev_box1 is not None:
-                        x, y, w, h = prev_box1
-                        face_crop = frame[y:y+h, x:x+w]
-                        processed_frame = cv2.resize(face_crop, (target_width, target_height))
-                    else:
-                        center_x, center_y = frame_width // 2, frame_height // 2
-                        default_w, default_h = target_width, target_height
-                        default_x = max(0, center_x - default_w // 2)
-                        default_y = max(0, center_y - default_h // 2)
-                        default_crop = frame[default_y:default_y+default_h, default_x:default_x+default_w]
-                        processed_frame = cv2.resize(default_crop, (target_width, target_height))
-                else:  # landscape
-                    target_width, target_height = 1920, 1080
-                    processed_frame = cv2.resize(frame, (target_width, target_height))
-
-                return processed_frame
+            _, clip_url = self.save_or_upload_clip(final_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
             
-            processed_clip = clip.fl(process_frame)
+            clip_id = self.create_and_save_clip(project_id, segment['title'], segment['text'], clip_url)
+            processed_clip_ids.append(clip_id)
 
-            def make_textclip(txt, start_time, end_time, color='white', position=('center', 'center')):
-                txt_clip = TextClip(txt.upper(), fontsize=50 if output_video_type == 'landscape' else 100, 
-                                    color=color, font='Arial-Bold', bg_color='black')
-                txt_clip = txt_clip.set_position(position).set_start(start_time).set_duration(end_time - start_time)
-                return txt_clip
+        return processed_clip_ids
 
-            position = ('center', processed_clip.h * (0.9 if output_video_type == 'landscape' else 0.75))
-            txt_clips = [make_textclip(wt['word'], wt['start'] - start, wt['end'] - start, color='yellow', position=position)
-                         for wt in word_timings]
+    def process_segment(self, video, segment, video_duration):
+        start = segment['start']
+        end = segment['end']
+
+        if end > video_duration:
+            end = video_duration
+        if start >= end:
+            return None
+        
+        return video.subclip(start, end)
+
+    def process_clip(self, clip, output_video_type, prev_box1):
+        def process_frame(get_frame, t):
+            nonlocal prev_box1
+            frame = get_frame(t)
+
+            if output_video_type == 'portrait':
+                frame_height, frame_width, _ = frame.shape
+                target_width, target_height = 1080, 1920
+                faces = self.detect_faces_and_draw_boxes(frame)
+                
+                if faces:
+                    face = faces[0]
+                    (x, y, w, h) = face
+                    new_box = self.adjust_bounding_box(x, y, w, h, frame_height, frame_width)
+                    if prev_box1 is None or self.is_significant_change(prev_box1, new_box):
+                        prev_box1 = new_box
+                    x, y, w, h = prev_box1
+                    face_crop = frame[y:y+h, x:x+w]
+                    processed_frame = cv2.resize(face_crop, (target_width, target_height))
+                elif prev_box1 is not None:
+                    x, y, w, h = prev_box1
+                    face_crop = frame[y:y+h, x:x+w]
+                    processed_frame = cv2.resize(face_crop, (target_width, target_height))
+                else:
+                    center_x, center_y = frame_width // 2, frame_height // 2
+                    default_w, default_h = target_width, target_height
+                    default_x = max(0, center_x - default_w // 2)
+                    default_y = max(0, center_y - default_h // 2)
+                    default_crop = frame[default_y:default_y+default_h, default_x:default_x+default_w]
+                    processed_frame = cv2.resize(default_crop, (target_width, target_height))
+            else:  # landscape
+                target_width, target_height = 1920, 1080
+                processed_frame = cv2.resize(frame, (target_width, target_height))
+
+            return processed_frame
+        
+        return clip.fl(process_frame)
+
+    def add_subtitles(self, processed_clip, word_timings, start_time, output_video_type):
+        def make_textclip(txt, start_time, end_time, color='white', position=('center', 'center')):
+            txt_clip = TextClip(txt.upper(), fontsize=50 if output_video_type == 'landscape' else 100, 
+                                color=color, font='Arial-Bold', bg_color='black')
+            txt_clip = txt_clip.set_position(position).set_start(start_time).set_duration(end_time - start_time)
+            return txt_clip
+
+        position = ('center', processed_clip.h * (0.85 if output_video_type == 'landscape' else 0.85))
+        txt_clips = [make_textclip(wt['word'], wt['start'] - start_time, wt['end'] - start_time, color='yellow', position=position)
+                     for wt in word_timings]
+        
+        return CompositeVideoClip([processed_clip] + txt_clips)
+
+
+    def save_or_upload_clip(self, final_clip, title, output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug):
+        clip_filename = f"{title}_{output_video_type}.mp4"
+        
+        # Create directory structure
+        if debug:
+            # Create user directory if it doesn't exist
+            user_dir = os.path.join(output_folder, str(user_id))
+            if not os.path.exists(user_dir):
+                os.makedirs(user_dir)
             
-            final_clip = CompositeVideoClip([processed_clip] + txt_clips)
-            final_clip.write_videofile(f"{output_folder}/{title}_{output_video_type}.mp4", codec='libx264')
+            # Create project directory if it doesn't exist
+            project_dir = os.path.join(user_dir, str(project_id))
+            if not os.path.exists(project_dir):
+                os.makedirs(project_dir)
+            
+            output_file_path = os.path.join(project_dir, clip_filename)
+            final_clip.write_videofile(output_file_path, codec='libx264')
             print(f"Video '{title}' processed and subtitled successfully as {output_video_type}!")
+            clip_url = url_for('get_clip', base_url=output_folder, user_id=user_id, project_id=project_id, filename=clip_filename, _external=True)
+            print(clip_url)
+
+        elif s3_client and s3_bucket:
+            with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
+                temp_filename = temp_file.name
+                final_clip.write_videofile(temp_filename, codec='libx264')
+            try:
+                s3_key = os.path.join(str(user_id), str(project_id), clip_filename)
+                s3_client.upload_file(temp_filename, s3_bucket, s3_key)
+                
+                # Generate a pre-signed URL
+                try:
+                    clip_url = s3_client.generate_presigned_url('get_object',
+                                                                Params={'Bucket': s3_bucket,
+                                                                        'Key': s3_key},
+                                                                        ExpiresIn=3600 * 24)  # URL expires in 1 day
+                except ClientError as e:
+                    print(f"Error generating pre-signed URL: {e}")
+                    clip_url = None
+
+                print(f"Pre-signed URL: {clip_url}")
+                print(f"Video '{title}' processed, subtitled, and uploaded to S3 successfully as {output_video_type}!")
+            finally:
+                os.unlink(temp_filename)
+        else:
+            raise ValueError("Either debug mode or S3 configuration must be provided")
+        
+        return clip_filename, clip_url
+
+    def create_and_save_clip(self, project_id, title, text, clip_url):
+        grades = ["A", "A+", "A-", "B", "B+"]
+        clip = Clip(project_id, 
+                    title, 
+                    text, 
+                    clip_url,
+                    score=random.randint(70, 100),
+                    hook=random.choice(grades),
+                    flow=random.choice(grades),
+                    engagement=random.choice(grades),
+                    trend=random.choice(grades))
+            
+        # Insert clip into MongoDB
+        clip_dict = clip.to_dict()
+        self.db.clips.insert_one(clip_dict)
+            
+        return clip._id
 
     def adjust_bounding_box(self, x, y, w, h, frame_height, frame_width):
         # Target aspect ratio (9:16)
@@ -337,27 +420,27 @@ if __name__ == "__main__":
     processor = VideoProcessor()
 
     # Ensure directories exist
-    # os.makedirs(video_path, exist_ok=True)
+    os.makedirs(video_path, exist_ok=True)
 
-    # youtube_url = input("Enter youtube video url: ")
-    # video_quality = input("Enter video quality (high, medium, low): ")
-    # output_video_type = input("Enter output video type (portrait, landscape): ")
+    youtube_url = input("Enter youtube video url: ")
+    video_quality = input("Enter video quality (high, medium, low): ")
+    output_video_type = input("Enter output video type (portrait, landscape): ")
    
 
-    # # Download video and extract audio
-    # downloaded_video_path, downloaded_audio_path = processor.download_video(youtube_url, video_path, video_quality)
+    # Download video and extract audio
+    downloaded_video_path, downloaded_audio_path = processor.download_video(youtube_url, video_path, video_quality)
 
-    # # Transcribe audio
-    # transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
+    # Transcribe audio
+    transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
 
-    # # Get interesting segments
-    # interesting_data = processor.get_interesting_segments(transcript, word_timings)
+    # Get interesting segments
+    interesting_data = processor.get_interesting_segments(transcript, word_timings)
     
     # DEBUG: load from file
-    with open("interesting_segments.json", 'r') as f:
-        interesting_data = json.load(f)
-    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris_backend/raw_videos/The Big Bang Theory: New Neighbors (Clip) | TBS/The Big Bang Theory： New Neighbors (Clip) ｜ TBS.webm"
-    output_video_type = "landscape"
+    # with open("interesting_segments.json", 'r') as f:
+    #     interesting_data = json.load(f)
+    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris_backend/raw_videos/The Big Bang Theory: New Neighbors (Clip) | TBS/The Big Bang Theory： New Neighbors (Clip) ｜ TBS.webm"
+    # output_video_type = "landscape"
 
     # Crop video to portrait with faces
     processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type)
