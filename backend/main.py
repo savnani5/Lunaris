@@ -414,7 +414,7 @@ class VideoProcessor:
 
 
 if __name__ == "__main__":
-    video_path = "./raw_videos"
+    video_path = "./downloads"
 
     # Initialize VideoProcessor
     processor = VideoProcessor()

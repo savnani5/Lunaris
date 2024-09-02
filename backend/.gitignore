@@ -5,6 +5,7 @@ raw_videos/
 raw_audio/
 subtitled_clips/
 .env
+*.zip
 interesting_segments.json
 *.mp4
 transcript.txt

@@ -9,7 +9,6 @@ from main import VideoProcessor
 from dotenv import find_dotenv, load_dotenv
 from models.user import User
 from models.project import Project
-from bson import ObjectId
 import argparse
 
 load_dotenv(find_dotenv())
@@ -18,6 +17,7 @@ class LunarisApp:
     def __init__(self, debug=False):
         self.app = Flask(__name__)
         CORS(self.app)
+        self.debug = debug
         self.processing_videos = {}
         self.video_path = "./downloads"
         self.output_path = "./subtitled_clips"
@@ -33,13 +33,12 @@ class LunarisApp:
             region_name=os.environ['AWS_REGION']
         ) if not debug else None
         self.s3_bucket = os.environ.get('S3_BUCKET_NAME')
-        self.debug = debug
+        
 
     def configure_app(self):
         self.app.config.update(
-            SERVER_NAME='127.0.0.1:5001',
             APPLICATION_ROOT='/',
-            PREFERRED_URL_SCHEME='http'
+            PREFERRED_URL_SCHEME='https' if not self.debug else 'http'
         )
 
     def setup_routes(self):
