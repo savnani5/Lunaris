@@ -41,7 +41,7 @@ export function Create() {
   const [keywords, setKeywords] = useState("");
   const { user } = useUser();
 
-  const backend_url = "" || "http://127.0.0.1:5001";
+  const backend_url = process.env.NEXT_PUBLIC_BACKEND_URL || "http://127.0.0.1:5001";
 
   const handleProcessClick = async () => {
     setProcessing(true);
