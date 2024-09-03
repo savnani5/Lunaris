@@ -3,6 +3,7 @@ from flask_cors import CORS
 from threading import Thread
 import os
 import logging
+from logging.handlers import RotatingFileHandler
 import boto3
 from pymongo import MongoClient
 from main import VideoProcessor
@@ -25,6 +26,7 @@ class LunarisApp:
         self.configure_app()
         self.setup_routes()
         self.setup_mongoDB()
+        self.setup_logging()
         self.video_processor = VideoProcessor(self.db)
         self.s3_client = boto3.client(
             's3',
@@ -46,6 +48,7 @@ class LunarisApp:
         self.app.route('/api/video-status/<project_id>', methods=['GET'])(self.video_status)
         self.app.route('/api/get-video/<project_id>', methods=['GET'])(self.get_video)
         self.app.route('/<base_url>/<user_id>/<project_id>/<filename>', methods=['GET'])(self.get_clip)
+        self.app.route('/health', methods=['GET'])(self.health_check)
 
     def setup_mongoDB(self):
         self.app.config['MONGODB_URI'] = os.environ['MONGODB_URI']
@@ -55,17 +58,39 @@ class LunarisApp:
         self.projects_collection = self.db['projects']
         self.clips_collection = self.db['clips']
 
+    def setup_logging(self):
+        log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+        log_file = 'lunaris_app.log'
+        
+        file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5)
+        file_handler.setFormatter(log_formatter)
+        file_handler.setLevel(logging.INFO)
+
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(log_formatter)
+        console_handler.setLevel(logging.INFO)
+
+        self.app.logger.addHandler(file_handler)
+        self.app.logger.addHandler(console_handler)
+        self.app.logger.setLevel(logging.INFO)
+
+        self.app.logger.info("Logging setup completed")
+
     def process_video_thread(self, video_link, project_id, video_quality, video_type='portrait', clerk_user_id=None):
         with self.app.app_context():
             try:
+                self.app.logger.info(f"Starting video processing for project: {project_id}")
                 project = self.projects_collection.find_one({"_id": project_id})
                 if not project:
                     self.app.logger.error(f'Project not found: {project_id}')
                     return
 
                 downloaded_video_path, downloaded_audio_path, video_title = self.video_processor.download_video(video_link, self.video_path, video_quality)
+                self.app.logger.info(f"Video downloaded: {downloaded_video_path}")
                 transcript, word_timings = self.video_processor.transcribe_audio(downloaded_audio_path)
+                self.app.logger.info(f"Audio transcription completed for project: {project_id}")
                 interesting_data = self.video_processor.get_interesting_segments(transcript, word_timings)
+                self.app.logger.info(f"Interesting segments identified for project: {project_id}")
                 processed_clip_ids = self.video_processor.crop_and_add_subtitles(
                     downloaded_video_path, 
                     interesting_data, 
@@ -77,7 +102,7 @@ class LunarisApp:
                     project_id=project_id,
                     debug=self.debug
                 )
-
+                self.app.logger.info(f"Cropping and adding subtitles for project: {project_id}")
                 # Update project status, clip_ids and transcript
                 self.projects_collection.update_one(
                     {"_id": project_id},
@@ -114,10 +139,11 @@ class LunarisApp:
                         }
                     }
                 )
-                self.app.logger.error(f'Error processing video: {e}')
+                self.app.logger.error(f"Error processing video for project {project_id}: {str(e)}", exc_info=True)
 
 
     def process_video(self):
+        self.app.logger.info("Received request to process video")
         data = request.get_json()
         if 'link' not in data:
             self.app.logger.error('No video link provided in the request.')
@@ -151,6 +177,7 @@ class LunarisApp:
         return jsonify({'message': 'Video processing started', 'project_id': str(project_id)}), 202
 
     def video_status(self, project_id):
+        self.app.logger.info(f"Checking video status for project: {project_id}")
         project = self.projects_collection.find_one({"_id": project_id})
         if not project:
             return jsonify({'error': 'Invalid project ID'}), 404
@@ -159,6 +186,7 @@ class LunarisApp:
 
     # TODO: Just send signal of completion to frontend, it will fetch clips directly on frontend from DB connection
     def get_video(self, project_id):
+        self.app.logger.info(f"Fetching video for project: {project_id}")
         project = self.projects_collection.find_one({"_id": project_id})
         if not project or project['status'] != 'completed':
             return jsonify({'error': 'Video not available'}), 404
@@ -171,10 +199,16 @@ class LunarisApp:
 
     
     def get_clip(self, base_url, user_id, project_id, filename):
+        self.app.logger.info(f"Fetching clip: {filename} for project: {project_id}")
         clip_path = os.path.join(base_url, user_id, project_id)
         return send_from_directory(clip_path, filename)
         
+    def health_check(self):
+        self.app.logger.info("Health check requested")
+        return jsonify({'status': 'healthy'}), 200
+
     def run(self):
+        self.app.logger.info("Starting Lunaris App")
         if not os.path.exists('./downloads'):
             os.makedirs('./downloads')
         if not os.path.exists(self.output_path):
@@ -187,4 +221,5 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     lunaris_app = LunarisApp(debug=args.debug)
+    lunaris_app.app.logger.info(f"Lunaris App initialized with debug mode: {args.debug}")
     lunaris_app.run()

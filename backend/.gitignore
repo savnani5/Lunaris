@@ -6,6 +6,7 @@ raw_audio/
 subtitled_clips/
 .env
 *.zip
+*.log
 interesting_segments.json
 *.mp4
 transcript.txt

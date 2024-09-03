@@ -2,7 +2,7 @@
 # If no faces -> detect a human body and use the bounding box of the human body
 # Sliding change of frames -> smooth moving bbox
 
-from flask import url_for
+from flask import current_app, url_for
 import moviepy.editor as mp_edit
 import mediapipe as mp
 import whisper
@@ -46,19 +46,19 @@ class VideoProcessor:
                     os.remove(file_path)
             
         subprocess.run(["yt-dlp", url, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
-        print("Video downloaded successfully!")
+        current_app.logger.info("Video downloaded successfully!")
        
         video_path = glob.glob(os.path.join(path, "*.*"))[0]
         video_extension = os.path.splitext(video_path)[1]
         audio_path = video_path.replace(video_extension, ".mp3")
         subprocess.run(["ffmpeg", "-i", video_path, "-q:a", "0", "-map", "a", audio_path])
-        print("Audio extracted successfully!")
+        current_app.logger.info("Audio extracted successfully!")
         return video_path, audio_path, video_title
 
     def extract_audio(self, video_path, audio_path):
         video = mp_edit.VideoFileClip(video_path)
         video.audio.write_audiofile(audio_path)
-        print("audio extracted successfully!")
+        current_app.logger.info("audio extracted successfully!")
 
     def clip_video(self, video_path, segments, output_folder='./clips'):
         if not os.path.exists(output_folder):
@@ -103,7 +103,7 @@ class VideoProcessor:
             #"gpt-3.5-turbo")
 
         segment_json = chat_completion.choices[0].message.content.strip()
-        print(segment_json)
+        current_app.logger.debug(segment_json)
 
         def clean_llm_output(llm_output):
             # Remove triple backticks and language specifier if present
@@ -163,7 +163,7 @@ class VideoProcessor:
         with open(output_file, 'w') as json_file:
             json.dump(segment_data, json_file, indent=4)
 
-        print("Interesting segments extracted and saved to", output_file)
+        current_app.logger.info("Interesting segments extracted and saved to %s", output_file)
         return segment_data
 
     def detect_faces_and_draw_boxes(self, frame):
@@ -284,9 +284,9 @@ class VideoProcessor:
             
             output_file_path = os.path.join(project_dir, clip_filename)
             final_clip.write_videofile(output_file_path, codec='libx264')
-            print(f"Video '{title}' processed and subtitled successfully as {output_video_type}!")
+            current_app.logger.info("Video '%s' processed and subtitled successfully as %s!", title, output_video_type)
             clip_url = url_for('get_clip', base_url=output_folder, user_id=user_id, project_id=project_id, filename=clip_filename, _external=True)
-            print(clip_url)
+            current_app.logger.debug("Clip URL: %s", clip_url)
 
         elif s3_client and s3_bucket:
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
@@ -303,11 +303,11 @@ class VideoProcessor:
                                                                         'Key': s3_key},
                                                                         ExpiresIn=3600 * 24)  # URL expires in 1 day
                 except ClientError as e:
-                    print(f"Error generating pre-signed URL: {e}")
+                    current_app.logger.error("Error generating pre-signed URL: %s", e)
                     clip_url = None
 
-                print(f"Pre-signed URL: {clip_url}")
-                print(f"Video '{title}' processed, subtitled, and uploaded to S3 successfully as {output_video_type}!")
+                current_app.logger.debug("Pre-signed URL: %s", clip_url)
+                current_app.logger.info("Video '%s' processed, subtitled, and uploaded to S3 successfully as %s!", title, output_video_type)
             finally:
                 os.unlink(temp_filename)
         else:
@@ -390,7 +390,7 @@ class VideoProcessor:
                 abs(h1 - h2) > threshold * h1)
 
     def transcribe_audio(self, audio_path):
-        print("Transcribing audio...")
+        current_app.logger.info("Transcribing audio...")
         result = self.whisper_model.transcribe(audio_path, word_timestamps=True)
         segments = result["segments"]
         word_timings = []
@@ -409,7 +409,7 @@ class VideoProcessor:
         with open("transcript.txt", 'w') as file:
             file.write(transcript)
         
-        print("Audio transcribed successfully!")
+        current_app.logger.info("Audio transcribed successfully!")
         return transcript, word_timings
 
 
