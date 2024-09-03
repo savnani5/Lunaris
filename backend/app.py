@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory, url_for
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 from threading import Thread
 import os
@@ -59,6 +59,9 @@ class LunarisApp:
         self.clips_collection = self.db['clips']
 
     def setup_logging(self):
+        # Remove existing handlers
+        self.app.logger.handlers.clear()
+
         log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
         log_file = 'lunaris_app.log'
         
@@ -73,6 +76,15 @@ class LunarisApp:
         self.app.logger.addHandler(file_handler)
         self.app.logger.addHandler(console_handler)
         self.app.logger.setLevel(logging.INFO)
+
+        # Disable Flask's default logger
+        self.app.logger.propagate = False
+
+        self.app.logger.info("Logging setup completed")
+        self.app.logger.setLevel(logging.INFO)
+
+        # Disable Flask's default logger
+        self.app.logger.propagate = False
 
         self.app.logger.info("Logging setup completed")
 
@@ -115,7 +127,7 @@ class LunarisApp:
                     }
                 )
 
-                self.app.logger.info(f'Successfully processed and uploaded video: {video_link}')
+                self.app.logger.info(f'Successfully processed and uploaded clips')
                 
                 # Delete the folder video_title and all files in it under ./downloads
                 video_title_folder = os.path.join(self.video_path, video_title)

@@ -2,10 +2,9 @@
 # If no faces -> detect a human body and use the bounding box of the human body
 # Sliding change of frames -> smooth moving bbox
 
-from flask import current_app, url_for
+from flask import url_for
 import moviepy.editor as mp_edit
 import mediapipe as mp
-import whisper
 import os
 import random
 import glob
@@ -18,18 +17,25 @@ from moviepy.editor import TextClip, CompositeVideoClip
 from moviepy.editor import VideoFileClip, AudioFileClip
 from models.clip import Clip
 from botocore.exceptions import ClientError
+from deepgram import (
+    DeepgramClient,
+    PrerecordedOptions,
+    FileSource,
+)
+
 
 from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
 
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+DG_API_KEY = os.environ["DG_API_KEY"]
 
 class VideoProcessor:
     def __init__(self, db):
         self.face_detection = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
-        self.whisper_model = whisper.load_model("base")
         self.openai_client = OpenAI()
+        self.deepgram_client = DeepgramClient(DG_API_KEY)
         self.db = db
 
     def download_video(self, url, path, quality):
@@ -46,19 +52,19 @@ class VideoProcessor:
                     os.remove(file_path)
             
         subprocess.run(["yt-dlp", url, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
-        current_app.logger.info("Video downloaded successfully!")
+        print("Video downloaded successfully!")
        
         video_path = glob.glob(os.path.join(path, "*.*"))[0]
         video_extension = os.path.splitext(video_path)[1]
         audio_path = video_path.replace(video_extension, ".mp3")
         subprocess.run(["ffmpeg", "-i", video_path, "-q:a", "0", "-map", "a", audio_path])
-        current_app.logger.info("Audio extracted successfully!")
+        print("Audio extracted successfully!")
         return video_path, audio_path, video_title
 
     def extract_audio(self, video_path, audio_path):
         video = mp_edit.VideoFileClip(video_path)
         video.audio.write_audiofile(audio_path)
-        current_app.logger.info("audio extracted successfully!")
+        print("audio extracted successfully!")
 
     def clip_video(self, video_path, segments, output_folder='./clips'):
         if not os.path.exists(output_folder):
@@ -77,7 +83,7 @@ class VideoProcessor:
         prompt = f"""
         You are a content creator. Here is the transcript from a youtube video:
         {transcript_text}
-        Combine these words into some chunks of few sentences that would make interesting short form content to hook the audience. You can choose cosecutive senctences arbitrarily and each chunk should be complete, i.e don't cut out mid sentence. Aim to keep each chunk above 200 words. Provide a relevant title for each combination. The output should be in JSON format like this:
+        Combine these words into some chunks of few sentences that would make interesting short form content to hook the audience. You can choose cosecutive senctences arbitrarily and each chunk should be complete, i.e don't cut out mid sentence. Aim to keep each chunk above 200 words. Provide a relevant title for each combination. Do not add punctuations to the transcript and keep the orignal words same. The output should be in JSON format like this:
         [
         {{
             "title": "Title 1",
@@ -103,7 +109,7 @@ class VideoProcessor:
             #"gpt-3.5-turbo")
 
         segment_json = chat_completion.choices[0].message.content.strip()
-        current_app.logger.debug(segment_json)
+        print(f"Debug: {segment_json}")
 
         def clean_llm_output(llm_output):
             # Remove triple backticks and language specifier if present
@@ -163,7 +169,7 @@ class VideoProcessor:
         with open(output_file, 'w') as json_file:
             json.dump(segment_data, json_file, indent=4)
 
-        current_app.logger.info("Interesting segments extracted and saved to %s", output_file)
+        print(f"Interesting segments extracted and saved to {output_file}")
         return segment_data
 
     def detect_faces_and_draw_boxes(self, frame):
@@ -284,9 +290,9 @@ class VideoProcessor:
             
             output_file_path = os.path.join(project_dir, clip_filename)
             final_clip.write_videofile(output_file_path, codec='libx264')
-            current_app.logger.info("Video '%s' processed and subtitled successfully as %s!", title, output_video_type)
+            print(f"Video '{title}' processed and subtitled successfully as {output_video_type}!")
             clip_url = url_for('get_clip', base_url=output_folder, user_id=user_id, project_id=project_id, filename=clip_filename, _external=True)
-            current_app.logger.debug("Clip URL: %s", clip_url)
+            print(f"Debug: Clip URL: {clip_url}")
 
         elif s3_client and s3_bucket:
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
@@ -303,11 +309,11 @@ class VideoProcessor:
                                                                         'Key': s3_key},
                                                                         ExpiresIn=3600 * 24)  # URL expires in 1 day
                 except ClientError as e:
-                    current_app.logger.error("Error generating pre-signed URL: %s", e)
+                    print(f"Error generating pre-signed URL: {e}")
                     clip_url = None
 
-                current_app.logger.debug("Pre-signed URL: %s", clip_url)
-                current_app.logger.info("Video '%s' processed, subtitled, and uploaded to S3 successfully as %s!", title, output_video_type)
+                print(f"Debug: Pre-signed URL: {clip_url}")
+                print(f"Video '{title}' processed, subtitled, and uploaded to S3 successfully as {output_video_type}!")
             finally:
                 os.unlink(temp_filename)
         else:
@@ -390,34 +396,46 @@ class VideoProcessor:
                 abs(h1 - h2) > threshold * h1)
 
     def transcribe_audio(self, audio_path):
-        current_app.logger.info("Transcribing audio...")
-        result = self.whisper_model.transcribe(audio_path, word_timestamps=True)
-        segments = result["segments"]
+        print("Transcribing audio...")
+        
+        with open(audio_path, "rb") as file:
+            buffer_data = file.read()
+
+        payload: FileSource = {
+            "buffer": buffer_data,
+        }
+
+        options = PrerecordedOptions(
+            model="nova-2",
+            smart_format=True
+        )
+
+        response = self.deepgram_client.listen.prerecorded.v("1").transcribe_file(payload, options)
+
         word_timings = []
-        transcript = ''
-        for segment in segments:
-            words = segment['words']
-            for word in words:
-                word_timings.append({
-                    'start': word['start'],
-                    'end': word['end'],
-                    'word': word['word'].strip().lower()
-                })
-                transcript += word['word']
+        full_transcript = ''
         
-        transcript = transcript.strip()
+        for word in response.results.channels[0].alternatives[0].words:
+            word_timings.append({
+                'start': word.start,
+                'end': word.end,
+                'word': word.word.strip().lower()
+            })
+            full_transcript += word.word + ' '
+        
+        full_transcript = full_transcript.strip()
         with open("transcript.txt", 'w') as file:
-            file.write(transcript)
+            file.write(full_transcript)
         
-        current_app.logger.info("Audio transcribed successfully!")
-        return transcript, word_timings
+        print("Audio transcribed successfully!")
+        return full_transcript, word_timings
 
 
 if __name__ == "__main__":
     video_path = "./downloads"
 
     # Initialize VideoProcessor
-    processor = VideoProcessor()
+    processor = VideoProcessor(db=None)
 
     # Ensure directories exist
     os.makedirs(video_path, exist_ok=True)
@@ -428,7 +446,7 @@ if __name__ == "__main__":
    
 
     # Download video and extract audio
-    downloaded_video_path, downloaded_audio_path = processor.download_video(youtube_url, video_path, video_quality)
+    downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality)
 
     # Transcribe audio
     transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)

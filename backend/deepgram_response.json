@@ -1,0 +1,1609 @@
+{
+    "metadata": {
+        "transaction_key": "deprecated",
+        "request_id": "f82c286b-85b8-434d-b4c3-d1575f10eb82",
+        "sha256": "d89fcf604fc8fe13410c67822a21c06c8ae9adabbd09be7c15c9cdbe1ffbfa3c",
+        "created": "2024-09-03T07:04:45.522Z",
+        "duration": 104.016,
+        "channels": 1,
+        "models": [
+            "30089e05-99d1-4376-b32e-c263170674af"
+        ],
+        "model_info": {
+            "30089e05-99d1-4376-b32e-c263170674af": {
+                "name": "2-general-nova",
+                "version": "2024-01-09.29447",
+                "arch": "nova-2"
+            }
+        }
+    },
+    "results": {
+        "channels": [
+            {
+                "alternatives": [
+                    {
+                        "transcript": "My name is Siddharth Kullar, go by Sid. I work as a senior director of machine learning r and d d at, Northvolt. The mission for the company is to build the world's greenest battery, using a very sustainable supply chain as well as the whole vertical stack for battery manufacturing including recycling. There's a lot of in, exciting academic work, that's happening in the field. I'm interested in taking it to industrialization scale. So I'm interested in seeing the first material that we put in the battery of the future that is completely designed using AI. I would like to see, the the candidates that we choose from are completely 100% screened in silico using machine learning and using ML AI models. I'm not worried about how many years it takes. I think, there's a lot to do. There's a lot of interesting science problems to be solved. There's a lot of interesting engineering problems that will come after we solve the science problems. And, yeah, the industrialization will be the most exciting piece. Just taking something like this to, producing 1000 of kilometers of material that goes into batteries that eventually goes into cars and all the other things we use that are battery powered is is an exciting prospect.",
+                        "confidence": 0.9960182,
+                        "words": [
+                            {
+                                "word": "my",
+                                "start": 8.4,
+                                "end": 8.559999,
+                                "confidence": 0.83065426,
+                                "punctuated_word": "My"
+                            },
+                            {
+                                "word": "name",
+                                "start": 8.559999,
+                                "end": 8.72,
+                                "confidence": 0.9993844,
+                                "punctuated_word": "name"
+                            },
+                            {
+                                "word": "is",
+                                "start": 8.72,
+                                "end": 9.04,
+                                "confidence": 0.9992986,
+                                "punctuated_word": "is"
+                            },
+                            {
+                                "word": "siddharth",
+                                "start": 9.04,
+                                "end": 9.5199995,
+                                "confidence": 0.81672955,
+                                "punctuated_word": "Siddharth"
+                            },
+                            {
+                                "word": "kullar",
+                                "start": 9.5199995,
+                                "end": 10.0,
+                                "confidence": 0.6510585,
+                                "punctuated_word": "Kullar,"
+                            },
+                            {
+                                "word": "go",
+                                "start": 10.0,
+                                "end": 10.16,
+                                "confidence": 0.58253956,
+                                "punctuated_word": "go"
+                            },
+                            {
+                                "word": "by",
+                                "start": 10.16,
+                                "end": 10.4,
+                                "confidence": 0.99775887,
+                                "punctuated_word": "by"
+                            },
+                            {
+                                "word": "sid",
+                                "start": 10.4,
+                                "end": 10.9,
+                                "confidence": 0.9820287,
+                                "punctuated_word": "Sid."
+                            },
+                            {
+                                "word": "i",
+                                "start": 11.12,
+                                "end": 11.36,
+                                "confidence": 0.99945873,
+                                "punctuated_word": "I"
+                            },
+                            {
+                                "word": "work",
+                                "start": 11.36,
+                                "end": 11.679999,
+                                "confidence": 0.99602085,
+                                "punctuated_word": "work"
+                            },
+                            {
+                                "word": "as",
+                                "start": 11.679999,
+                                "end": 11.92,
+                                "confidence": 0.99985576,
+                                "punctuated_word": "as"
+                            },
+                            {
+                                "word": "a",
+                                "start": 11.92,
+                                "end": 12.08,
+                                "confidence": 0.8619408,
+                                "punctuated_word": "a"
+                            },
+                            {
+                                "word": "senior",
+                                "start": 12.08,
+                                "end": 12.48,
+                                "confidence": 0.8871705,
+                                "punctuated_word": "senior"
+                            },
+                            {
+                                "word": "director",
+                                "start": 12.48,
+                                "end": 12.799999,
+                                "confidence": 0.9912019,
+                                "punctuated_word": "director"
+                            },
+                            {
+                                "word": "of",
+                                "start": 12.799999,
+                                "end": 12.88,
+                                "confidence": 0.60805935,
+                                "punctuated_word": "of"
+                            },
+                            {
+                                "word": "machine",
+                                "start": 12.88,
+                                "end": 13.2,
+                                "confidence": 0.88603735,
+                                "punctuated_word": "machine"
+                            },
+                            {
+                                "word": "learning",
+                                "start": 13.2,
+                                "end": 13.7,
+                                "confidence": 0.8741288,
+                                "punctuated_word": "learning"
+                            },
+                            {
+                                "word": "r",
+                                "start": 13.84,
+                                "end": 14.0,
+                                "confidence": 0.42427742,
+                                "punctuated_word": "r"
+                            },
+                            {
+                                "word": "and",
+                                "start": 14.0,
+                                "end": 14.08,
+                                "confidence": 0.9211836,
+                                "punctuated_word": "and"
+                            },
+                            {
+                                "word": "d",
+                                "start": 14.08,
+                                "end": 14.265,
+                                "confidence": 0.9484896,
+                                "punctuated_word": "d"
+                            },
+                            {
+                                "word": "d",
+                                "start": 14.345,
+                                "end": 14.505,
+                                "confidence": 0.9035757,
+                                "punctuated_word": "d"
+                            },
+                            {
+                                "word": "at",
+                                "start": 14.505,
+                                "end": 14.745,
+                                "confidence": 0.8646394,
+                                "punctuated_word": "at,"
+                            },
+                            {
+                                "word": "northvolt",
+                                "start": 15.145,
+                                "end": 15.645,
+                                "confidence": 0.9292807,
+                                "punctuated_word": "Northvolt."
+                            },
+                            {
+                                "word": "the",
+                                "start": 16.265,
+                                "end": 16.505001,
+                                "confidence": 0.9901495,
+                                "punctuated_word": "The"
+                            },
+                            {
+                                "word": "mission",
+                                "start": 16.505001,
+                                "end": 16.825,
+                                "confidence": 0.9988955,
+                                "punctuated_word": "mission"
+                            },
+                            {
+                                "word": "for",
+                                "start": 16.825,
+                                "end": 16.985,
+                                "confidence": 0.99824405,
+                                "punctuated_word": "for"
+                            },
+                            {
+                                "word": "the",
+                                "start": 16.985,
+                                "end": 17.145,
+                                "confidence": 0.99960583,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "company",
+                                "start": 17.145,
+                                "end": 17.465,
+                                "confidence": 0.98695314,
+                                "punctuated_word": "company"
+                            },
+                            {
+                                "word": "is",
+                                "start": 17.465,
+                                "end": 17.625,
+                                "confidence": 0.9816413,
+                                "punctuated_word": "is"
+                            },
+                            {
+                                "word": "to",
+                                "start": 17.625,
+                                "end": 17.785,
+                                "confidence": 0.99963534,
+                                "punctuated_word": "to"
+                            },
+                            {
+                                "word": "build",
+                                "start": 17.785,
+                                "end": 18.025,
+                                "confidence": 0.9984836,
+                                "punctuated_word": "build"
+                            },
+                            {
+                                "word": "the",
+                                "start": 18.025,
+                                "end": 18.185,
+                                "confidence": 0.9950151,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "world's",
+                                "start": 18.185,
+                                "end": 18.585,
+                                "confidence": 0.9960182,
+                                "punctuated_word": "world's"
+                            },
+                            {
+                                "word": "greenest",
+                                "start": 18.585,
+                                "end": 19.065,
+                                "confidence": 0.9986893,
+                                "punctuated_word": "greenest"
+                            },
+                            {
+                                "word": "battery",
+                                "start": 19.065,
+                                "end": 19.565,
+                                "confidence": 0.9500867,
+                                "punctuated_word": "battery,"
+                            },
+                            {
+                                "word": "using",
+                                "start": 20.425,
+                                "end": 20.825,
+                                "confidence": 0.9995566,
+                                "punctuated_word": "using"
+                            },
+                            {
+                                "word": "a",
+                                "start": 20.825,
+                                "end": 20.985,
+                                "confidence": 0.9989028,
+                                "punctuated_word": "a"
+                            },
+                            {
+                                "word": "very",
+                                "start": 20.985,
+                                "end": 21.465,
+                                "confidence": 0.9997123,
+                                "punctuated_word": "very"
+                            },
+                            {
+                                "word": "sustainable",
+                                "start": 21.465,
+                                "end": 21.965,
+                                "confidence": 0.9996679,
+                                "punctuated_word": "sustainable"
+                            },
+                            {
+                                "word": "supply",
+                                "start": 22.425,
+                                "end": 22.825,
+                                "confidence": 0.99949,
+                                "punctuated_word": "supply"
+                            },
+                            {
+                                "word": "chain",
+                                "start": 22.825,
+                                "end": 23.145,
+                                "confidence": 0.99923885,
+                                "punctuated_word": "chain"
+                            },
+                            {
+                                "word": "as",
+                                "start": 23.145,
+                                "end": 23.465,
+                                "confidence": 0.75766826,
+                                "punctuated_word": "as"
+                            },
+                            {
+                                "word": "well",
+                                "start": 23.465,
+                                "end": 23.965,
+                                "confidence": 0.9997445,
+                                "punctuated_word": "well"
+                            },
+                            {
+                                "word": "as",
+                                "start": 24.505001,
+                                "end": 24.665,
+                                "confidence": 0.9972083,
+                                "punctuated_word": "as"
+                            },
+                            {
+                                "word": "the",
+                                "start": 24.665,
+                                "end": 24.825,
+                                "confidence": 0.9634782,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "whole",
+                                "start": 24.825,
+                                "end": 24.985,
+                                "confidence": 0.98719984,
+                                "punctuated_word": "whole"
+                            },
+                            {
+                                "word": "vertical",
+                                "start": 24.985,
+                                "end": 25.485,
+                                "confidence": 0.99662787,
+                                "punctuated_word": "vertical"
+                            },
+                            {
+                                "word": "stack",
+                                "start": 25.545,
+                                "end": 25.945,
+                                "confidence": 0.9902773,
+                                "punctuated_word": "stack"
+                            },
+                            {
+                                "word": "for",
+                                "start": 25.945,
+                                "end": 26.185001,
+                                "confidence": 0.9992607,
+                                "punctuated_word": "for"
+                            },
+                            {
+                                "word": "battery",
+                                "start": 26.185001,
+                                "end": 26.585,
+                                "confidence": 0.98796135,
+                                "punctuated_word": "battery"
+                            },
+                            {
+                                "word": "manufacturing",
+                                "start": 26.585,
+                                "end": 27.085,
+                                "confidence": 0.9958477,
+                                "punctuated_word": "manufacturing"
+                            },
+                            {
+                                "word": "including",
+                                "start": 27.225,
+                                "end": 27.725,
+                                "confidence": 0.6092143,
+                                "punctuated_word": "including"
+                            },
+                            {
+                                "word": "recycling",
+                                "start": 27.785,
+                                "end": 28.285,
+                                "confidence": 0.99606323,
+                                "punctuated_word": "recycling."
+                            },
+                            {
+                                "word": "there's",
+                                "start": 28.505001,
+                                "end": 28.825,
+                                "confidence": 0.99335396,
+                                "punctuated_word": "There's"
+                            },
+                            {
+                                "word": "a",
+                                "start": 28.825,
+                                "end": 28.904999,
+                                "confidence": 0.99926037,
+                                "punctuated_word": "a"
+                            },
+                            {
+                                "word": "lot",
+                                "start": 28.904999,
+                                "end": 29.064999,
+                                "confidence": 0.99958485,
+                                "punctuated_word": "lot"
+                            },
+                            {
+                                "word": "of",
+                                "start": 29.064999,
+                                "end": 29.4,
+                                "confidence": 0.99699235,
+                                "punctuated_word": "of"
+                            },
+                            {
+                                "word": "in",
+                                "start": 29.4,
+                                "end": 29.8,
+                                "confidence": 0.90060735,
+                                "punctuated_word": "in,"
+                            },
+                            {
+                                "word": "exciting",
+                                "start": 29.96,
+                                "end": 30.46,
+                                "confidence": 0.9998103,
+                                "punctuated_word": "exciting"
+                            },
+                            {
+                                "word": "academic",
+                                "start": 30.76,
+                                "end": 31.26,
+                                "confidence": 0.99812,
+                                "punctuated_word": "academic"
+                            },
+                            {
+                                "word": "work",
+                                "start": 31.32,
+                                "end": 31.82,
+                                "confidence": 0.9900063,
+                                "punctuated_word": "work,"
+                            },
+                            {
+                                "word": "that's",
+                                "start": 32.28,
+                                "end": 32.6,
+                                "confidence": 0.9998133,
+                                "punctuated_word": "that's"
+                            },
+                            {
+                                "word": "happening",
+                                "start": 32.6,
+                                "end": 32.92,
+                                "confidence": 0.9999292,
+                                "punctuated_word": "happening"
+                            },
+                            {
+                                "word": "in",
+                                "start": 32.92,
+                                "end": 33.0,
+                                "confidence": 0.99950886,
+                                "punctuated_word": "in"
+                            },
+                            {
+                                "word": "the",
+                                "start": 33.0,
+                                "end": 33.16,
+                                "confidence": 0.999546,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "field",
+                                "start": 33.16,
+                                "end": 33.48,
+                                "confidence": 0.99910116,
+                                "punctuated_word": "field."
+                            },
+                            {
+                                "word": "i'm",
+                                "start": 33.48,
+                                "end": 33.64,
+                                "confidence": 0.92770046,
+                                "punctuated_word": "I'm"
+                            },
+                            {
+                                "word": "interested",
+                                "start": 33.64,
+                                "end": 34.12,
+                                "confidence": 0.99965453,
+                                "punctuated_word": "interested"
+                            },
+                            {
+                                "word": "in",
+                                "start": 34.12,
+                                "end": 34.44,
+                                "confidence": 0.9995302,
+                                "punctuated_word": "in"
+                            },
+                            {
+                                "word": "taking",
+                                "start": 34.44,
+                                "end": 34.76,
+                                "confidence": 0.9958116,
+                                "punctuated_word": "taking"
+                            },
+                            {
+                                "word": "it",
+                                "start": 34.76,
+                                "end": 35.0,
+                                "confidence": 0.99757487,
+                                "punctuated_word": "it"
+                            },
+                            {
+                                "word": "to",
+                                "start": 35.0,
+                                "end": 35.48,
+                                "confidence": 0.99849916,
+                                "punctuated_word": "to"
+                            },
+                            {
+                                "word": "industrialization",
+                                "start": 35.48,
+                                "end": 35.98,
+                                "confidence": 0.99214125,
+                                "punctuated_word": "industrialization"
+                            },
+                            {
+                                "word": "scale",
+                                "start": 36.52,
+                                "end": 37.02,
+                                "confidence": 0.95244557,
+                                "punctuated_word": "scale."
+                            },
+                            {
+                                "word": "so",
+                                "start": 37.239998,
+                                "end": 37.739998,
+                                "confidence": 0.9986279,
+                                "punctuated_word": "So"
+                            },
+                            {
+                                "word": "i'm",
+                                "start": 37.96,
+                                "end": 38.28,
+                                "confidence": 0.9912022,
+                                "punctuated_word": "I'm"
+                            },
+                            {
+                                "word": "interested",
+                                "start": 38.28,
+                                "end": 38.76,
+                                "confidence": 0.99987876,
+                                "punctuated_word": "interested"
+                            },
+                            {
+                                "word": "in",
+                                "start": 38.76,
+                                "end": 38.92,
+                                "confidence": 0.99976546,
+                                "punctuated_word": "in"
+                            },
+                            {
+                                "word": "seeing",
+                                "start": 38.92,
+                                "end": 39.42,
+                                "confidence": 0.9998789,
+                                "punctuated_word": "seeing"
+                            },
+                            {
+                                "word": "the",
+                                "start": 39.559998,
+                                "end": 39.879997,
+                                "confidence": 0.9994789,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "first",
+                                "start": 39.879997,
+                                "end": 40.36,
+                                "confidence": 0.8134951,
+                                "punctuated_word": "first"
+                            },
+                            {
+                                "word": "material",
+                                "start": 40.36,
+                                "end": 40.86,
+                                "confidence": 0.999706,
+                                "punctuated_word": "material"
+                            },
+                            {
+                                "word": "that",
+                                "start": 41.64,
+                                "end": 41.879997,
+                                "confidence": 0.999443,
+                                "punctuated_word": "that"
+                            },
+                            {
+                                "word": "we",
+                                "start": 41.879997,
+                                "end": 42.12,
+                                "confidence": 0.9981865,
+                                "punctuated_word": "we"
+                            },
+                            {
+                                "word": "put",
+                                "start": 42.12,
+                                "end": 42.495,
+                                "confidence": 0.9978313,
+                                "punctuated_word": "put"
+                            },
+                            {
+                                "word": "in",
+                                "start": 43.295,
+                                "end": 43.454998,
+                                "confidence": 0.99965465,
+                                "punctuated_word": "in"
+                            },
+                            {
+                                "word": "the",
+                                "start": 43.454998,
+                                "end": 43.695,
+                                "confidence": 0.99927205,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "battery",
+                                "start": 43.695,
+                                "end": 44.094997,
+                                "confidence": 0.99452907,
+                                "punctuated_word": "battery"
+                            },
+                            {
+                                "word": "of",
+                                "start": 44.094997,
+                                "end": 44.335,
+                                "confidence": 0.9998417,
+                                "punctuated_word": "of"
+                            },
+                            {
+                                "word": "the",
+                                "start": 44.335,
+                                "end": 44.414997,
+                                "confidence": 0.9989256,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "future",
+                                "start": 44.414997,
+                                "end": 44.815,
+                                "confidence": 0.99794286,
+                                "punctuated_word": "future"
+                            },
+                            {
+                                "word": "that",
+                                "start": 44.815,
+                                "end": 45.055,
+                                "confidence": 0.97879285,
+                                "punctuated_word": "that"
+                            },
+                            {
+                                "word": "is",
+                                "start": 45.055,
+                                "end": 45.375,
+                                "confidence": 0.99733645,
+                                "punctuated_word": "is"
+                            },
+                            {
+                                "word": "completely",
+                                "start": 45.375,
+                                "end": 45.875,
+                                "confidence": 0.99952066,
+                                "punctuated_word": "completely"
+                            },
+                            {
+                                "word": "designed",
+                                "start": 46.175,
+                                "end": 46.675,
+                                "confidence": 0.99788386,
+                                "punctuated_word": "designed"
+                            },
+                            {
+                                "word": "using",
+                                "start": 46.815,
+                                "end": 47.215,
+                                "confidence": 0.9991585,
+                                "punctuated_word": "using"
+                            },
+                            {
+                                "word": "ai",
+                                "start": 47.215,
+                                "end": 47.715,
+                                "confidence": 0.9984374,
+                                "punctuated_word": "AI."
+                            },
+                            {
+                                "word": "i",
+                                "start": 48.015,
+                                "end": 48.175,
+                                "confidence": 0.9995097,
+                                "punctuated_word": "I"
+                            },
+                            {
+                                "word": "would",
+                                "start": 48.175,
+                                "end": 48.415,
+                                "confidence": 0.9998975,
+                                "punctuated_word": "would"
+                            },
+                            {
+                                "word": "like",
+                                "start": 48.415,
+                                "end": 48.574997,
+                                "confidence": 0.9998165,
+                                "punctuated_word": "like"
+                            },
+                            {
+                                "word": "to",
+                                "start": 48.574997,
+                                "end": 48.735,
+                                "confidence": 0.9997527,
+                                "punctuated_word": "to"
+                            },
+                            {
+                                "word": "see",
+                                "start": 48.735,
+                                "end": 49.135,
+                                "confidence": 0.94241256,
+                                "punctuated_word": "see,"
+                            },
+                            {
+                                "word": "the",
+                                "start": 49.535,
+                                "end": 49.934998,
+                                "confidence": 0.99806947,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "the",
+                                "start": 49.934998,
+                                "end": 50.254997,
+                                "confidence": 0.97639537,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "candidates",
+                                "start": 50.254997,
+                                "end": 50.754997,
+                                "confidence": 0.99869955,
+                                "punctuated_word": "candidates"
+                            },
+                            {
+                                "word": "that",
+                                "start": 50.975,
+                                "end": 51.215,
+                                "confidence": 0.99934584,
+                                "punctuated_word": "that"
+                            },
+                            {
+                                "word": "we",
+                                "start": 51.215,
+                                "end": 51.375,
+                                "confidence": 0.99810326,
+                                "punctuated_word": "we"
+                            },
+                            {
+                                "word": "choose",
+                                "start": 51.375,
+                                "end": 51.695,
+                                "confidence": 0.9958646,
+                                "punctuated_word": "choose"
+                            },
+                            {
+                                "word": "from",
+                                "start": 51.695,
+                                "end": 52.175,
+                                "confidence": 0.9997315,
+                                "punctuated_word": "from"
+                            },
+                            {
+                                "word": "are",
+                                "start": 52.175,
+                                "end": 52.495,
+                                "confidence": 0.9902019,
+                                "punctuated_word": "are"
+                            },
+                            {
+                                "word": "completely",
+                                "start": 52.495,
+                                "end": 52.995,
+                                "confidence": 0.99823254,
+                                "punctuated_word": "completely"
+                            },
+                            {
+                                "word": "100%",
+                                "start": 53.295,
+                                "end": 53.795,
+                                "confidence": 0.8556822,
+                                "punctuated_word": "100%"
+                            },
+                            {
+                                "word": "screened",
+                                "start": 53.934998,
+                                "end": 54.335,
+                                "confidence": 0.98118925,
+                                "punctuated_word": "screened"
+                            },
+                            {
+                                "word": "in",
+                                "start": 54.335,
+                                "end": 54.495,
+                                "confidence": 0.96951956,
+                                "punctuated_word": "in"
+                            },
+                            {
+                                "word": "silico",
+                                "start": 54.495,
+                                "end": 54.995,
+                                "confidence": 0.914747,
+                                "punctuated_word": "silico"
+                            },
+                            {
+                                "word": "using",
+                                "start": 55.454998,
+                                "end": 55.774998,
+                                "confidence": 0.93453526,
+                                "punctuated_word": "using"
+                            },
+                            {
+                                "word": "machine",
+                                "start": 55.774998,
+                                "end": 56.19,
+                                "confidence": 0.9632856,
+                                "punctuated_word": "machine"
+                            },
+                            {
+                                "word": "learning",
+                                "start": 56.19,
+                                "end": 56.59,
+                                "confidence": 0.9655394,
+                                "punctuated_word": "learning"
+                            },
+                            {
+                                "word": "and",
+                                "start": 56.59,
+                                "end": 56.989998,
+                                "confidence": 0.99121606,
+                                "punctuated_word": "and"
+                            },
+                            {
+                                "word": "using",
+                                "start": 56.989998,
+                                "end": 57.39,
+                                "confidence": 0.9975896,
+                                "punctuated_word": "using"
+                            },
+                            {
+                                "word": "ml",
+                                "start": 57.39,
+                                "end": 57.71,
+                                "confidence": 0.72878784,
+                                "punctuated_word": "ML"
+                            },
+                            {
+                                "word": "ai",
+                                "start": 57.71,
+                                "end": 58.109997,
+                                "confidence": 0.68111545,
+                                "punctuated_word": "AI"
+                            },
+                            {
+                                "word": "models",
+                                "start": 58.109997,
+                                "end": 58.609997,
+                                "confidence": 0.9697018,
+                                "punctuated_word": "models."
+                            },
+                            {
+                                "word": "i'm",
+                                "start": 58.829998,
+                                "end": 59.07,
+                                "confidence": 0.76890314,
+                                "punctuated_word": "I'm"
+                            },
+                            {
+                                "word": "not",
+                                "start": 59.07,
+                                "end": 59.23,
+                                "confidence": 0.9995759,
+                                "punctuated_word": "not"
+                            },
+                            {
+                                "word": "worried",
+                                "start": 59.23,
+                                "end": 59.469997,
+                                "confidence": 0.9980458,
+                                "punctuated_word": "worried"
+                            },
+                            {
+                                "word": "about",
+                                "start": 59.469997,
+                                "end": 59.71,
+                                "confidence": 0.99804366,
+                                "punctuated_word": "about"
+                            },
+                            {
+                                "word": "how",
+                                "start": 59.71,
+                                "end": 59.87,
+                                "confidence": 0.9994506,
+                                "punctuated_word": "how"
+                            },
+                            {
+                                "word": "many",
+                                "start": 59.87,
+                                "end": 60.03,
+                                "confidence": 0.9996105,
+                                "punctuated_word": "many"
+                            },
+                            {
+                                "word": "years",
+                                "start": 60.03,
+                                "end": 60.35,
+                                "confidence": 0.999295,
+                                "punctuated_word": "years"
+                            },
+                            {
+                                "word": "it",
+                                "start": 60.35,
+                                "end": 60.43,
+                                "confidence": 0.9985794,
+                                "punctuated_word": "it"
+                            },
+                            {
+                                "word": "takes",
+                                "start": 60.43,
+                                "end": 60.67,
+                                "confidence": 0.9706309,
+                                "punctuated_word": "takes."
+                            },
+                            {
+                                "word": "i",
+                                "start": 60.67,
+                                "end": 60.829998,
+                                "confidence": 0.99950767,
+                                "punctuated_word": "I"
+                            },
+                            {
+                                "word": "think",
+                                "start": 60.829998,
+                                "end": 61.07,
+                                "confidence": 0.93135536,
+                                "punctuated_word": "think,"
+                            },
+                            {
+                                "word": "there's",
+                                "start": 61.629997,
+                                "end": 62.03,
+                                "confidence": 0.99463135,
+                                "punctuated_word": "there's"
+                            },
+                            {
+                                "word": "a",
+                                "start": 62.03,
+                                "end": 62.19,
+                                "confidence": 0.99759597,
+                                "punctuated_word": "a"
+                            },
+                            {
+                                "word": "lot",
+                                "start": 62.19,
+                                "end": 62.35,
+                                "confidence": 0.9988776,
+                                "punctuated_word": "lot"
+                            },
+                            {
+                                "word": "to",
+                                "start": 62.35,
+                                "end": 62.51,
+                                "confidence": 0.99914956,
+                                "punctuated_word": "to"
+                            },
+                            {
+                                "word": "do",
+                                "start": 62.51,
+                                "end": 63.01,
+                                "confidence": 0.9917675,
+                                "punctuated_word": "do."
+                            },
+                            {
+                                "word": "there's",
+                                "start": 63.39,
+                                "end": 63.629997,
+                                "confidence": 0.997193,
+                                "punctuated_word": "There's"
+                            },
+                            {
+                                "word": "a",
+                                "start": 63.629997,
+                                "end": 63.789997,
+                                "confidence": 0.99318767,
+                                "punctuated_word": "a"
+                            },
+                            {
+                                "word": "lot",
+                                "start": 63.789997,
+                                "end": 64.28999,
+                                "confidence": 0.9984989,
+                                "punctuated_word": "lot"
+                            },
+                            {
+                                "word": "of",
+                                "start": 65.63,
+                                "end": 65.79,
+                                "confidence": 0.9960776,
+                                "punctuated_word": "of"
+                            },
+                            {
+                                "word": "interesting",
+                                "start": 65.79,
+                                "end": 66.29,
+                                "confidence": 0.5907758,
+                                "punctuated_word": "interesting"
+                            },
+                            {
+                                "word": "science",
+                                "start": 66.35,
+                                "end": 66.83,
+                                "confidence": 0.9051414,
+                                "punctuated_word": "science"
+                            },
+                            {
+                                "word": "problems",
+                                "start": 66.83,
+                                "end": 67.31,
+                                "confidence": 0.9969721,
+                                "punctuated_word": "problems"
+                            },
+                            {
+                                "word": "to",
+                                "start": 67.31,
+                                "end": 67.47,
+                                "confidence": 0.9957527,
+                                "punctuated_word": "to"
+                            },
+                            {
+                                "word": "be",
+                                "start": 67.47,
+                                "end": 67.63,
+                                "confidence": 0.9960849,
+                                "punctuated_word": "be"
+                            },
+                            {
+                                "word": "solved",
+                                "start": 67.63,
+                                "end": 68.13,
+                                "confidence": 0.9621874,
+                                "punctuated_word": "solved."
+                            },
+                            {
+                                "word": "there's",
+                                "start": 68.83,
+                                "end": 69.15,
+                                "confidence": 0.9755944,
+                                "punctuated_word": "There's"
+                            },
+                            {
+                                "word": "a",
+                                "start": 69.15,
+                                "end": 69.375,
+                                "confidence": 0.6549277,
+                                "punctuated_word": "a"
+                            },
+                            {
+                                "word": "lot",
+                                "start": 69.455,
+                                "end": 69.495,
+                                "confidence": 0.91720223,
+                                "punctuated_word": "lot"
+                            },
+                            {
+                                "word": "of",
+                                "start": 69.495,
+                                "end": 69.535,
+                                "confidence": 0.9858375,
+                                "punctuated_word": "of"
+                            },
+                            {
+                                "word": "interesting",
+                                "start": 69.535,
+                                "end": 70.035,
+                                "confidence": 0.99773264,
+                                "punctuated_word": "interesting"
+                            },
+                            {
+                                "word": "engineering",
+                                "start": 70.495,
+                                "end": 70.995,
+                                "confidence": 0.98701036,
+                                "punctuated_word": "engineering"
+                            },
+                            {
+                                "word": "problems",
+                                "start": 71.375,
+                                "end": 71.875,
+                                "confidence": 0.9993243,
+                                "punctuated_word": "problems"
+                            },
+                            {
+                                "word": "that",
+                                "start": 72.175,
+                                "end": 72.415,
+                                "confidence": 0.9989924,
+                                "punctuated_word": "that"
+                            },
+                            {
+                                "word": "will",
+                                "start": 72.415,
+                                "end": 72.575,
+                                "confidence": 0.99736494,
+                                "punctuated_word": "will"
+                            },
+                            {
+                                "word": "come",
+                                "start": 72.575,
+                                "end": 72.735,
+                                "confidence": 0.9997489,
+                                "punctuated_word": "come"
+                            },
+                            {
+                                "word": "after",
+                                "start": 72.735,
+                                "end": 73.135,
+                                "confidence": 0.9989453,
+                                "punctuated_word": "after"
+                            },
+                            {
+                                "word": "we",
+                                "start": 73.135,
+                                "end": 73.375,
+                                "confidence": 0.99593014,
+                                "punctuated_word": "we"
+                            },
+                            {
+                                "word": "solve",
+                                "start": 73.375,
+                                "end": 73.535,
+                                "confidence": 0.9925885,
+                                "punctuated_word": "solve"
+                            },
+                            {
+                                "word": "the",
+                                "start": 73.535,
+                                "end": 73.695,
+                                "confidence": 0.9933164,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "science",
+                                "start": 73.695,
+                                "end": 74.015,
+                                "confidence": 0.9372322,
+                                "punctuated_word": "science"
+                            },
+                            {
+                                "word": "problems",
+                                "start": 74.015,
+                                "end": 74.515,
+                                "confidence": 0.9345348,
+                                "punctuated_word": "problems."
+                            },
+                            {
+                                "word": "and",
+                                "start": 75.215,
+                                "end": 75.535,
+                                "confidence": 0.98936176,
+                                "punctuated_word": "And,"
+                            },
+                            {
+                                "word": "yeah",
+                                "start": 75.695,
+                                "end": 76.015,
+                                "confidence": 0.51033103,
+                                "punctuated_word": "yeah,"
+                            },
+                            {
+                                "word": "the",
+                                "start": 76.015,
+                                "end": 76.255,
+                                "confidence": 0.9928469,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "industrialization",
+                                "start": 76.255,
+                                "end": 76.755,
+                                "confidence": 0.9918052,
+                                "punctuated_word": "industrialization"
+                            },
+                            {
+                                "word": "will",
+                                "start": 77.375,
+                                "end": 77.535,
+                                "confidence": 0.99289715,
+                                "punctuated_word": "will"
+                            },
+                            {
+                                "word": "be",
+                                "start": 77.535,
+                                "end": 78.015,
+                                "confidence": 0.9964927,
+                                "punctuated_word": "be"
+                            },
+                            {
+                                "word": "the",
+                                "start": 78.015,
+                                "end": 78.175,
+                                "confidence": 0.9940089,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "most",
+                                "start": 78.175,
+                                "end": 78.675,
+                                "confidence": 0.99463636,
+                                "punctuated_word": "most"
+                            },
+                            {
+                                "word": "exciting",
+                                "start": 78.895,
+                                "end": 79.295,
+                                "confidence": 0.8079932,
+                                "punctuated_word": "exciting"
+                            },
+                            {
+                                "word": "piece",
+                                "start": 79.295,
+                                "end": 79.775,
+                                "confidence": 0.95854986,
+                                "punctuated_word": "piece."
+                            },
+                            {
+                                "word": "just",
+                                "start": 79.775,
+                                "end": 80.275,
+                                "confidence": 0.99218,
+                                "punctuated_word": "Just"
+                            },
+                            {
+                                "word": "taking",
+                                "start": 80.335,
+                                "end": 80.735,
+                                "confidence": 0.98947877,
+                                "punctuated_word": "taking"
+                            },
+                            {
+                                "word": "something",
+                                "start": 80.735,
+                                "end": 81.135,
+                                "confidence": 0.98036516,
+                                "punctuated_word": "something"
+                            },
+                            {
+                                "word": "like",
+                                "start": 81.135,
+                                "end": 81.295,
+                                "confidence": 0.95611984,
+                                "punctuated_word": "like"
+                            },
+                            {
+                                "word": "this",
+                                "start": 81.295,
+                                "end": 81.695,
+                                "confidence": 0.9470224,
+                                "punctuated_word": "this"
+                            },
+                            {
+                                "word": "to",
+                                "start": 81.695,
+                                "end": 82.195,
+                                "confidence": 0.91576195,
+                                "punctuated_word": "to,"
+                            },
+                            {
+                                "word": "producing",
+                                "start": 83.535,
+                                "end": 84.035,
+                                "confidence": 0.96792775,
+                                "punctuated_word": "producing"
+                            },
+                            {
+                                "word": "1000",
+                                "start": 85.060005,
+                                "end": 85.14,
+                                "confidence": 0.4027346,
+                                "punctuated_word": "1000"
+                            },
+                            {
+                                "word": "of",
+                                "start": 85.14,
+                                "end": 85.3,
+                                "confidence": 0.89246863,
+                                "punctuated_word": "of"
+                            },
+                            {
+                                "word": "kilometers",
+                                "start": 85.3,
+                                "end": 85.8,
+                                "confidence": 0.99385875,
+                                "punctuated_word": "kilometers"
+                            },
+                            {
+                                "word": "of",
+                                "start": 85.86,
+                                "end": 86.1,
+                                "confidence": 0.99880624,
+                                "punctuated_word": "of"
+                            },
+                            {
+                                "word": "material",
+                                "start": 86.1,
+                                "end": 86.6,
+                                "confidence": 0.9505394,
+                                "punctuated_word": "material"
+                            },
+                            {
+                                "word": "that",
+                                "start": 87.22,
+                                "end": 87.46,
+                                "confidence": 0.97983164,
+                                "punctuated_word": "that"
+                            },
+                            {
+                                "word": "goes",
+                                "start": 87.46,
+                                "end": 87.700005,
+                                "confidence": 0.99922407,
+                                "punctuated_word": "goes"
+                            },
+                            {
+                                "word": "into",
+                                "start": 87.700005,
+                                "end": 87.94,
+                                "confidence": 0.99309057,
+                                "punctuated_word": "into"
+                            },
+                            {
+                                "word": "batteries",
+                                "start": 87.94,
+                                "end": 88.340004,
+                                "confidence": 0.99898654,
+                                "punctuated_word": "batteries"
+                            },
+                            {
+                                "word": "that",
+                                "start": 88.340004,
+                                "end": 88.58,
+                                "confidence": 0.6634405,
+                                "punctuated_word": "that"
+                            },
+                            {
+                                "word": "eventually",
+                                "start": 88.58,
+                                "end": 89.06,
+                                "confidence": 0.9991202,
+                                "punctuated_word": "eventually"
+                            },
+                            {
+                                "word": "goes",
+                                "start": 89.06,
+                                "end": 89.3,
+                                "confidence": 0.99442226,
+                                "punctuated_word": "goes"
+                            },
+                            {
+                                "word": "into",
+                                "start": 89.3,
+                                "end": 89.62,
+                                "confidence": 0.9951918,
+                                "punctuated_word": "into"
+                            },
+                            {
+                                "word": "cars",
+                                "start": 89.62,
+                                "end": 90.020004,
+                                "confidence": 0.9996897,
+                                "punctuated_word": "cars"
+                            },
+                            {
+                                "word": "and",
+                                "start": 90.020004,
+                                "end": 90.520004,
+                                "confidence": 0.96186185,
+                                "punctuated_word": "and"
+                            },
+                            {
+                                "word": "all",
+                                "start": 90.58,
+                                "end": 90.82,
+                                "confidence": 0.9992894,
+                                "punctuated_word": "all"
+                            },
+                            {
+                                "word": "the",
+                                "start": 90.82,
+                                "end": 90.9,
+                                "confidence": 0.9981376,
+                                "punctuated_word": "the"
+                            },
+                            {
+                                "word": "other",
+                                "start": 90.9,
+                                "end": 91.4,
+                                "confidence": 0.99984694,
+                                "punctuated_word": "other"
+                            },
+                            {
+                                "word": "things",
+                                "start": 91.700005,
+                                "end": 92.020004,
+                                "confidence": 0.99961,
+                                "punctuated_word": "things"
+                            },
+                            {
+                                "word": "we",
+                                "start": 92.020004,
+                                "end": 92.18,
+                                "confidence": 0.9932782,
+                                "punctuated_word": "we"
+                            },
+                            {
+                                "word": "use",
+                                "start": 92.18,
+                                "end": 92.42,
+                                "confidence": 0.99588,
+                                "punctuated_word": "use"
+                            },
+                            {
+                                "word": "that",
+                                "start": 92.42,
+                                "end": 92.58,
+                                "confidence": 0.9990006,
+                                "punctuated_word": "that"
+                            },
+                            {
+                                "word": "are",
+                                "start": 92.58,
+                                "end": 92.74,
+                                "confidence": 0.97480994,
+                                "punctuated_word": "are"
+                            },
+                            {
+                                "word": "battery",
+                                "start": 92.74,
+                                "end": 92.98,
+                                "confidence": 0.99914956,
+                                "punctuated_word": "battery"
+                            },
+                            {
+                                "word": "powered",
+                                "start": 92.98,
+                                "end": 93.35094,
+                                "confidence": 0.5410008,
+                                "punctuated_word": "powered"
+                            },
+                            {
+                                "word": "is",
+                                "start": 94.230934,
+                                "end": 94.310936,
+                                "confidence": 0.9315159,
+                                "punctuated_word": "is"
+                            },
+                            {
+                                "word": "is",
+                                "start": 94.310936,
+                                "end": 94.550934,
+                                "confidence": 0.94883,
+                                "punctuated_word": "is"
+                            },
+                            {
+                                "word": "an",
+                                "start": 94.550934,
+                                "end": 94.71094,
+                                "confidence": 0.9972459,
+                                "punctuated_word": "an"
+                            },
+                            {
+                                "word": "exciting",
+                                "start": 94.71094,
+                                "end": 95.21094,
+                                "confidence": 0.9999392,
+                                "punctuated_word": "exciting"
+                            },
+                            {
+                                "word": "prospect",
+                                "start": 95.590935,
+                                "end": 96.090935,
+                                "confidence": 0.9985291,
+                                "punctuated_word": "prospect."
+                            }
+                        ],
+                        "paragraphs": {
+                            "transcript": "\nMy name is Siddharth Kullar, go by Sid. I work as a senior director of machine learning r and d d at, Northvolt. The mission for the company is to build the world's greenest battery, using a very sustainable supply chain as well as the whole vertical stack for battery manufacturing including recycling. There's a lot of in, exciting academic work, that's happening in the field. I'm interested in taking it to industrialization scale.\n\nSo I'm interested in seeing the first material that we put in the battery of the future that is completely designed using AI. I would like to see, the the candidates that we choose from are completely 100% screened in silico using machine learning and using ML AI models. I'm not worried about how many years it takes. I think, there's a lot to do. There's a lot of interesting science problems to be solved.\n\nThere's a lot of interesting engineering problems that will come after we solve the science problems. And, yeah, the industrialization will be the most exciting piece. Just taking something like this to, producing 1000 of kilometers of material that goes into batteries that eventually goes into cars and all the other things we use that are battery powered is is an exciting prospect.",
+                            "paragraphs": [
+                                {
+                                    "sentences": [
+                                        {
+                                            "text": "My name is Siddharth Kullar, go by Sid.",
+                                            "start": 8.4,
+                                            "end": 10.9
+                                        },
+                                        {
+                                            "text": "I work as a senior director of machine learning r and d d at, Northvolt.",
+                                            "start": 11.12,
+                                            "end": 15.645
+                                        },
+                                        {
+                                            "text": "The mission for the company is to build the world's greenest battery, using a very sustainable supply chain as well as the whole vertical stack for battery manufacturing including recycling.",
+                                            "start": 16.265,
+                                            "end": 28.285
+                                        },
+                                        {
+                                            "text": "There's a lot of in, exciting academic work, that's happening in the field.",
+                                            "start": 28.505001,
+                                            "end": 33.48
+                                        },
+                                        {
+                                            "text": "I'm interested in taking it to industrialization scale.",
+                                            "start": 33.48,
+                                            "end": 37.02
+                                        }
+                                    ],
+                                    "start": 8.4,
+                                    "end": 37.02,
+                                    "num_words": 74
+                                },
+                                {
+                                    "sentences": [
+                                        {
+                                            "text": "So I'm interested in seeing the first material that we put in the battery of the future that is completely designed using AI.",
+                                            "start": 37.239998,
+                                            "end": 47.715
+                                        },
+                                        {
+                                            "text": "I would like to see, the the candidates that we choose from are completely 100% screened in silico using machine learning and using ML AI models.",
+                                            "start": 48.015,
+                                            "end": 58.609997
+                                        },
+                                        {
+                                            "text": "I'm not worried about how many years it takes.",
+                                            "start": 58.829998,
+                                            "end": 60.67
+                                        },
+                                        {
+                                            "text": "I think, there's a lot to do.",
+                                            "start": 60.67,
+                                            "end": 63.01
+                                        },
+                                        {
+                                            "text": "There's a lot of interesting science problems to be solved.",
+                                            "start": 63.39,
+                                            "end": 68.13
+                                        }
+                                    ],
+                                    "start": 37.239998,
+                                    "end": 68.13,
+                                    "num_words": 75
+                                },
+                                {
+                                    "sentences": [
+                                        {
+                                            "text": "There's a lot of interesting engineering problems that will come after we solve the science problems.",
+                                            "start": 68.83,
+                                            "end": 74.515
+                                        },
+                                        {
+                                            "text": "And, yeah, the industrialization will be the most exciting piece.",
+                                            "start": 75.215,
+                                            "end": 79.775
+                                        },
+                                        {
+                                            "text": "Just taking something like this to, producing 1000 of kilometers of material that goes into batteries that eventually goes into cars and all the other things we use that are battery powered is is an exciting prospect.",
+                                            "start": 79.775,
+                                            "end": 96.090935
+                                        }
+                                    ],
+                                    "start": 68.83,
+                                    "end": 96.090935,
+                                    "num_words": 63
+                                }
+                            ]
+                        }
+                    }
+                ]
+            }
+        ]
+    }
+}
