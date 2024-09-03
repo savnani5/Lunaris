@@ -1,32 +1,32 @@
-# Use a smaller base image
-FROM python:3.11-slim-bullseye
+# Use an official Python runtime as a parent image
+FROM python:3.11-slim
 
-# Install system dependencies and clean up in a single RUN command
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
     ffmpeg \
-    imagemagick \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/* \
-    && sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<!-- <policy domain="path" rights="none" pattern="@*" -->/g' /etc/ImageMagick-6/policy.xml \
-    && sed -i 's/<policy domain="coder" rights="none" pattern="PDF"/<!-- <policy domain="coder" rights="none" pattern="PDF" -->/g' /etc/ImageMagick-6/policy.xml
+    imagemagick
 
-# Set the working directory
+# Update ImageMagick policy to allow required operations
+RUN sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<!-- <policy domain="path" rights="none" pattern="@*" -->/g' /etc/ImageMagick-6/policy.xml && \
+sed -i 's/<policy domain="coder" rights="none" pattern="PDF"/<!-- <policy domain="coder" rights="none" pattern="PDF" -->/g' /etc/ImageMagick-6/policy.xml
+
+# Set the working directory in the container
 WORKDIR /app
 
-# Copy only the requirements file first
-COPY requirements.txt .
+# Copy the current directory contents into the container at /app
+COPY . /app
 
-# Install Python dependencies
+# Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
+# RUN pip install -r requirements.txt
 
-# Copy the rest of the application code
-COPY . .
-
-# Expose port and set environment variable
+# Expose port 5001 for the Lunaris Flask app
 EXPOSE 5001
+
+# Define environment variable
 ENV FLASK_ENV=production
 
-# Run the application
+# Run app.py when the container launches
 CMD ["python", "app.py"]

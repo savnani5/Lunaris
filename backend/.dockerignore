@@ -3,3 +3,10 @@ __pycache__
 .git
 .vscode
 .DS_Store
+*.zip
+*.log
+interesting_segments.json
+*.mp4
+*.mp3
+transcript.txt
+try.py

@@ -1,13 +1,12 @@
 __pycache__/
 .DS_Store/
 downloads/
-raw_videos/
-raw_audio/
 subtitled_clips/
 .env
 *.zip
 *.log
 interesting_segments.json
 *.mp4
+*.mp3
 transcript.txt
 try.py

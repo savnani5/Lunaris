@@ -83,15 +83,17 @@ class VideoProcessor:
         prompt = f"""
         You are a content creator. Here is the transcript from a youtube video:
         {transcript_text}
-        Combine these words into some chunks of few sentences that would make interesting short form content to hook the audience. You can choose cosecutive senctences arbitrarily and each chunk should be complete, i.e don't cut out mid sentence. Aim to keep each chunk above 200 words. Provide a relevant title for each combination. Do not add punctuations to the transcript and keep the orignal words same. The output should be in JSON format like this:
+        Combine these words into some chunks of few sentences that would make interesting short form content to hook the audience. You can choose consecutive senctences arbitrarily and each chunk should be complete, i.e don't cut out mid sentence. Aim to keep each chunk above 200 words. Store the chunk content in text field. For the text field do not add punctuations to the transcript and keep the orignal words same. For the trancript field, add approriate punctuations and capitalization to the text content. Remember the text and transcript should have same words, do not add new words. Provide a relevant title for each combination. The output should be in JSON format like this:
         [
         {{
             "title": "Title 1",
-            "text": "Transcript chunk 1"
+            "text": "Text chunk 1",
+            "transcript": "Transcript chunk 1"
         }},
         {{
             "title": "Title 2",
-            "text": "Transcript chunk 2"
+            "text": "Text chunk 2",
+            "transcript": "Transcript chunk 2"
         }},
         ...
         ]
@@ -129,6 +131,7 @@ class VideoProcessor:
         for segment in segments:
             title = segment['title']
             text = segment['text']
+            transcript = segment['transcript']
             word_timings_in_segment = []
 
             
@@ -161,7 +164,7 @@ class VideoProcessor:
                 'title': title,
                 'start': start_time,
                 'end': end_time,
-                'text': text,
+                'text': transcript,
                 'word_timings': word_timings_in_segment
             })
         
