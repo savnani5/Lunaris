@@ -5,7 +5,7 @@ subtitled_clips/
 .env
 *.zip
 *.log
-interesting_segments.json
+*.json
 *.mp4
 *.mp3
 transcript.txt

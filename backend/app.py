@@ -11,13 +11,14 @@ from dotenv import find_dotenv, load_dotenv
 from models.user import User
 from models.project import Project
 import argparse
+from botocore.exceptions import ClientError
 
 load_dotenv(find_dotenv())
 
 class LunarisApp:
     def __init__(self, debug=False):
         self.app = Flask(__name__)
-        CORS(self.app)
+        CORS(self.app, resources={r"/api/*": {"origins": "*"}}, allow_headers=['Content-Type', 'Authorization'])
         self.debug = debug
         self.processing_videos = {}
         self.video_path = "./downloads"
@@ -30,9 +31,9 @@ class LunarisApp:
         self.video_processor = VideoProcessor(self.db)
         self.s3_client = boto3.client(
             's3',
-            aws_access_key_id=os.environ['AWS_ACCESS_KEY_ID'],
-            aws_secret_access_key=os.environ['AWS_SECRET_ACCESS_KEY'],
-            region_name=os.environ['AWS_REGION']
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.environ.get('AWS_REGION')
         ) if not debug else None
         self.s3_bucket = os.environ.get('S3_BUCKET_NAME')
         
@@ -51,7 +52,7 @@ class LunarisApp:
         self.app.route('/health', methods=['GET'])(self.health_check)
 
     def setup_mongoDB(self):
-        self.app.config['MONGODB_URI'] = os.environ['MONGODB_URI']
+        self.app.config['MONGODB_URI'] = os.environ.get('MONGODB_URI')
         self.client = MongoClient(self.app.config['MONGODB_URI'])
         self.db = self.client['lunarisDB']
         self.users_collection = self.db['users']
@@ -59,34 +60,39 @@ class LunarisApp:
         self.clips_collection = self.db['clips']
 
     def setup_logging(self):
-        # Remove existing handlers
-        self.app.logger.handlers.clear()
+        # Consider using CloudWatch for logging in production
+        if not self.debug:
+            # Setup CloudWatch logging here
+            pass
+        else:
+            # Remove existing handlers
+            self.app.logger.handlers.clear()
 
-        log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-        log_file = 'lunaris_app.log'
-        
-        file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5)
-        file_handler.setFormatter(log_formatter)
-        file_handler.setLevel(logging.INFO)
+            log_formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+            log_file = 'lunaris_app.log'
+            
+            file_handler = RotatingFileHandler(log_file, maxBytes=10*1024*1024, backupCount=5)
+            file_handler.setFormatter(log_formatter)
+            file_handler.setLevel(logging.INFO)
 
-        console_handler = logging.StreamHandler()
-        console_handler.setFormatter(log_formatter)
-        console_handler.setLevel(logging.INFO)
+            console_handler = logging.StreamHandler()
+            console_handler.setFormatter(log_formatter)
+            console_handler.setLevel(logging.INFO)
 
-        self.app.logger.addHandler(file_handler)
-        self.app.logger.addHandler(console_handler)
-        self.app.logger.setLevel(logging.INFO)
+            self.app.logger.addHandler(file_handler)
+            self.app.logger.addHandler(console_handler)
+            self.app.logger.setLevel(logging.INFO)
 
-        # Disable Flask's default logger
-        self.app.logger.propagate = False
+            # Disable Flask's default logger
+            self.app.logger.propagate = False
 
-        self.app.logger.info("Logging setup completed")
-        self.app.logger.setLevel(logging.INFO)
+            self.app.logger.info("Logging setup completed")
+            self.app.logger.setLevel(logging.INFO)
 
-        # Disable Flask's default logger
-        self.app.logger.propagate = False
+            # Disable Flask's default logger
+            self.app.logger.propagate = False
 
-        self.app.logger.info("Logging setup completed")
+            self.app.logger.info("Logging setup completed")
 
     def process_video_thread(self, video_link, project_id, video_quality, video_type='portrait', clerk_user_id=None):
         with self.app.app_context():
@@ -216,8 +222,16 @@ class LunarisApp:
         return send_from_directory(clip_path, filename)
         
     def health_check(self):
-        self.app.logger.info("Health check requested")
-        return jsonify({'status': 'healthy'}), 200
+        try:
+            # Check database connection
+            self.client.server_info()
+            # Check S3 connection if not in debug mode
+            if not self.debug:
+                self.s3_client.list_buckets()
+            return jsonify({'status': 'healthy'}), 200
+        except Exception as e:
+            self.app.logger.error(f"Health check failed: {str(e)}")
+            return jsonify({'status': 'unhealthy', 'message': 'Service is experiencing issues'}), 500
 
     def run(self):
         self.app.logger.info("Starting Lunaris App")
@@ -225,7 +239,8 @@ class LunarisApp:
             os.makedirs('./downloads')
         if not os.path.exists(self.output_path):
             os.makedirs(self.output_path)
-        self.app.run(host='0.0.0.0', debug=False, port=5001)
+        port = int(os.environ.get('PORT', 5001))  # Use PORT from environment or default to 5001
+        self.app.run(host='0.0.0.0', debug=False, port=port)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run the Lunaris App')
@@ -234,4 +249,4 @@ if __name__ == '__main__':
 
     lunaris_app = LunarisApp(debug=args.debug)
     lunaris_app.app.logger.info(f"Lunaris App initialized with debug mode: {args.debug}")
-    lunaris_app.run()
+    lunaris_app.run()  # Call the run method instead of just accessing the app attribute
