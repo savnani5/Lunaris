@@ -2,9 +2,9 @@
 # If no faces -> detect a human body and use the bounding box of the human body
 # Sliding change of frames -> smooth moving bbox
 
-from flask import url_for
 import moviepy.editor as mp_edit
 import mediapipe as mp
+import argparse
 import os
 import random
 import glob
@@ -16,13 +16,15 @@ import cv2
 from moviepy.editor import TextClip, CompositeVideoClip
 from moviepy.editor import VideoFileClip, AudioFileClip
 from models.clip import Clip
+from flask import url_for
 from botocore.exceptions import ClientError
 from deepgram import (
     DeepgramClient,
     PrerecordedOptions,
     FileSource,
 )
-
+from pydantic import BaseModel
+from typing import List
 
 from dotenv import find_dotenv, load_dotenv
 
@@ -30,6 +32,14 @@ load_dotenv(find_dotenv())
 
 OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 DG_API_KEY = os.environ["DG_API_KEY"]
+
+class Segment(BaseModel):
+    title: str
+    text: str
+    transcript: str
+
+class SegmentList(BaseModel):
+    segments: List[Segment]
 
 class VideoProcessor:
     def __init__(self, db):
@@ -39,8 +49,10 @@ class VideoProcessor:
         self.db = db
 
     def download_video(self, url, path, quality):
+        cookies_file = "./cookies.txt"
         quality = quality.replace('p', '')
         video_title = subprocess.check_output(["yt-dlp", url, "--get-title"], universal_newlines=True).strip()
+
         path = os.path.join(path, video_title)
         if not os.path.exists(path):
             os.mkdir(path)
@@ -83,58 +95,29 @@ class VideoProcessor:
         prompt = f"""
         You are a content creator. Here is the transcript from a youtube video:
         {transcript_text}
-        Combine these words into some chunks of few sentences that would make interesting short form content to hook the audience. You can choose consecutive senctences arbitrarily and each chunk should be complete, i.e don't cut out mid sentence. Aim to keep each chunk above 200 words. Store the chunk content in text field. For the text field do not add punctuations to the transcript and keep the orignal words same. For the trancript field, add approriate punctuations and capitalization to the text content. Remember the text and transcript should have same words, do not add new words. Provide a relevant title for each combination. The output should be in JSON format like this:
-        [
-        {{
-            "title": "Title 1",
-            "text": "Text chunk 1",
-            "transcript": "Transcript chunk 1"
-        }},
-        {{
-            "title": "Title 2",
-            "text": "Text chunk 2",
-            "transcript": "Transcript chunk 2"
-        }},
-        ...
-        ]
-        Do not make things up, only use the given words to make chunks.
-        Do not return aything else, apart from the JSON.
+        Combine these words into some chunks of few sentences that would make interesting short form content to hook the audience. You can choose consecutive sentences arbitrarily and each chunk should be complete, i.e don't cut out mid sentence. Aim to keep each chunk above 350 words. Store the chunk content in text field. For the text field do not add punctuations to the transcript and keep the original words same. For the transcript field, add appropriate punctuations and capitalization to the text content. Remember the text and transcript should have same words, do not add new words. Provide a relevant title for each combination.
         """
-        chat_completion = self.openai_client.chat.completions.create(
+
+        completion = self.openai_client.beta.chat.completions.parse(
+            model="gpt-4o-2024-08-06",
             messages=[
-            {
-                "role": "user",
-                "content": prompt,
-            }
+                {"role": "system", "content": "Extract interesting segments from the transcript."},
+                {"role": "user", "content": prompt},
             ],
-            model= "gpt-4o")
-            #"gpt-3.5-turbo")
+            response_format=SegmentList,
+        )
 
-        segment_json = chat_completion.choices[0].message.content.strip()
-        print(f"Debug: {segment_json}")
-
-        def clean_llm_output(llm_output):
-            # Remove triple backticks and language specifier if present
-            llm_output = llm_output.strip().strip('```')
-            if llm_output.startswith('json'):
-                llm_output = llm_output[4:].strip()
-            return llm_output
-
-        # Parse the JSON output
-        segment_json = clean_llm_output(segment_json)
-        
-        segments = json.loads(segment_json)
+        segments = completion.choices[0].message.parsed.segments
 
         # Build the combined segment data
         segment_data = []
 
         for segment in segments:
-            title = segment['title']
-            text = segment['text']
-            transcript = segment['transcript']
+            title = segment.title
+            text = segment.text
+            transcript = segment.transcript
             word_timings_in_segment = []
 
-            
             # Find the start and end times for the combined text
             words = text.lower().split()
             start_time = None
@@ -435,6 +418,10 @@ class VideoProcessor:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Run the Lunaris App')
+    parser.add_argument('-d', '--debug', action='store_true', help='Run in debug mode')
+    args = parser.parse_args()
+
     video_path = "./downloads"
 
     # Initialize VideoProcessor
@@ -460,8 +447,8 @@ if __name__ == "__main__":
     # DEBUG: load from file
     # with open("interesting_segments.json", 'r') as f:
     #     interesting_data = json.load(f)
-    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris_backend/raw_videos/The Big Bang Theory: New Neighbors (Clip) | TBS/The Big Bang Theory： New Neighbors (Clip) ｜ TBS.webm"
+    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/No Priors Ep. 80 | With Andrej Karpathy from OpenAI and Tesla/No Priors Ep. 80 ｜ With Andrej Karpathy from OpenAI and Tesla.webm"
     # output_video_type = "landscape"
 
     # Crop video to portrait with faces
-    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type)
+    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, debug=args.debug)

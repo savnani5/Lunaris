@@ -18,13 +18,13 @@ load_dotenv(find_dotenv())
 class LunarisApp:
     def __init__(self, debug=False):
         self.app = Flask(__name__)
-        CORS(self.app, resources={r"/api/*": {"origins": "*"}}, allow_headers=['Content-Type', 'Authorization'])
         self.debug = debug
         self.processing_videos = {}
         self.video_path = "./downloads"
         self.output_path = "./subtitled_clips"
 
         self.configure_app()
+        self.setup_cors()
         self.setup_routes()
         self.setup_mongoDB()
         self.setup_logging()
@@ -43,6 +43,15 @@ class LunarisApp:
             APPLICATION_ROOT='/',
             PREFERRED_URL_SCHEME='https' if not self.debug else 'http'
         )
+
+    def setup_cors(self):
+        if self.debug:
+            # Allow all origins in debug mode
+            CORS(self.app, resources={r"/api/*": {"origins": "*"}}, allow_headers=['Content-Type', 'Authorization'])
+        else:
+            # Allow only specific origin in production
+            frontend_url = os.environ.get('FRONTEND_URL')
+            CORS(self.app, resources={r"/api/*": {"origins": frontend_url}}, allow_headers=['Content-Type', 'Authorization'])
 
     def setup_routes(self):
         self.app.route('/api/process-video', methods=['POST'])(self.process_video)
