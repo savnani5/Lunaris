@@ -20,7 +20,9 @@ COPY . /app
 
 # Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
-# RUN pip install -r requirements.txt
+
+# Install custom yt-dlp library
+RUN python3 -m pip install -U https://github.com/coletdjnz/yt-dlp-youtube-oauth2/archive/refs/heads/master.zip
 
 # Expose port 5001 for the Lunaris Flask app
 EXPOSE 5001
