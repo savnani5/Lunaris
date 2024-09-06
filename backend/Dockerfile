@@ -22,7 +22,7 @@ COPY . /app
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install custom yt-dlp library
-RUN python3 -m pip install -U https://github.com/coletdjnz/yt-dlp-youtube-oauth2/archive/refs/heads/master.zip
+# RUN python3 -m pip install -U https://github.com/coletdjnz/yt-dlp-youtube-oauth2/archive/refs/heads/master.zip
 
 # Expose port 5001 for the Lunaris Flask app
 EXPOSE 5001
@@ -31,4 +31,4 @@ EXPOSE 5001
 ENV FLASK_ENV=production
 
 # Run app.py when the container launches
-CMD ["python", "app.py"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "wsgi:application"]

@@ -45,13 +45,12 @@ class LunarisApp:
         )
 
     def setup_cors(self):
-        if self.debug:
-            # Allow all origins in debug mode
-            CORS(self.app, resources={r"/api/*": {"origins": "*"}}, allow_headers=['Content-Type', 'Authorization'])
-        else:
-            # Allow only specific origin in production
-            frontend_url = os.environ.get('FRONTEND_URL')
-            CORS(self.app, resources={r"/api/*": {"origins": frontend_url}}, allow_headers=['Content-Type', 'Authorization'])
+        frontend_url = os.environ.get('FRONTEND_URL', '*')  # Use * if FRONTEND_URL is not set
+        print(frontend_url)
+        CORS(self.app, resources={r"/api/*": {"origins": frontend_url}}, 
+            allow_headers=['Content-Type', 'Authorization'], 
+            supports_credentials=True)
+
 
     def setup_routes(self):
         self.app.route('/api/process-video', methods=['POST'])(self.process_video)
