@@ -42,7 +42,7 @@ export function Create() {
   const { user } = useUser();
 
   const backend_url = process.env.PUBLIC_BACKEND_URL || "https://lunarisbackend-production.up.railway.app";
-  console.log('Backend URL:', backend_url);
+  // console.log('Backend URL:', backend_url);
 
   const handleProcessClick = async () => {
     setProcessing(true);

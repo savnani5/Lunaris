@@ -49,9 +49,13 @@ class VideoProcessor:
         self.db = db
 
     def download_video(self, url, path, quality):
+        # Add directory check
+        if not os.path.exists(path):
+            os.makedirs(path)
+
         cookies_file = "./cookies.txt"
         quality = quality.replace('p', '')
-        # video_title = subprocess.check_output(["yt-dlp", url, "--get-title", "--username", "oauth2", "--password", ''], universal_newlines=True).strip()
+        
         video_title = subprocess.check_output(["yt-dlp", url, "--get-title"], universal_newlines=True).strip()
 
         path = os.path.join(path, video_title)
@@ -64,7 +68,7 @@ class VideoProcessor:
                 if os.path.isfile(file_path):
                     os.remove(file_path)
             
-        # subprocess.run(["yt-dlp", url, "--username", "oauth2", "--password", '', "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
+    
         subprocess.run(["yt-dlp", url, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
         print("Video downloaded successfully!")
        
@@ -174,7 +178,8 @@ class VideoProcessor:
         return []
 
     def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False):
-        if debug and not os.path.exists(output_folder):
+        # Add directory check
+        if not os.path.exists(output_folder):
             os.makedirs(output_folder)
         
         video = mp_edit.VideoFileClip(video_path)

@@ -242,11 +242,6 @@ class LunarisApp:
             return jsonify({'status': 'unhealthy', 'message': 'Service is experiencing issues'}), 500
 
     def run(self):
-        self.app.logger.info("Starting Lunaris App")
-        if not os.path.exists('./downloads'):
-            os.makedirs('./downloads')
-        if not os.path.exists(self.output_path):
-            os.makedirs(self.output_path)
         port = int(os.environ.get('PORT', 5001))  # Use PORT from environment or default to 5001
         self.app.run(host='0.0.0.0', debug=False, port=port)
 
