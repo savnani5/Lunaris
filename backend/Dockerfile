@@ -25,10 +25,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # RUN python3 -m pip install -U https://github.com/coletdjnz/yt-dlp-youtube-oauth2/archive/refs/heads/master.zip
 
 # Expose port 5001 for the Lunaris Flask app
-EXPOSE 5001
+EXPOSE 8080
 
 # Define environment variable
 ENV FLASK_ENV=production
 
 # Run app.py when the container launches
-CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "wsgi:application"]
+CMD ["gunicorn", "--bind", "0.0.0.0:8080", "--workers", "4", "wsgi:application"]
