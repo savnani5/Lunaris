@@ -41,7 +41,7 @@ export function Create() {
   const [keywords, setKeywords] = useState("");
   const { user } = useUser();
 
-  const backend_url = process.env.AWS_PUBLIC_BACKEND_URL;
+  const backend_url = process.env.PUBLIC_BACKEND_URL;
 
   const handleProcessClick = async () => {
     setProcessing(true);
