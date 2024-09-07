@@ -2,7 +2,7 @@ from datetime import datetime
 
 class User:
     def __init__(self, clerk_user_id, email):
-        self.clerk_user_id = clerk_user_id
+        self._id = clerk_user_id  # Use clerk_user_id as the primary key
         self.email = email
         self.project_ids = []
         self.created_at = datetime.utcnow()
@@ -12,7 +12,7 @@ class User:
 
     def to_dict(self):
         return {
-            "user_id": self.clerk_user_id,
+            "_id": self._id,
             "email": self.email,
             "project_ids": self.project_ids,
             "created_at": self.created_at

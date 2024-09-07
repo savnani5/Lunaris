@@ -177,12 +177,17 @@ class LunarisApp:
 
         video_link = data['link']
         clerk_user_id = data['userId']
-        user = self.users_collection.find_one({"clerk_user_id": clerk_user_id})
+        
+        # Check if user exists, if not create a new one
+        user = self.users_collection.find_one({"_id": clerk_user_id})
         
         if not user:
             new_user = User(clerk_user_id, data['email'])
             user_dict = new_user.to_dict()
-            result = self.users_collection.insert_one(user_dict)
+            self.users_collection.insert_one(user_dict)
+            self.app.logger.info(f"Created new user with ID: {clerk_user_id}")
+        else:
+            self.app.logger.info(f"Found existing user with ID: {clerk_user_id}")
 
         project = Project(clerk_user_id, video_link)
         project_dict = project.to_dict()
@@ -191,7 +196,7 @@ class LunarisApp:
 
         # Update user with new project ID
         self.users_collection.update_one(
-            {"clerk_user_id": clerk_user_id},
+            {"_id": clerk_user_id},
             {"$push": {"project_ids": project_id}}
         )
 
