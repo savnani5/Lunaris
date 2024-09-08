@@ -53,7 +53,6 @@ class VideoProcessor:
         if not os.path.exists(path):
             os.makedirs(path)
 
-        cookies_file = "./cookies.txt"
         quality = quality.replace('p', '')
         
         video_title = subprocess.check_output(["yt-dlp", url, "--get-title"], universal_newlines=True).strip()
@@ -96,7 +95,7 @@ class VideoProcessor:
             clip = video.subclip(start, end)
             clip.write_videofile(f"{output_folder}/clip_{i+1}.mp4")
 
-    def get_interesting_segments(self, transcript_text, word_timings, output_file='interesting_segments.json'):
+    def get_interesting_segments(self, transcript_text, word_timings, st, et, clip_length, keywords, output_file='interesting_segments.json'):
         # Generate prompt for OpenAI
         prompt = f"""
         You are a content creator. Here is the transcript from a youtube video:

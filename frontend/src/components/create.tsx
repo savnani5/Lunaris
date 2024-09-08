@@ -6,10 +6,11 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
+import debounce from 'lodash/debounce';
+import { Slider } from '@mui/material';
 
 import ProcessedVideoCard from '@/components/ProcessedVideoCard';
 import ProcessingBar from "@/components/ProcessingBar";
-
 
 interface Clip {
   _id: string;
@@ -30,19 +31,58 @@ export function Create() {
   const [videoLink, setVideoLink] = useState("");
   const [videoThumbnail, setVideoThumbnail] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [clipLength, setClipLength] = useState("Auto (0m~3m)");
+  const [clipLength, setClipLength] = useState("Auto (0m~1m)");
   const [processedClips, setProcessedClips] = useState<Clip[]>([]);
   const [progress, setProgress] = useState(0);
   // const [addCaption, setAddCaption] = useState(false);
   const [genre, setGenre] = useState("Auto");
   const [videoQuality, setVideoQuality] = useState("Auto");
   const [videoType, setVideoType] = useState("Portrait");
-  const [processingTimeframe, setProcessingTimeframe] = useState(50);
   const [keywords, setKeywords] = useState("");
   const { user } = useUser();
+  // const [addCaption, setAddCaption] = useState(false);
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [videoTitle, setVideoTitle] = useState("");
+  const [startTime, setStartTime] = useState(0);
+  const [endTime, setEndTime] = useState(0);
+  const [startTimePercentage, setStartTimePercentage] = useState(0);
+  const [endTimePercentage, setEndTimePercentage] = useState(100);
 
   const backend_url = process.env.NEXT_PUBLIC_BACKEND_URL|| "https://lunarisbackend-production.up.railway.app";
-  // console.log('Backend URL:', backend_url);
+
+  const fetchVideoDetails = async (url: string) => {
+    try {
+      const response = await fetch(`/api/video-details?url=${encodeURIComponent(url)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setVideoDuration(data.duration);
+        setVideoThumbnail(data.thumbnails[0]?.url || null);
+        setVideoTitle(data.title || "");
+      }
+    } catch (error) {
+      console.error('Error fetching video details:', error);
+    }
+  };
+
+  const debouncedFetchVideoDetails = debounce(fetchVideoDetails, 500);
+
+  const handleVideoLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newLink = e.target.value;
+    setVideoLink(newLink);
+    if (newLink) {
+      debouncedFetchVideoDetails(newLink);
+    } else {
+      setVideoThumbnail('');
+      setVideoTitle('');
+      setVideoDuration(null);
+    }
+  };
+
+  useEffect(() => {
+    if (videoLink) {
+      fetchVideoDetails(videoLink);
+    }
+  }, [videoLink]);
 
   const handleProcessClick = async () => {
     setProcessing(true);
@@ -56,16 +96,18 @@ export function Create() {
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ link: videoLink, 
+      body: JSON.stringify({ 
+        link: videoLink, 
         genre,
         videoQuality,
         videoType,
-        processingTimeframe,
-        clipLength,
+        startTime,
+        endTime,
+        clipLength: clipLengthRange, // Send the clip length range instead of the string
         keywords,
         userId,
-        email,
-       }),
+        email
+      }),
     });
 
     if (response.ok) {
@@ -107,8 +149,64 @@ export function Create() {
     }
   };
 
+  const [clipLengthRange, setClipLengthRange] = useState({ min: 0, max: 180 });
+
   const handleClipLengthClick = (length: string) => {
     setClipLength(length);
+    let min = 0;
+    let max = 180;
+
+    switch (length) {
+      case "Auto (0m~1m)":
+        min = 0;
+        max = 60;
+        break;
+      case "<30s":
+        min = 0;
+        max = 30;
+        break;
+      case "30s~60s":
+        min = 30;
+        max = 60;
+        break;
+      case "60s~90s":
+        min = 60;
+        max = 90;
+        break;
+      case "90s~3m":
+        min = 90;
+        max = 180;
+        break;
+    }
+
+    setClipLengthRange({ min, max });
+  };
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = Math.floor(seconds % 60);
+    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  };
+
+  useEffect(() => {
+    if (videoDuration) {
+      const newStartTime = Math.floor(videoDuration * (startTimePercentage / 100));
+      const newEndTime = Math.floor(videoDuration * (endTimePercentage / 100));
+      setStartTime(newStartTime);
+      setEndTime(newEndTime);
+    }
+  }, [videoDuration, startTimePercentage, endTimePercentage]);
+
+  const [timeRange, setTimeRange] = useState<number[]>([0, 100]);
+
+  const handleTimeRangeChange = (event: Event, newValue: number | number[]) => {
+    setTimeRange(newValue as number[]);
+    if (videoDuration && Array.isArray(newValue)) {
+      const newStartTime = Math.floor(videoDuration * (newValue[0] / 100));
+      const newEndTime = Math.floor(videoDuration * (newValue[1] / 100));
+      setStartTime(newStartTime);
+      setEndTime(newEndTime);
+    }
   };
 
   return (
@@ -123,12 +221,26 @@ export function Create() {
             placeholder="Drop a YouTube link"
             className="flex-1 bg-gray-800 text-white"
             value={videoLink}
-            onChange={(e) => setVideoLink(e.target.value)}
+            onChange={handleVideoLinkChange}
           />
           <Button className="bg-blue-500" onClick={handleProcessClick} disabled={processing}>
             {processing ? "Processing..." : "Get viral clips"}
           </Button>
         </div>
+        {(videoThumbnail || videoTitle) && (
+          <div className="w-full max-w-2xl flex flex-col items-center space-y-2">
+            {videoThumbnail && (
+              <div className="flex flex-col items-center">
+                <img src={videoThumbnail} alt="Video thumbnail" width={240} height={135} className="mx-auto" />
+                {videoTitle && (
+                  <p className="text-center font-semibold mt-2 truncate" style={{ maxWidth: '240px' }}>
+                    {videoTitle}
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         {/* <div className="flex items-center w-full max-w-2xl space-x-4 border border-gray-600 rounded-lg p-4">
           <span>Choose a file (mp4, mov, mkv, webm), or drag it here</span>
           <UploadIcon className="w-6 h-6 text-gray-400" />
@@ -143,7 +255,7 @@ export function Create() {
               onChange={(e) => setAddCaption(e.target.checked)}
             />
           </div> */}
-          <h2 className="text-lg font-bold">Genre of video </h2>
+          <h2 className="text-lg font-bold">Genre of Video </h2>
           <select 
             className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
             value={genre}
@@ -166,7 +278,7 @@ export function Create() {
             <option>480p</option>
             <option>360p</option>
           </select>
-          <h2 className="text-lg font-bold">Video Type</h2>
+          <h2 className="text-lg font-bold">Output Video Type</h2>
           <select 
             className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
             value={videoType}
@@ -175,22 +287,28 @@ export function Create() {
             <option>Portrait</option>
             <option>Landscape</option>
           </select>
-          <h2 className="text-lg font-bold">Processing timeframe</h2>
-          <div className="w-full mb-4">
-            <input 
-              type="range" 
-              min="0" 
-              max="100" 
-              className="slider"
-              value={processingTimeframe}
-              onChange={(e) => setProcessingTimeframe(Number(e.target.value))}
+          <h2 className="text-lg font-bold">Processing Timeframe</h2>
+          <div className="w-full mb-4 relative">
+            <Slider
+              value={timeRange}
+              onChange={handleTimeRangeChange}
+              valueLabelDisplay="auto"
+              aria-labelledby="time-range-slider"
+              getAriaValueText={(value) => `${formatTime((videoDuration ?? 0) * value / 100)}`}
+              valueLabelFormat={(value) => formatTime((videoDuration ?? 0) * value / 100)}
             />
+            {videoDuration && (
+              <div className="flex justify-between mt-2">
+                <span>{formatTime(startTime)}</span>
+                <span>{formatTime(endTime)}</span>
+              </div>
+            )}
           </div>
-          <h2 className="text-lg font-bold">Preferred clip length</h2>
+          <h2 className="text-lg font-bold">Preferred Clip Length</h2>
           <div className="flex space-x-2 mb-4">
             <button
-              className={`rounded-md px-2 py-1 ${clipLength === "Auto (0m~3m)" ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
-              onClick={() => handleClipLengthClick("Auto (0m~3m)")}>
+              className={`rounded-md px-2 py-1 ${clipLength === "Auto (0m~1m)" ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
+              onClick={() => handleClipLengthClick("Auto (0m~1m)")}>
               Auto (0m~1m)
             </button>
             <button

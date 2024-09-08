@@ -41,7 +41,8 @@ class LunarisApp:
     def configure_app(self):
         self.app.config.update(
             APPLICATION_ROOT='/',
-            PREFERRED_URL_SCHEME='https' if not self.debug else 'http'
+            PREFERRED_URL_SCHEME='https' if not self.debug else 'http',
+            SERVER_NAME=os.environ.get('SERVER_NAME')
         )
 
     def setup_cors(self):
@@ -102,7 +103,7 @@ class LunarisApp:
 
             self.app.logger.info("Logging setup completed")
 
-    def process_video_thread(self, video_link, project_id, video_quality, video_type='portrait', clerk_user_id=None):
+    def process_video_thread(self, video_link, project_id, clerk_user_id, video_quality, video_type, start_time, end_time, clip_length, keywords):
         with self.app.app_context():
             try:
                 self.app.logger.info(f"Starting video processing for project: {project_id}")
@@ -115,7 +116,7 @@ class LunarisApp:
                 self.app.logger.info(f"Video downloaded: {downloaded_video_path}")
                 transcript, word_timings = self.video_processor.transcribe_audio(downloaded_audio_path)
                 self.app.logger.info(f"Audio transcription completed for project: {project_id}")
-                interesting_data = self.video_processor.get_interesting_segments(transcript, word_timings)
+                interesting_data = self.video_processor.get_interesting_segments(transcript, word_timings, start_time, end_time, clip_length, keywords)
                 self.app.logger.info(f"Interesting segments identified for project: {project_id}")
                 processed_clip_ids = self.video_processor.crop_and_add_subtitles(
                     downloaded_video_path, 
@@ -177,6 +178,7 @@ class LunarisApp:
 
         video_link = data['link']
         clerk_user_id = data['userId']
+
         
         # Check if user exists, if not create a new one
         user = self.users_collection.find_one({"_id": clerk_user_id})
@@ -201,8 +203,17 @@ class LunarisApp:
         )
 
         self.app.logger.info(f'Received video link: {video_link}')
+        # print(data['videoType'].lower(), data['startTime'], data['endTime'], data['clipLength'], data['keywords'])
 
-        thread = Thread(target=self.process_video_thread, args=(video_link, project_id, data['videoQuality'], data['videoType'].lower(), clerk_user_id))
+        thread = Thread(target=self.process_video_thread, args=(video_link, 
+                                                                project_id, 
+                                                                clerk_user_id,
+                                                                data['videoQuality'], 
+                                                                data['videoType'].lower(), 
+                                                                data['startTime'], 
+                                                                data['endTime'], 
+                                                                data['clipLength'], 
+                                                                data['keywords']))
         thread.start()
         
         return jsonify({'message': 'Video processing started', 'project_id': str(project_id)}), 202
