@@ -1,9 +1,10 @@
-'use server'
 import { NextResponse } from 'next/server';
-import { Innertube, UniversalCache } from 'youtubei.js';
+import { google } from 'googleapis';
 
-// Define a realistic user agent
-const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
+const youtube = google.youtube({
+  version: 'v3',
+  auth: process.env.YT_API_KEY // Make sure to set this in your environment variables
+});
 
 export const GET = async (request: Request) => {
   const { searchParams } = new URL(request.url);
@@ -14,33 +15,36 @@ export const GET = async (request: Request) => {
   }
 
   try {
-    const youtube = await Innertube.create({
-      lang: 'en',
-      location: 'US',
-      retrieve_player: false,
-      enable_safety_mode: false,
-      generate_session_locally: true,
-      enable_session_cache: true,
-      cache: new UniversalCache(false),
-      fetch: (input: URL | RequestInfo, init?: RequestInit) => {
-        const headers = new Headers(init?.headers);
-        headers.set('User-Agent', USER_AGENT);
-        return fetch(input, { ...init, headers });
-      }
+    const videoId = extractVideoId(url);
+    console.log('Extracted video ID:', videoId);
+
+    const response = await youtube.videos.list({
+      part: ['snippet', 'contentDetails'],
+      id: [videoId]
     });
 
-    const videoId = extractVideoId(url);
-    const info = await youtube.getBasicInfo(videoId);
-    
-    // console.log(info);
-    return NextResponse.json({
-      title: info.basic_info.title,
-      duration: info.basic_info.duration,
-      thumbnails: info.basic_info.thumbnail,
-    });
+    console.log('YouTube API response:', JSON.stringify(response.data, null, 2));
+
+    const video = response.data.items?.[0];
+
+    if (!video) {
+      console.error('Video not found in API response');
+      return NextResponse.json({ error: 'Video not found' }, { status: 404 });
+    }
+
+    const result = {
+      title: video.snippet?.title,
+      duration: video.contentDetails?.duration,
+      thumbnails: video.snippet?.thumbnails,
+    };
+
+    console.log('Returning video details:', JSON.stringify(result, null, 2));
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Error fetching video details:', error);
-    return NextResponse.json({ error: 'Failed to fetch video details' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    return NextResponse.json({ error: 'Failed to fetch video details', details: errorMessage }, { status: 500 });
   }
 }
 

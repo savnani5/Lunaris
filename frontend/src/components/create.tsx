@@ -55,13 +55,23 @@ export function Create() {
       const response = await fetch(`/api/video-details?url=${encodeURIComponent(url)}`);
       if (response.ok) {
         const data = await response.json();
-        setVideoDuration(data.duration);
-        setVideoThumbnail(data.thumbnails[0]?.url || null);
+        console.log("Received video details:", data); // Add this log
+        setVideoDuration(parseDuration(data.duration));
+        setVideoThumbnail(data.thumbnails.medium?.url || data.thumbnails.default?.url || "");
         setVideoTitle(data.title || "");
       }
     } catch (error) {
       console.error('Error fetching video details:', error);
     }
+  };
+
+  // Add this helper function to parse the duration
+  const parseDuration = (duration: string): number => {
+    const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+    const hours = (parseInt(match?.[1] ?? "0") || 0);
+    const minutes = (parseInt(match?.[2] ?? "0") || 0);
+    const seconds = (parseInt(match?.[3] ?? "0") || 0);
+    return hours * 3600 + minutes * 60 + seconds;
   };
 
   const debouncedFetchVideoDetails = debounce(fetchVideoDetails, 500);
@@ -230,10 +240,10 @@ export function Create() {
         {(videoThumbnail || videoTitle) && (
           <div className="w-full max-w-2xl flex flex-col items-center space-y-2">
             {videoThumbnail && (
-              <div className="flex flex-col items-center">
-                <img src={videoThumbnail} alt="Video thumbnail" width={240} height={135} className="mx-auto" />
+              <div className="flex flex-col items-center w-full">
+                <img src={videoThumbnail} alt="Video thumbnail" width={280} height={158} className="mx-auto" />
                 {videoTitle && (
-                  <p className="text-center font-semibold mt-2 truncate" style={{ maxWidth: '240px' }}>
+                  <p className="text-center font-semibold mt-2 truncate w-full" style={{ maxWidth: '280px' }}>
                     {videoTitle}
                   </p>
                 )}
