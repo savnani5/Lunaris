@@ -1,5 +1,9 @@
+'use server'
 import { NextResponse } from 'next/server';
-import { Innertube } from 'youtubei.js';
+import { Innertube, UniversalCache } from 'youtubei.js';
+
+// Define a realistic user agent
+const USER_AGENT = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36';
 
 export const GET = async (request: Request) => {
   const { searchParams } = new URL(request.url);
@@ -10,13 +14,25 @@ export const GET = async (request: Request) => {
   }
 
   try {
-    const youtube = await Innertube.create({lang: 'en',
-                                            location: 'US',
-                                            enable_safety_mode: true});
+    const youtube = await Innertube.create({
+      lang: 'en',
+      location: 'US',
+      retrieve_player: false,
+      enable_safety_mode: false,
+      generate_session_locally: true,
+      enable_session_cache: true,
+      cache: new UniversalCache(false),
+      fetch: (input: URL | RequestInfo, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        headers.set('User-Agent', USER_AGENT);
+        return fetch(input, { ...init, headers });
+      }
+    });
+
     const videoId = extractVideoId(url);
     const info = await youtube.getBasicInfo(videoId);
     
-    console.log(info);
+    // console.log(info);
     return NextResponse.json({
       title: info.basic_info.title,
       duration: info.basic_info.duration,
