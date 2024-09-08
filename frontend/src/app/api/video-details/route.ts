@@ -15,7 +15,8 @@ export const GET = async (request: Request) => {
                                             enable_safety_mode: true});
     const videoId = extractVideoId(url);
     const info = await youtube.getBasicInfo(videoId);
-
+    
+    console.log(info);
     return NextResponse.json({
       title: info.basic_info.title,
       duration: info.basic_info.duration,
