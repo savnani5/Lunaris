@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import ytdl from 'ytdl-core';
+import { Innertube } from 'youtubei.js';
 
 export const GET = async (request: Request) => {
   const { searchParams } = new URL(request.url);
@@ -10,18 +10,26 @@ export const GET = async (request: Request) => {
   }
 
   try {
-    const info = await ytdl.getInfo(url);
-    const duration = parseInt(info.videoDetails.lengthSeconds);
-    const thumbnails = info.videoDetails.thumbnails;
-    const title = info.videoDetails.title;
+    const youtube = await Innertube.create({lang: 'en',
+                                            location: 'US',
+                                            enable_safety_mode: true});
+    const videoId = extractVideoId(url);
+    const info = await youtube.getBasicInfo(videoId);
 
     return NextResponse.json({
-      title,
-      duration,
-      thumbnails,
+      title: info.basic_info.title,
+      duration: info.basic_info.duration,
+      thumbnails: info.basic_info.thumbnail,
     });
   } catch (error) {
     console.error('Error fetching video details:', error);
     return NextResponse.json({ error: 'Failed to fetch video details' }, { status: 500 });
   }
+}
+
+function extractVideoId(url: string): string {
+  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(regex);
+  if (!match) throw new Error('Invalid YouTube URL');
+  return match[1];
 }

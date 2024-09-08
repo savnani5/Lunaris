@@ -31,7 +31,7 @@
     "react-dom": "^18",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
-    "ytdl-core": "^4.11.5"
+    "youtubei.js": "^10.4.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.7",
