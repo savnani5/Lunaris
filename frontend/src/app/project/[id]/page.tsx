@@ -32,6 +32,7 @@ export default function ProjectPage() {
   const [processing, setProcessing] = useState(true);
   const [progress, setProgress] = useState(0);
   const [project, setProject] = useState<Project | null>(null);
+  const [processedClips, setProcessedClips] = useState<Clip[]>([]);
 
   const backend_url = process.env.NEXT_PUBLIC_BACKEND_URL || "https://lunarisbackend-production.up.railway.app";
 
