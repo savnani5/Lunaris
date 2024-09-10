@@ -178,6 +178,8 @@ class LunarisApp:
 
         video_link = data['link']
         clerk_user_id = data['userId']
+        video_title = data['videoTitle']
+        video_thumbnail = data['videoThumbnail']
 
         
         # Check if user exists, if not create a new one
@@ -191,7 +193,7 @@ class LunarisApp:
         else:
             self.app.logger.info(f"Found existing user with ID: {clerk_user_id}")
 
-        project = Project(clerk_user_id, video_link)
+        project = Project(clerk_user_id, video_link, video_title, video_thumbnail)
         project_dict = project.to_dict()
         result = self.projects_collection.insert_one(project_dict)
         project_id = result.inserted_id

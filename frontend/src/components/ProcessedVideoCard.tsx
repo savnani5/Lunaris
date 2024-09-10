@@ -38,9 +38,18 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
     };
   }, [clip.s3_uri]);
 
+  const isLandscape = aspectRatio >= 1;
+
   return (
     <div className="w-full max-w-2xl bg-gray-800 p-4 rounded-lg">
-      <div className="relative" style={{ paddingTop: `${(1 / aspectRatio) * 40}%` }}>
+      <div 
+        className="relative" 
+        style={{ 
+          paddingTop: isLandscape 
+            ? `${(1 / aspectRatio) * 100}%` // landscape
+            : `${(1 / aspectRatio) * 40}%` // portrait
+        }}
+      >
         <video src={clip.s3_uri} className="absolute top-0 left-0 w-full h-full" controls />
       </div>
       <div className="mt-4">

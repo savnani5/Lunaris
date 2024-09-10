@@ -23,7 +23,7 @@ export const GET = async (request: Request) => {
       id: [videoId]
     });
 
-    console.log('YouTube API response:', JSON.stringify(response.data, null, 2));
+    // console.log('YouTube API response:', JSON.stringify(response.data, null, 2));
 
     const video = response.data.items?.[0];
 

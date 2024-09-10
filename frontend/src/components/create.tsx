@@ -1,6 +1,5 @@
 'use client';
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,21 +8,25 @@ import { useUser } from "@clerk/nextjs";
 import debounce from 'lodash/debounce';
 import { Slider } from '@mui/material';
 
+import ProjectCard from '@/components/ProjectCard';
 import ProcessedVideoCard from '@/components/ProcessedVideoCard';
-import ProcessingBar from "@/components/ProcessingBar";
+
+interface Project {
+  id: string;
+  thumbnail: string;
+  title: string;
+}
+
+interface ProjectStatus {
+  id: string;
+  thumbnail: string;
+  title: string;
+  status: 'completed' | 'processing' | 'failed';
+  progress?: number;
+}
 
 interface Clip {
   _id: string;
-  project_id: string;
-  title: string;
-  transcript: string;
-  s3_uri: string;
-  score: number;
-  hook: string;
-  flow: string;
-  engagement: string;
-  trend: string;
-  created_at: string;
 }
 
 export function Create() {
@@ -32,21 +35,19 @@ export function Create() {
   const [videoThumbnail, setVideoThumbnail] = useState("");
   const [processing, setProcessing] = useState(false);
   const [clipLength, setClipLength] = useState("Auto (0m~1m)");
-  const [processedClips, setProcessedClips] = useState<Clip[]>([]);
-  const [progress, setProgress] = useState(0);
-  // const [addCaption, setAddCaption] = useState(false);
   const [genre, setGenre] = useState("Auto");
   const [videoQuality, setVideoQuality] = useState("Auto");
   const [videoType, setVideoType] = useState("Portrait");
   const [keywords, setKeywords] = useState("");
   const { user } = useUser();
-  // const [addCaption, setAddCaption] = useState(false);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
   const [startTimePercentage, setStartTimePercentage] = useState(0);
   const [endTimePercentage, setEndTimePercentage] = useState(100);
+  const [projects, setProjects] = useState<ProjectStatus[]>([]);
+  const [clipLengthRange, setClipLengthRange] = useState({ min: 0, max: 180 });
 
   const backend_url = process.env.NEXT_PUBLIC_BACKEND_URL|| "https://lunarisbackend-production.up.railway.app";
 
@@ -113,53 +114,36 @@ export function Create() {
         videoType,
         startTime,
         endTime,
-        clipLength: clipLengthRange, // Send the clip length range instead of the string
+        clipLength: clipLengthRange,
         keywords,
         userId,
-        email
+        email,
+        videoTitle,
+        videoThumbnail
       }),
     });
 
     if (response.ok) {
       const data = await response.json();
-      pollVideoStatus(data.project_id);
+      const newProject: ProjectStatus = {
+        id: data.project_id,
+        thumbnail: videoThumbnail,
+        title: videoTitle || 'Untitled Project',
+        status: 'processing', // Add this line
+        progress: 0 // Add this line if needed
+      };
+      setProjects(prevProjects => [...prevProjects, newProject]);
+      setProcessing(false);
+      // Clear the form or reset state as needed
+      setVideoLink("");
+      setVideoThumbnail("");
+      setVideoTitle("");
+      // ... reset other state variables
     } else {
       setProcessing(false);
       // Handle error
     }
   };
-
-  const pollVideoStatus = async (project_id: string) => {
-    const interval = setInterval(async () => {
-      const response = await fetch(`${backend_url}/api/video-status/${project_id}`);
-      if (response.ok) {
-        const data = await response.json();
-        if (data.status === 'completed') {
-          clearInterval(interval);
-          setProcessing(false);
-          setProgress(100);
-          fetchProcessedClips(project_id);
-        } else if (data.status === 'failed') {
-          clearInterval(interval);
-          setProcessing(false);
-          // TODO: Handle error
-          // Failed project card appears
-        } else {
-          setProgress((prev) => (prev < 90 ? prev + 10 : prev));
-        }
-      }
-    }, 3000);
-  };
-
-  const fetchProcessedClips = async (project_id: string) => {
-    const response = await fetch(`${backend_url}/api/get-video/${project_id}`);
-    if (response.ok) {
-      const data = await response.json();
-      setProcessedClips(data.clips);
-    }
-  };
-
-  const [clipLengthRange, setClipLengthRange] = useState({ min: 0, max: 180 });
 
   const handleClipLengthClick = (length: string) => {
     setClipLength(length);
@@ -219,6 +203,40 @@ export function Create() {
     }
   };
 
+  useEffect(() => {
+    if (user?.id) {
+      fetchProjects();
+    }
+  }, [user]);
+
+  const fetchProjects = async () => {
+    try {
+      const response = await fetch(`/api/get-projects?userId=${user?.id}`);
+      if (response.ok) {
+        const data = await response.json();
+        setProjects(data.map((project: any) => ({
+          id: project._id,
+          thumbnail: project.thumbnail,
+          title: project.title,
+          status: project.status,
+          progress: project.progress
+        })));
+      }
+    } catch (error) {
+      console.error('Error fetching projects:', error);
+    }
+  };
+
+  const handleProjectClick = (project: ProjectStatus) => {
+    if (project.status === 'completed') {
+      // Directly navigate to the clips page for completed projects
+      router.push(`/project/${project.id}/clips`);
+    } else {
+      // Navigate to the processing page for projects still in progress
+      router.push(`/project/${project.id}`);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white p-4">
       <header className="flex items-center justify-between py-4">
@@ -251,20 +269,7 @@ export function Create() {
             )}
           </div>
         )}
-        {/* <div className="flex items-center w-full max-w-2xl space-x-4 border border-gray-600 rounded-lg p-4">
-          <span>Choose a file (mp4, mov, mkv, webm), or drag it here</span>
-          <UploadIcon className="w-6 h-6 text-gray-400" />
-        </div> */}
         <div className="w-full max-w-2xl bg-gray-800 p-4 rounded-lg">
-          {/* <h2 className="text-lg font-bold">Only add caption without clipping?</h2>
-          <div className="flex justify-between items-center mb-4">
-            <input 
-              type="checkbox" 
-              className="toggle-checkbox" 
-              checked={addCaption}
-              onChange={(e) => setAddCaption(e.target.checked)}
-            />
-          </div> */}
           <h2 className="text-lg font-bold">Genre of Video </h2>
           <select 
             className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
@@ -274,7 +279,6 @@ export function Create() {
             <option>Auto</option>
             <option>Podcast</option>
             <option>Anime</option>
-            {/* <option>Gaming</option> */}
             <option>TV shows</option>
           </select>
           <h2 className="text-lg font-bold">Video Quality</h2>
@@ -354,10 +358,22 @@ export function Create() {
             onChange={(e) => setKeywords(e.target.value)}
           />
         </div>
-        {processing && <ProcessingBar progress={progress} />}
-        {processedClips.map((clip_data, index) => (
-          <ProcessedVideoCard key={index} clip={clip_data} />
-        ))}
+        {projects.length > 0 && (
+          <div className="w-full max-w-2xl mt-8">
+            <h2 className="text-lg font-bold mb-4">Your Projects</h2>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              {projects
+                .filter(project => project.status !== 'failed')
+                .map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    onClick={handleProjectClick}
+                  />
+                ))}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
