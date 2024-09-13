@@ -7,7 +7,7 @@ resend.api_key = os.environ["RESEND_API_KEY"]
 
 params: resend.Emails.SendParams = {
     "from": "Lunaris Clips <output@lunaris.media>",
-    "to": ["savnani8@gmail.com"],
+    "to": [""],
     "subject": "hello world",
     "html": "<strong>it works!</strong>",
 }
