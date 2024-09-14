@@ -6,7 +6,7 @@ import moviepy.editor as mp_edit
 import mediapipe as mp
 import argparse
 import os
-import random
+import shutil
 import glob
 import tempfile
 import subprocess
@@ -53,30 +53,37 @@ class VideoProcessor:
         self.deepgram_client = DeepgramClient(DG_API_KEY)
         self.db = db
 
-    def download_video(self, url, path, quality, start_time, end_time):
+    def download_video(self, source, path, quality, start_time, end_time):
         # Add directory check
         if not os.path.exists(path):
             os.makedirs(path)
 
         quality = quality.replace('p', '')
         
-        video_title = subprocess.check_output(["yt-dlp", url, "--get-title"], universal_newlines=True).strip()
-
-        path = os.path.join(path, video_title)
-        if not os.path.exists(path):
-            os.mkdir(path)
-        else:
-            # Delete the contents of the folder
-            for file in os.listdir(path):
-                file_path = os.path.join(path, file)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
+        if isinstance(source, str):  # It's a URL
+            video_title = subprocess.check_output(["yt-dlp", source, "--get-title"], universal_newlines=True).strip()
+            path = os.path.join(path, video_title)
+            if not os.path.exists(path):
+                os.mkdir(path)
+            else:
+                # Delete the contents of the folder
+                for file in os.listdir(path):
+                    file_path = os.path.join(path, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
             
-    
-        subprocess.run(["yt-dlp", url, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
-        print("Video downloaded successfully!")
-       
-        video_path = glob.glob(os.path.join(path, "*.*"))[0]
+            subprocess.run(["yt-dlp", source, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
+            print("Video downloaded successfully!")
+            video_path = glob.glob(os.path.join(path, "*.*"))[0]
+        else:  # It's a local file path
+            video_title = os.path.splitext(os.path.basename(source))[0]
+            path = os.path.join(path, video_title)
+            if not os.path.exists(path):
+                os.mkdir(path)
+            video_path = os.path.join(path, os.path.basename(source))
+            shutil.copy(source, video_path)
+            print("Video copied successfully!")
+
         video_extension = os.path.splitext(video_path)[1]
         
         # Cut video
@@ -93,10 +100,11 @@ class VideoProcessor:
         print("Video cut and audio extracted successfully!")
         return cut_video_path, cut_audio_path, video_title
 
-    def extract_audio(self, video_path, audio_path):
-        video = mp_edit.VideoFileClip(video_path)
-        video.audio.write_audiofile(audio_path)
-        print("audio extracted successfully!")
+    def extract_audio(self, video_path):
+        audio_path = os.path.splitext(video_path)[0] + ".mp3"
+        subprocess.run(["ffmpeg", "-i", video_path, "-q:a", "0", "-map", "a", audio_path])
+        print("Audio extracted successfully!")
+        return audio_path
 
     def clip_video(self, video_path, segments, output_folder='./clips'):
         if not os.path.exists(output_folder):
