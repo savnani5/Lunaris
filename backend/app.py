@@ -120,11 +120,11 @@ class LunarisApp:
                     self.app.logger.error(f'Project not found: {project_id}')
                     return
 
-                downloaded_video_path, downloaded_audio_path, video_title = self.video_processor.download_video(video_link, self.video_path, video_quality)
+                downloaded_video_path, downloaded_audio_path, video_title = self.video_processor.download_video(video_link, self.video_path, video_quality, start_time, end_time)
                 self.app.logger.info(f"Video downloaded: {downloaded_video_path}")
                 transcript, word_timings = self.video_processor.transcribe_audio(downloaded_audio_path)
                 self.app.logger.info(f"Audio transcription completed for project: {project_id}")
-                interesting_data = self.video_processor.get_interesting_segments(transcript, word_timings, start_time, end_time, clip_length, keywords)
+                interesting_data = self.video_processor.get_interesting_segments(transcript, word_timings, clip_length, keywords)
                 self.app.logger.info(f"Interesting segments identified for project: {project_id}")
                 processed_clip_ids = self.video_processor.crop_and_add_subtitles(
                     downloaded_video_path, 
@@ -204,7 +204,10 @@ class LunarisApp:
 
         video_link = data['link']
         clerk_user_id = data['userId']
+        video_title = data['videoTitle']
+        video_thumbnail = data['videoThumbnail']
         user_email = data['email']
+
 
         
         # Check if user exists, if not create a new one
@@ -218,7 +221,7 @@ class LunarisApp:
         else:
             self.app.logger.info(f"Found existing user with ID: {clerk_user_id}")
 
-        project = Project(clerk_user_id, video_link)
+        project = Project(clerk_user_id, video_link, video_title, video_thumbnail)
         project_dict = project.to_dict()
         result = self.projects_collection.insert_one(project_dict)
         project_id = result.inserted_id
