@@ -37,6 +37,11 @@ class Segment(BaseModel):
     title: str
     text: str
     transcript: str
+    score: int
+    hook: str
+    flow: str
+    engagement: str
+    trend: str
 
 class SegmentList(BaseModel):
     segments: List[Segment]
@@ -48,7 +53,7 @@ class VideoProcessor:
         self.deepgram_client = DeepgramClient(DG_API_KEY)
         self.db = db
 
-    def download_video(self, url, path, quality):
+    def download_video(self, url, path, quality, start_time, end_time):
         # Add directory check
         if not os.path.exists(path):
             os.makedirs(path)
@@ -73,10 +78,20 @@ class VideoProcessor:
        
         video_path = glob.glob(os.path.join(path, "*.*"))[0]
         video_extension = os.path.splitext(video_path)[1]
-        audio_path = video_path.replace(video_extension, ".mp3")
-        subprocess.run(["ffmpeg", "-i", video_path, "-q:a", "0", "-map", "a", audio_path])
-        print("Audio extracted successfully!")
-        return video_path, audio_path, video_title
+        
+        # Cut video
+        cut_video_path = video_path.replace(video_extension, f"_cut{video_extension}")
+        subprocess.run(["ffmpeg", "-i", video_path, "-ss", str(start_time), "-to", str(end_time), "-c", "copy", cut_video_path])
+        
+        # Extract and cut audio
+        cut_audio_path = cut_video_path.replace(video_extension, ".mp3")
+        subprocess.run(["ffmpeg", "-i", cut_video_path, "-q:a", "0", "-map", "a", cut_audio_path])
+        
+        # Remove original files
+        os.remove(video_path)
+        
+        print("Video cut and audio extracted successfully!")
+        return cut_video_path, cut_audio_path, video_title
 
     def extract_audio(self, video_path, audio_path):
         video = mp_edit.VideoFileClip(video_path)
@@ -95,18 +110,36 @@ class VideoProcessor:
             clip = video.subclip(start, end)
             clip.write_videofile(f"{output_folder}/clip_{i+1}.mp4")
 
-    def get_interesting_segments(self, transcript_text, word_timings, st, et, clip_length, keywords, output_file='interesting_segments.json'):
+    def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords, output_file='interesting_segments.json'):
         # Generate prompt for OpenAI
         prompt = f"""
-        You are a content creator. Here is the transcript from a youtube video:
+        You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content:
+
+        Transcript:
         {transcript_text}
-        Combine these words into some chunks of few sentences that would make interesting short form content to hook the audience. You can choose consecutive sentences arbitrarily and each chunk should be complete, i.e don't cut out mid sentence. Aim to keep each chunk above 350 words. Store the chunk content in text field. For the text field do not add punctuations to the transcript and keep the original words same. For the transcript field, add appropriate punctuations and capitalization to the text content. Remember the text and transcript should have same words, do not add new words. Provide a relevant title for each combination.
+
+        Task:
+        1. Identify the most interesting and engaging segments from the transcript.
+        2. Each segment should be cohesive, maintaining context and flow.
+        3. Segment length: {clip_length['min']} to {clip_length['max']} seconds.
+        4. If provided, focus on segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
+        5. For each segment, provide:
+           - Title: A catchy, relevant title
+           - Text: The exact transcript without punctuation
+           - Transcript: The same text with proper punctuation and capitalization
+           - Score: A number between 70 and 100, indicating overall quality
+           - Hook: Grade A, A+, A-, B, or B+
+           - Flow: Grade A, A+, A-, B, or B+
+           - Engagement: Grade A, A+, A-, B, or B+
+           - Trend: Grade A, A+, A-, B, or B+
+
+        Ensure each segment is self-contained and engaging, with a good narrative flow. Prioritize segments that will captivate and retain viewer attention.
         """
 
         completion = self.openai_client.beta.chat.completions.parse(
             model="gpt-4o-2024-08-06",
             messages=[
-                {"role": "system", "content": "Extract interesting segments from the transcript."},
+                {"role": "system", "content": "You are an AI assistant specialized in analyzing podcast transcripts and identifying engaging segments for short-form content creation. Your task is to extract interesting, cohesive segments that maintain context and flow, suitable for social media clips."},
                 {"role": "user", "content": prompt},
             ],
             response_format=SegmentList,
@@ -121,6 +154,11 @@ class VideoProcessor:
             title = segment.title
             text = segment.text
             transcript = segment.transcript
+            score = segment.score
+            hook = segment.hook
+            flow = segment.flow
+            engagement = segment.engagement
+            trend = segment.trend
             word_timings_in_segment = []
 
             # Find the start and end times for the combined text
@@ -152,8 +190,14 @@ class VideoProcessor:
                 'title': title,
                 'start': start_time,
                 'end': end_time,
-                'text': transcript,
-                'word_timings': word_timings_in_segment
+                'text': text,
+                'transcript': transcript,
+                'word_timings': word_timings_in_segment,
+                'score': score,
+                'hook': hook,
+                'flow': flow,
+                'engagement': engagement,
+                'trend': trend
             })
         
         # Write the combined data to a JSON file
@@ -197,7 +241,7 @@ class VideoProcessor:
             
             _, clip_url = self.save_or_upload_clip(final_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
             
-            clip_id = self.create_and_save_clip(project_id, segment['title'], segment['text'], clip_url)
+            clip_id = self.create_and_save_clip(project_id, segment, clip_url)
             processed_clip_ids.append(clip_id)
 
         return processed_clip_ids
@@ -313,17 +357,16 @@ class VideoProcessor:
         
         return clip_filename, clip_url
 
-    def create_and_save_clip(self, project_id, title, text, clip_url):
-        grades = ["A", "A+", "A-", "B", "B+"]
+    def create_and_save_clip(self, project_id, segment, clip_url):
         clip = Clip(project_id, 
-                    title, 
-                    text, 
+                    segment['title'], 
+                    segment['transcript'], 
                     clip_url,
-                    score=random.randint(70, 100),
-                    hook=random.choice(grades),
-                    flow=random.choice(grades),
-                    engagement=random.choice(grades),
-                    trend=random.choice(grades))
+                    score=segment['score'],
+                    hook=segment['hook'],
+                    flow=segment['flow'],
+                    engagement=segment['engagement'],
+                    trend=segment['trend'])
             
         # Insert clip into MongoDB
         clip_dict = clip.to_dict()

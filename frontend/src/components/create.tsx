@@ -364,6 +364,11 @@ export function Create() {
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
               {projects
                 .filter(project => project.status !== 'failed')
+                .sort((a, b) => {
+                  if (a.status === 'processing' && b.status !== 'processing') return -1;
+                  if (b.status === 'processing' && a.status !== 'processing') return 1;
+                  return 0;
+                })
                 .map((project) => (
                   <ProjectCard
                     key={project.id}
