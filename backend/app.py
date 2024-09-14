@@ -11,9 +11,12 @@ from dotenv import find_dotenv, load_dotenv
 from models.user import User
 from models.project import Project
 import argparse
-from botocore.exceptions import ClientError
+import resend
+from dotenv import load_dotenv
+
 
 load_dotenv(find_dotenv())
+
 
 class LunarisApp:
     def __init__(self, debug=False):
@@ -28,6 +31,7 @@ class LunarisApp:
         self.setup_routes()
         self.setup_mongoDB()
         self.setup_logging()
+        self.setup_resend()
         self.video_processor = VideoProcessor(self.db)
         self.s3_client = boto3.client(
             's3',
@@ -36,6 +40,7 @@ class LunarisApp:
             region_name=os.environ.get('AWS_REGION')
         ) if not debug else None
         self.s3_bucket = os.environ.get('S3_BUCKET_NAME')
+        
         
 
     def configure_app(self):
@@ -46,9 +51,9 @@ class LunarisApp:
         )
 
     def setup_cors(self):
-        frontend_url = os.environ.get('FRONTEND_URL', '*')  # Use * if FRONTEND_URL is not set
-        print(frontend_url)
-        CORS(self.app, resources={r"/api/*": {"origins": frontend_url}}, 
+        self.frontend_url = os.environ.get('FRONTEND_URL', '*')  # Use * if FRONTEND_URL is not set
+        print(self.frontend_url)
+        CORS(self.app, resources={r"/api/*": {"origins": self.frontend_url}}, 
             allow_headers=['Content-Type', 'Authorization'], 
             supports_credentials=True)
 
@@ -102,8 +107,11 @@ class LunarisApp:
             self.app.logger.propagate = False
 
             self.app.logger.info("Logging setup completed")
+    
+    def setup_resend(self):
+        resend.api_key = os.environ.get('RESEND_API_KEY')
 
-    def process_video_thread(self, video_link, project_id, clerk_user_id, video_quality, video_type, start_time, end_time, clip_length, keywords):
+    def process_video_thread(self, video_link, project_id, clerk_user_id, user_email, video_quality, video_type, start_time, end_time, clip_length, keywords):
         with self.app.app_context():
             try:
                 self.app.logger.info(f"Starting video processing for project: {project_id}")
@@ -144,6 +152,24 @@ class LunarisApp:
 
                 self.app.logger.info(f'Successfully processed and uploaded clips')
                 
+                # Send email to user to notify them that the video has been processed
+                try:
+                    email_params: resend.Emails.SendParams = {
+                        "from": "Lunaris Clips <output@lunaris.media>",
+                        "to": [user_email],
+                        "subject": "Your clips are ready 🎬!",
+                        "html": f"""
+                        <p>Hey there 👋</p>
+                        <p>The clips for your video "<b>{video_title}</b>" are ready!</p> 
+                        <p>You can view your clips <a href="{self.frontend_url}/project/{project_id}">here</a>.</p>
+                        """
+                    }
+                    resend.Emails.send(email_params)
+                    self.app.logger.info(f"Notification email sent to {user_email}")
+
+                except Exception as e:
+                    self.app.logger.error(f"Failed to send notification email: {str(e)}")
+
                 # Delete the folder video_title and all files in it under ./downloads
                 video_title_folder = os.path.join(self.video_path, video_title)
                 if os.path.exists(video_title_folder):
@@ -180,13 +206,15 @@ class LunarisApp:
         clerk_user_id = data['userId']
         video_title = data['videoTitle']
         video_thumbnail = data['videoThumbnail']
+        user_email = data['email']
+
 
         
         # Check if user exists, if not create a new one
         user = self.users_collection.find_one({"_id": clerk_user_id})
         
         if not user:
-            new_user = User(clerk_user_id, data['email'])
+            new_user = User(clerk_user_id, user_email)
             user_dict = new_user.to_dict()
             self.users_collection.insert_one(user_dict)
             self.app.logger.info(f"Created new user with ID: {clerk_user_id}")
@@ -210,6 +238,7 @@ class LunarisApp:
         thread = Thread(target=self.process_video_thread, args=(video_link, 
                                                                 project_id, 
                                                                 clerk_user_id,
+                                                                user_email,
                                                                 data['videoQuality'], 
                                                                 data['videoType'].lower(), 
                                                                 data['startTime'], 
