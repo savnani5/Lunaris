@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
@@ -9,13 +9,6 @@ import debounce from 'lodash/debounce';
 import { Slider } from '@mui/material';
 
 import ProjectCard from '@/components/ProjectCard';
-import ProcessedVideoCard from '@/components/ProcessedVideoCard';
-
-interface Project {
-  id: string;
-  thumbnail: string;
-  title: string;
-}
 
 interface ProjectStatus {
   id: string;
@@ -23,10 +16,6 @@ interface ProjectStatus {
   title: string;
   status: 'completed' | 'processing' | 'failed';
   progress?: number;
-}
-
-interface Clip {
-  _id: string;
 }
 
 export function Create() {
@@ -48,6 +37,11 @@ export function Create() {
   const [endTimePercentage, setEndTimePercentage] = useState(100);
   const [projects, setProjects] = useState<ProjectStatus[]>([]);
   const [clipLengthRange, setClipLengthRange] = useState({ min: 0, max: 180 });
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isValidInput, setIsValidInput] = useState(false);
 
   const backend_url = process.env.NEXT_PUBLIC_BACKEND_URL|| "https://lunarisbackend-production.up.railway.app";
 
@@ -80,6 +74,7 @@ export function Create() {
   const handleVideoLinkChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newLink = e.target.value;
     setVideoLink(newLink);
+    setIsValidInput(!!newLink);
     if (newLink) {
       debouncedFetchVideoDetails(newLink);
     } else {
@@ -95,32 +90,95 @@ export function Create() {
     }
   }, [videoLink]);
 
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadedVideo(file);
+    setVideoTitle(file.name);
+    setIsValidInput(true);
+
+    // Create a temporary URL for the video file
+    const videoURL = URL.createObjectURL(file);
+
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+
+    video.onloadedmetadata = () => {
+      setVideoDuration(video.duration);
+    };
+
+    video.onloadeddata = () => {
+      console.log("Video data loaded, waiting to generate thumbnail...");
+      // Wait a short moment to ensure the video is ready
+      setTimeout(() => {
+        video.currentTime = 1; // Set to 1 second to avoid potential black frames at the start
+      }, 1000);
+    };
+
+    video.onseeked = () => {
+      console.log("Video seeked, generating thumbnail...");
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
+      const thumbnailUrl = canvas.toDataURL('image/jpeg');
+      console.log("Thumbnail generated:", thumbnailUrl.substring(0, 100) + "...");
+      setVideoThumbnail(thumbnailUrl);
+      URL.revokeObjectURL(videoURL);
+    };
+
+    video.src = videoURL;
+    video.load();
+
+    // Simulating upload progress
+    let progress = 0;
+    const interval = setInterval(() => {
+      progress += 10;
+      setUploadProgress(progress);
+      if (progress >= 100) {
+        clearInterval(interval);
+        setIsUploading(false);
+      }
+    }, 500);
+  };
+
   const handleProcessClick = async () => {
     setProcessing(true);
     
-    // Use the user object from the hook
-    const userId = user?.id;
-    const email = user?.primaryEmailAddress?.emailAddress;
+    const userId = user?.id ?? '';
+    const email = user?.primaryEmailAddress?.emailAddress ?? '';
+
+    const formData = new FormData();
+    const formFields = {
+      userId,
+      email,
+      genre,
+      videoQuality,
+      videoType,
+      startTime: startTime.toString(),
+      endTime: endTime.toString(),
+      clipLengthMin: clipLengthRange.min.toString(),
+      clipLengthMax: clipLengthRange.max.toString(),
+      keywords,
+      videoTitle,
+      videoThumbnail,
+    };
+
+    Object.entries(formFields).forEach(([key, value]) => {
+      formData.append(key, value);
+    });
+
+    if (uploadedVideo) {
+      formData.append('video', uploadedVideo);
+    } else {
+      formData.append('videoLink', videoLink);
+    }
 
     const response = await fetch(`${backend_url}/api/process-video`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ 
-        link: videoLink, 
-        genre,
-        videoQuality,
-        videoType,
-        startTime,
-        endTime,
-        clipLength: clipLengthRange,
-        keywords,
-        userId,
-        email,
-        videoTitle,
-        videoThumbnail
-      }),
+      body: formData,
     });
 
     if (response.ok) {
@@ -129,8 +187,8 @@ export function Create() {
         id: data.project_id,
         thumbnail: videoThumbnail,
         title: videoTitle || 'Untitled Project',
-        status: 'processing', // Add this line
-        progress: 0 // Add this line if needed
+        status: 'processing',
+        progress: 0
       };
       setProjects(prevProjects => [...prevProjects, newProject]);
       setProcessing(false);
@@ -138,6 +196,7 @@ export function Create() {
       setVideoLink("");
       setVideoThumbnail("");
       setVideoTitle("");
+      setUploadedVideo(null);
       // ... reset other state variables
     } else {
       setProcessing(false);
@@ -237,6 +296,17 @@ export function Create() {
     }
   };
 
+  const handleRemoveVideo = () => {
+    setUploadedVideo(null);
+    setVideoThumbnail("");
+    setVideoTitle("");
+    setVideoDuration(null);
+    setIsValidInput(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-white p-4">
       <header className="flex items-center justify-between py-4">
@@ -250,16 +320,50 @@ export function Create() {
             className="flex-1 bg-gray-800 text-white"
             value={videoLink}
             onChange={handleVideoLinkChange}
+            disabled={isUploading || !!uploadedVideo}
           />
-          <Button className="bg-blue-500" onClick={handleProcessClick} disabled={processing}>
-            {processing ? "Processing..." : "Get viral clips"}
+          <Button 
+            className="bg-blue-500" 
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isUploading || !!videoLink}
+          >
+            {isUploading ? `Uploading ${uploadProgress}%` : "Upload Video"}
           </Button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            className="hidden"
+            accept="video/*"
+            onChange={handleFileUpload}
+          />
         </div>
         {(videoThumbnail || videoTitle) && (
-          <div className="w-full max-w-2xl flex flex-col items-center space-y-2">
+          <div className="w-full max-w-2xl flex flex-col items-center space-y-2 relative">
             {videoThumbnail && (
-              <div className="flex flex-col items-center w-full">
-                <img src={videoThumbnail} alt="Video thumbnail" width={280} height={158} className="mx-auto" />
+              <div className="flex flex-col items-center w-full relative">
+                <div className="relative">
+                  <img 
+                    src={videoThumbnail} 
+                    alt="Video thumbnail" 
+                    width={280} 
+                    height={158} 
+                    className="mx-auto"
+                    onError={() => console.error("Error loading thumbnail")}
+                    onLoad={() => console.log("Thumbnail loaded successfully")}
+                  />
+                  {uploadedVideo && (
+                    <Button
+                      className="absolute -top-3 -right-3 bg-transparent hover:bg-gray-800 text-white rounded-full p-1 transition-colors duration-200"
+                      onClick={handleRemoveVideo}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="10" />
+                        <line x1="15" y1="9" x2="9" y2="15" />
+                        <line x1="9" y1="9" x2="15" y2="15" />
+                      </svg>
+                    </Button>
+                  )}
+                </div>
                 {videoTitle && (
                   <p className="text-center font-semibold mt-2 truncate w-full" style={{ maxWidth: '280px' }}>
                     {videoTitle}
@@ -358,6 +462,13 @@ export function Create() {
             onChange={(e) => setKeywords(e.target.value)}
           />
         </div>
+        <Button 
+          className="w-full max-w-2xl bg-blue-500 mt-4 py-3 text-lg font-semibold" 
+          onClick={handleProcessClick} 
+          disabled={processing || isUploading || !isValidInput}
+        >
+          {processing ? "Processing..." : "Get viral clips"}
+        </Button>
         {projects.length > 0 && (
           <div className="w-full max-w-2xl mt-8">
             <h2 className="text-lg font-bold mb-4">Your Projects</h2>

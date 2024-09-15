@@ -11,3 +11,4 @@ yt-dlp==2024.8.6
 moviepy==1.0.3
 gunicorn==23.0.0
 pydantic==2.8.2
+Werkzeug==3.0.4

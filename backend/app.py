@@ -13,6 +13,8 @@ from models.project import Project
 import argparse
 import resend
 from dotenv import load_dotenv
+from werkzeug.utils import secure_filename
+import tempfile
 
 
 load_dotenv(find_dotenv())
@@ -111,7 +113,7 @@ class LunarisApp:
     def setup_resend(self):
         resend.api_key = os.environ.get('RESEND_API_KEY')
 
-    def process_video_thread(self, video_link, project_id, clerk_user_id, user_email, video_quality, video_type, start_time, end_time, clip_length, keywords):
+    def process_video_thread(self, video_link, video_path, project_id, clerk_user_id, user_email, video_quality, video_type, start_time, end_time, clip_length, keywords):
         with self.app.app_context():
             try:
                 self.app.logger.info(f"Starting video processing for project: {project_id}")
@@ -120,8 +122,14 @@ class LunarisApp:
                     self.app.logger.error(f'Project not found: {project_id}')
                     return
 
-                downloaded_video_path, downloaded_audio_path, video_title = self.video_processor.download_video(video_link, self.video_path, video_quality, start_time, end_time)
-                self.app.logger.info(f"Video downloaded: {downloaded_video_path}")
+                if video_link:
+                    downloaded_video_path, downloaded_audio_path, video_title = self.video_processor.download_video(video_link, self.video_path, video_quality, start_time, end_time)
+                else:
+                    downloaded_video_path = video_path
+                    downloaded_audio_path = self.video_processor.extract_audio(video_path)
+                    video_title = os.path.splitext(os.path.basename(video_path))[0]
+
+                self.app.logger.info(f"Video processed: {downloaded_video_path}")
                 transcript, word_timings = self.video_processor.transcribe_audio(downloaded_audio_path)
                 self.app.logger.info(f"Audio transcription completed for project: {project_id}")
                 interesting_data = self.video_processor.get_interesting_segments(transcript, word_timings, clip_length, keywords)
@@ -197,18 +205,26 @@ class LunarisApp:
 
     def process_video(self):
         self.app.logger.info("Received request to process video")
-        data = request.get_json()
-        if 'link' not in data:
-            self.app.logger.error('No video link provided in the request.')
-            return jsonify({'error': 'No video link provided'}), 400
+        
+        # Check if the post request has the file part
+        if 'video' in request.files:
+            file = request.files['video']
+            if file.filename == '':
+                return jsonify({'error': 'No selected file'}), 400
+            if file:
+                filename = secure_filename(file.filename)
+                with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as temp_file:
+                    file.save(temp_file.name)
+                    video_path = temp_file.name
+                video_link = None
+        else:
+            video_link = request.form.get('videoLink')
+            video_path = None
 
-        video_link = data['link']
-        clerk_user_id = data['userId']
-        video_title = data['videoTitle']
-        video_thumbnail = data['videoThumbnail']
-        user_email = data['email']
-
-
+        clerk_user_id = request.form.get('userId')
+        video_title = request.form.get('videoTitle')
+        video_thumbnail = request.form.get('videoThumbnail')
+        user_email = request.form.get('email')
         
         # Check if user exists, if not create a new one
         user = self.users_collection.find_one({"_id": clerk_user_id})
@@ -221,7 +237,7 @@ class LunarisApp:
         else:
             self.app.logger.info(f"Found existing user with ID: {clerk_user_id}")
 
-        project = Project(clerk_user_id, video_link, video_title, video_thumbnail)
+        project = Project(clerk_user_id, video_link or video_path, video_title, video_thumbnail)
         project_dict = project.to_dict()
         result = self.projects_collection.insert_one(project_dict)
         project_id = result.inserted_id
@@ -232,19 +248,22 @@ class LunarisApp:
             {"$push": {"project_ids": project_id}}
         )
 
-        self.app.logger.info(f'Received video link: {video_link}')
-        # print(data['videoType'].lower(), data['startTime'], data['endTime'], data['clipLength'], data['keywords'])
+        self.app.logger.info(f'Received video: {video_link or video_path}')
 
         thread = Thread(target=self.process_video_thread, args=(video_link, 
+                                                                video_path,
                                                                 project_id, 
                                                                 clerk_user_id,
                                                                 user_email,
-                                                                data['videoQuality'], 
-                                                                data['videoType'].lower(), 
-                                                                data['startTime'], 
-                                                                data['endTime'], 
-                                                                data['clipLength'], 
-                                                                data['keywords']))
+                                                                request.form.get('videoQuality'), 
+                                                                request.form.get('videoType').lower(), 
+                                                                float(request.form.get('startTime')), 
+                                                                float(request.form.get('endTime')), 
+                                                                {
+                                                                    'min': float(request.form.get('clipLengthMin')),
+                                                                    'max': float(request.form.get('clipLengthMax'))
+                                                                }, 
+                                                                request.form.get('keywords')))
         thread.start()
         
         return jsonify({'message': 'Video processing started', 'project_id': str(project_id)}), 202
