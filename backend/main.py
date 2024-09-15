@@ -209,10 +209,10 @@ class VideoProcessor:
             })
         
         # Write the combined data to a JSON file
-        with open(output_file, 'w') as json_file:
-            json.dump(segment_data, json_file, indent=4)
+        # with open(output_file, 'w') as json_file:
+        #     json.dump(segment_data, json_file, indent=4)
 
-        print(f"Interesting segments extracted and saved to {output_file}")
+        print(f"Interesting segments extracted!")
         return segment_data
 
     def detect_faces_and_draw_boxes(self, frame):
