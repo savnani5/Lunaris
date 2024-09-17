@@ -8,6 +8,7 @@ interface ProjectCardProps {
     status: 'completed' | 'processing' | 'failed';
     videoDuration: number;
     progress?: number;
+    processingTimeframe?: string; // Add this line
   };
   onClick: (project: ProjectCardProps['project']) => void;
 }
@@ -25,6 +26,11 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
       <div className="absolute top-1 right-1 bg-black bg-opacity-60 text-white text-xs px-1 py-0.5 rounded">
         {formatDuration(project.videoDuration)}
       </div>
+      {project.processingTimeframe && (
+        <div className="absolute top-1 left-1 bg-black bg-opacity-60 text-white text-xs px-1 py-0.5 rounded">
+          {project.processingTimeframe}
+        </div>
+      )}
       {project.status === 'processing' && project.progress !== undefined && (
         <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-600">
           <div 

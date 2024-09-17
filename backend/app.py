@@ -223,6 +223,7 @@ class LunarisApp:
         video_title = request.form.get('videoTitle')
         video_thumbnail = request.form.get('videoThumbnail')
         video_duration = request.form.get('videoDuration')
+        processingTimeframe = request.form.get('processingTimeframe')
         user_email = request.form.get('email')
         
         # Check if user exists, if not create a new one
@@ -236,7 +237,7 @@ class LunarisApp:
         else:
             self.app.logger.info(f"Found existing user with ID: {clerk_user_id}")
 
-        project = Project(clerk_user_id, video_link or video_path, video_title, video_thumbnail, video_duration)
+        project = Project(clerk_user_id, video_link or video_path, video_title, video_thumbnail, video_duration, processingTimeframe)
         project_dict = project.to_dict()
         result = self.projects_collection.insert_one(project_dict)
         project_id = result.inserted_id

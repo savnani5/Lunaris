@@ -32,6 +32,7 @@ interface ProjectStatus {
   createdAt: string;
   videoDuration: number;
   progress?: number;
+  processingTimeframe?: string;
 }
 
 export function Create() {
@@ -177,6 +178,8 @@ export function Create() {
     const userId = user?.id ?? '';
     const email = user?.primaryEmailAddress?.emailAddress ?? '';
 
+    const processingTimeframe = `${formatTime(startTime)}-${formatTime(endTime)}`;
+
     const formData = new FormData();
     const formFields = {
       userId,
@@ -191,8 +194,9 @@ export function Create() {
       keywords,
       videoTitle,
       videoThumbnail,
-      videoDuration: videoDuration?.toString() || '0', // Add this line
+      videoDuration: videoDuration?.toString() || '0',
       captionStyle: selectedCaptionStyle,
+      processingTimeframe,
     };
 
     Object.entries(formFields).forEach(([key, value]) => {
@@ -224,6 +228,7 @@ export function Create() {
         createdAt: new Date().toISOString(),
         videoDuration: videoDuration || 0,
         progress: 0,
+        processingTimeframe,
       };
       setProjects(prevProjects => [...prevProjects, newProject]);
       setProcessing(false);
@@ -320,6 +325,7 @@ export function Create() {
           createdAt: project.created_at,
           videoDuration: project.video_duration,
           progress: project.progress || 0,
+          processingTimeframe: project.processing_timeframe,
         })));
       }
     } catch (error) {
