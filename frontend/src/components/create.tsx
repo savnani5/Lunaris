@@ -22,11 +22,16 @@ const mattRifeVideo = '/assets/caption_styles/matt_rife.mp4';
 
 interface ProjectStatus {
   id: string;
-  thumbnail: string;
+  clerkUserId: string;
+  youtubeVideoUrl: string;
   title: string;
+  thumbnail: string;
+  clipIds: string[];
+  transcript: string | null;
   status: 'completed' | 'processing' | 'failed';
+  createdAt: string;
+  videoDuration: number;
   progress?: number;
-  duration: string; // Add this line
 }
 
 export function Create() {
@@ -186,6 +191,7 @@ export function Create() {
       keywords,
       videoTitle,
       videoThumbnail,
+      videoDuration: videoDuration?.toString() || '0', // Add this line
       captionStyle: selectedCaptionStyle,
     };
 
@@ -208,11 +214,16 @@ export function Create() {
       const data = await response.json();
       const newProject: ProjectStatus = {
         id: data.project_id,
-        thumbnail: videoThumbnail,
+        clerkUserId: userId,
+        youtubeVideoUrl: videoLink,
         title: videoTitle || 'Untitled Project',
+        thumbnail: videoThumbnail,
+        clipIds: [],
+        transcript: null,
         status: 'processing',
+        createdAt: new Date().toISOString(),
+        videoDuration: videoDuration || 0,
         progress: 0,
-        duration: formatTime(videoDuration || 0) // Add this line
       };
       setProjects(prevProjects => [...prevProjects, newProject]);
       setProcessing(false);
@@ -299,11 +310,16 @@ export function Create() {
         const data = await response.json();
         setProjects(data.map((project: any) => ({
           id: project._id,
-          thumbnail: project.thumbnail,
+          clerkUserId: project.clerk_user_id,
+          youtubeVideoUrl: project.youtube_video_url,
           title: project.title,
+          thumbnail: project.thumbnail,
+          clipIds: project.clip_ids,
+          transcript: project.transcript,
           status: project.status,
-          progress: project.progress,
-          duration: formatTime(project.duration) // Add this line
+          createdAt: project.created_at,
+          videoDuration: project.video_duration,
+          progress: project.progress || 0,
         })));
       }
     } catch (error) {
@@ -519,7 +535,7 @@ export function Create() {
                     <ProjectCard
                       key={project.id}
                       project={project}
-                      onClick={handleProjectClick}
+                      onClick={() => handleProjectClick(project)}
                     />
                   ))}
               </div>

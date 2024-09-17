@@ -41,9 +41,7 @@ class LunarisApp:
             aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
             region_name=os.environ.get('AWS_REGION')
         ) if not debug else None
-        self.s3_bucket = os.environ.get('S3_BUCKET_NAME')
-        
-        
+        self.s3_bucket = os.environ.get('S3_BUCKET_NAME')        
 
     def configure_app(self):
         self.app.config.update(
@@ -224,6 +222,7 @@ class LunarisApp:
         clerk_user_id = request.form.get('userId')
         video_title = request.form.get('videoTitle')
         video_thumbnail = request.form.get('videoThumbnail')
+        video_duration = request.form.get('videoDuration')
         user_email = request.form.get('email')
         
         # Check if user exists, if not create a new one
@@ -237,7 +236,7 @@ class LunarisApp:
         else:
             self.app.logger.info(f"Found existing user with ID: {clerk_user_id}")
 
-        project = Project(clerk_user_id, video_link or video_path, video_title, video_thumbnail)
+        project = Project(clerk_user_id, video_link or video_path, video_title, video_thumbnail, video_duration)
         project_dict = project.to_dict()
         result = self.projects_collection.insert_one(project_dict)
         project_id = result.inserted_id
@@ -309,7 +308,7 @@ class LunarisApp:
 
     def run(self):
         port = int(os.environ.get('PORT', 5001))  # Use PORT from environment or default to 5001
-        self.app.run(host='0.0.0.0', debug=True, port=port)
+        self.app.run(host='0.0.0.0', debug=False, port=port)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run the Lunaris App')

@@ -209,8 +209,8 @@ class VideoProcessor:
 
         print(f"Interesting segments extracted!")
         
-        # with open('interesting_segments.json', 'w') as json_file:
-        #     json.dump(segment_data, json_file, indent=4)
+        with open('interesting_segments.json', 'w') as json_file:
+            json.dump(segment_data, json_file, indent=4)
         
         return segment_data
 
@@ -245,11 +245,9 @@ class VideoProcessor:
             
             processed_clip = self.process_clip(clip, output_video_type, prev_box1)
             final_clip = self.add_subtitles(processed_clip, segment['word_timings'], segment['start'], output_video_type)
-            
             _, clip_url = self.save_or_upload_clip(final_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
-            
-            # clip_id = self.create_and_save_clip(project_id, segment, clip_url)
-            # processed_clip_ids.append(clip_id)
+            clip_id = self.create_and_save_clip(project_id, segment, clip_url)
+            processed_clip_ids.append(clip_id)
 
         return processed_clip_ids
 
@@ -305,12 +303,15 @@ class VideoProcessor:
     def add_subtitles(self, processed_clip, word_timings, start_time, output_video_type):
         
         def make_textclip(txt, start_time, end_time, color='white', position=('center', 'center'), highlight=False):
+            if not txt:  # Check if the text is empty or None
+                return None
+            
             fontsize = 80 if output_video_type == 'portrait' else 50
-            stroke_width = 3
+            stroke_width = 4
             
             if highlight:
                 color = random.choice(['rgb(255, 255, 0)', 'rgb(0, 200, 0)'])
-            
+
             txt_clip = TextClip(txt.upper(), fontsize=fontsize, font='Arial-Black', color=color, 
                                 stroke_color='black', stroke_width=stroke_width, method='label', kerning=-3)
             
@@ -361,31 +362,50 @@ class VideoProcessor:
             if output_video_type == 'landscape':
                 position = ('center', processed_clip.h * 0.85)
                 txt_clip = make_textclip(chunk['word'], chunk['start'] - start_time, chunk['end'] - start_time, position=position)
-                txt_clips.append(txt_clip)
+                if txt_clip:
+                    txt_clips.append(txt_clip)
             else:  # portrait
                 words = chunk['words']
-                mid = len(words) // 2
-                line1 = ' '.join(w['word'] for w in words[:mid])
-                line2 = ' '.join(w['word'] for w in words[mid:])
-                
-                position1 = ('center', processed_clip.h * 0.82)
-                position2 = ('center', processed_clip.h * 0.87)
-                
-                txt_clip1 = make_textclip(line1, chunk['start'] - start_time, chunk['end'] - start_time, position=position1)
-                txt_clip2 = make_textclip(line2, chunk['start'] - start_time, chunk['end'] - start_time, position=position2)
-                txt_clips.extend([txt_clip1, txt_clip2])
-                
-                # Add highlighted words
-                for i, word in enumerate(words):
-                    if i < mid:
-                        text = line1
-                        position = position1
-                    else:
-                        text = line2
-                        position = position2
+                if len(words) == 1:
+                    # Handle single word case
+                    text = words[0]['word']
+                    position = ('center', processed_clip.h * 0.85)
+                    txt_clip = make_textclip(text, chunk['start'] - start_time, chunk['end'] - start_time, position=position)
+                    if txt_clip:
+                        txt_clips.append(txt_clip)
                     
-                    highlight_clip = make_textclip(text, word['start'] - start_time, word['end'] - start_time, position=position, highlight=True)
-                    txt_clips.append(highlight_clip)
+                    # Add highlighted word
+                    highlight_clip = make_textclip(text, words[0]['start'] - start_time, words[0]['end'] - start_time, position=position, highlight=True)
+                    if highlight_clip:
+                        txt_clips.append(highlight_clip)
+                else:
+                    # Handle multiple words case
+                    mid = len(words) // 2
+                    line1 = ' '.join(w['word'] for w in words[:mid])
+                    line2 = ' '.join(w['word'] for w in words[mid:])
+                    
+                    position1 = ('center', processed_clip.h * 0.82)
+                    position2 = ('center', processed_clip.h * 0.87)
+                    
+                    txt_clip1 = make_textclip(line1, chunk['start'] - start_time, chunk['end'] - start_time, position=position1)
+                    txt_clip2 = make_textclip(line2, chunk['start'] - start_time, chunk['end'] - start_time, position=position2)
+                    if txt_clip1:
+                        txt_clips.append(txt_clip1)
+                    if txt_clip2:
+                        txt_clips.append(txt_clip2)
+                    
+                    # Add highlighted words
+                    for i, word in enumerate(words):
+                        if i < mid:
+                            text = line1
+                            position = position1
+                        else:
+                            text = line2
+                            position = position2
+                        
+                        highlight_clip = make_textclip(text, word['start'] - start_time, word['end'] - start_time, position=position, highlight=True)
+                        if highlight_clip:
+                            txt_clips.append(highlight_clip)
         
         return CompositeVideoClip([processed_clip] + txt_clips)
 
@@ -420,9 +440,9 @@ class VideoProcessor:
             output_file_path = os.path.join(project_dir, clip_filename)
             final_clip.write_videofile(output_file_path, codec='libx264')
             print(f"Video '{title}' processed and subtitled successfully as {output_video_type}!")
-            clip_url = ""
-            # clip_url = url_for('get_clip', base_url=output_folder, user_id=user_id, project_id=project_id, filename=clip_filename, _external=True)
-            # print(f"Debug: Clip URL: {clip_url}")
+            # clip_url = ""
+            clip_url = url_for('get_clip', base_url=output_folder, user_id=user_id, project_id=project_id, filename=clip_filename, _external=True)
+            print(f"Debug: Clip URL: {clip_url}")
 
         elif s3_client and s3_bucket:
             with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
