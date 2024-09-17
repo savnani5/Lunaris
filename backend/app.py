@@ -309,7 +309,7 @@ class LunarisApp:
 
     def run(self):
         port = int(os.environ.get('PORT', 5001))  # Use PORT from environment or default to 5001
-        self.app.run(host='0.0.0.0', debug=False, port=port)
+        self.app.run(host='0.0.0.0', debug=True, port=port)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run the Lunaris App')

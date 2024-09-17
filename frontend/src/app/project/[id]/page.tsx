@@ -68,7 +68,8 @@ export default function ProjectPage() {
   return (
     <div className="min-h-screen bg-black text-white p-4">
       <main className="flex flex-col items-center space-y-8">
-        <p>Project Page</p>
+      <h1 className="text-2xl font-bold">Project Page</h1>
+        <p>We will email you once the clips are ready!</p>
         {processing ? (
           <ProcessingBar progress={progress} />
         ) : (

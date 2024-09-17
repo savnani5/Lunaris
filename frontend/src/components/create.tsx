@@ -9,6 +9,16 @@ import debounce from 'lodash/debounce';
 import { Slider } from '@mui/material';
 
 import ProjectCard from '@/components/ProjectCard';
+import CaptionStyleSelector from '@/components/CaptionStyleSelector';
+
+const bigBangVideo = '/assets/caption_styles/big_bang.mp4';
+const elonVideo = '/assets/caption_styles/elon.mp4';
+const imanGadziVideo = '/assets/caption_styles/iman_gadzi.mp4';
+const ycVideo = '/assets/caption_styles/yc.mp4';
+const jakePaulVideo = '/assets/caption_styles/jake_paul.mp4';
+const chrisWilliamsonVideo = '/assets/caption_styles/chris_williamson.mp4';
+const mattRifeVideo = '/assets/caption_styles/matt_rife.mp4';
+
 
 interface ProjectStatus {
   id: string;
@@ -16,6 +26,7 @@ interface ProjectStatus {
   title: string;
   status: 'completed' | 'processing' | 'failed';
   progress?: number;
+  duration: string; // Add this line
 }
 
 export function Create() {
@@ -42,6 +53,17 @@ export function Create() {
   const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isValidInput, setIsValidInput] = useState(false);
+  const [selectedCaptionStyle, setSelectedCaptionStyle] = useState("pod_p");
+
+  const captionStyles = [
+    { id: "big_bang", name: "Big Bang", videoSrc: bigBangVideo },
+    { id: "elon", name: "Elon Musk", videoSrc: elonVideo },
+    { id: "iman_gadzi", name: "Iman Gadzi", videoSrc: imanGadziVideo },
+    { id: "yc", name: "YC", videoSrc: ycVideo },
+    { id: "jake_paul", name: "Jake Paul", videoSrc: jakePaulVideo },
+    { id: "chris_williamson", name: "Chris Williamson", videoSrc: chrisWilliamsonVideo },
+    { id: "matt_rife", name: "Matt Rife", videoSrc: mattRifeVideo },
+  ];
 
   const backend_url = process.env.NEXT_PUBLIC_BACKEND_URL|| "https://lunarisbackend-production.up.railway.app";
 
@@ -164,6 +186,7 @@ export function Create() {
       keywords,
       videoTitle,
       videoThumbnail,
+      captionStyle: selectedCaptionStyle,
     };
 
     Object.entries(formFields).forEach(([key, value]) => {
@@ -188,7 +211,8 @@ export function Create() {
         thumbnail: videoThumbnail,
         title: videoTitle || 'Untitled Project',
         status: 'processing',
-        progress: 0
+        progress: 0,
+        duration: formatTime(videoDuration || 0) // Add this line
       };
       setProjects(prevProjects => [...prevProjects, newProject]);
       setProcessing(false);
@@ -278,7 +302,8 @@ export function Create() {
           thumbnail: project.thumbnail,
           title: project.title,
           status: project.status,
-          progress: project.progress
+          progress: project.progress,
+          duration: formatTime(project.duration) // Add this line
         })));
       }
     } catch (error) {
@@ -305,6 +330,10 @@ export function Create() {
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }
+  };
+
+  const handleCaptionStyleSelect = (styleId: string) => {
+    setSelectedCaptionStyle(styleId);
   };
 
   return (
@@ -462,6 +491,11 @@ export function Create() {
             onChange={(e) => setKeywords(e.target.value)}
           />
         </div>
+        <CaptionStyleSelector
+          styles={captionStyles}
+          selectedStyle={selectedCaptionStyle}
+          onStyleSelect={handleCaptionStyleSelect}
+        />
         <Button 
           className="w-full max-w-2xl bg-blue-500 mt-4 py-3 text-lg font-semibold" 
           onClick={handleProcessClick} 
@@ -470,23 +504,25 @@ export function Create() {
           {processing ? "Processing..." : "Get viral clips"}
         </Button>
         {projects.length > 0 && (
-          <div className="w-full max-w-2xl mt-8">
-            <h2 className="text-lg font-bold mb-4">Your Projects</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              {projects
-                .filter(project => project.status !== 'failed')
-                .sort((a, b) => {
-                  if (a.status === 'processing' && b.status !== 'processing') return -1;
-                  if (b.status === 'processing' && a.status !== 'processing') return 1;
-                  return 0;
-                })
-                .map((project) => (
-                  <ProjectCard
-                    key={project.id}
-                    project={project}
-                    onClick={handleProjectClick}
-                  />
-                ))}
+          <div className="w-full mt-8 px-2">
+            <div className="max-w-7xl mx-auto">
+              <h2 className="text-lg font-bold mb-4">Your Projects</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
+                {projects
+                  .filter(project => project.status !== 'failed')
+                  .sort((a, b) => {
+                    if (a.status === 'processing' && b.status !== 'processing') return -1;
+                    if (b.status === 'processing' && a.status !== 'processing') return 1;
+                    return 0;
+                  })
+                  .map((project) => (
+                    <ProjectCard
+                      key={project.id}
+                      project={project}
+                      onClick={handleProjectClick}
+                    />
+                  ))}
+              </div>
             </div>
           </div>
         )}
