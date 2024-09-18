@@ -456,7 +456,12 @@ export function Create() {
             <option>Portrait</option>
             <option>Landscape</option>
           </select>
-          <h2 className="text-lg font-bold">Processing Timeframe</h2>
+          <div className="flex items-center mb-2">
+            <h2 className="text-lg font-bold mr-2">Processing Timeframe</h2>
+            <div className="bg-gray-700 bg-opacity-50 text-white text-xs font-semibold px-2 py-2 rounded">
+              save credits
+            </div>
+          </div>
           <div className="w-full mb-4 relative">
             <Slider
               value={timeRange}
