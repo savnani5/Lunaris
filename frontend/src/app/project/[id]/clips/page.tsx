@@ -45,7 +45,6 @@ export default function ProjectClipsPage() {
     <div className="min-h-screen bg-black text-white p-4">
       <main className="flex flex-col items-center space-y-8">
         <h1 className="text-2xl font-bold">Project Clips</h1>
-        <p>We will email you once the clips are ready!</p>
         {clips.map((clip) => (
           <ProcessedVideoCard key={clip._id} clip={clip} />
         ))}

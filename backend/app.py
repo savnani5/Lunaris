@@ -41,9 +41,7 @@ class LunarisApp:
             aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
             region_name=os.environ.get('AWS_REGION')
         ) if not debug else None
-        self.s3_bucket = os.environ.get('S3_BUCKET_NAME')
-        
-        
+        self.s3_bucket = os.environ.get('S3_BUCKET_NAME')        
 
     def configure_app(self):
         self.app.config.update(
@@ -113,7 +111,7 @@ class LunarisApp:
     def setup_resend(self):
         resend.api_key = os.environ.get('RESEND_API_KEY')
 
-    def process_video_thread(self, video_link, video_path, project_id, clerk_user_id, user_email, video_quality, video_type, start_time, end_time, clip_length, keywords):
+    def process_video_thread(self, video_link, video_path, project_id, clerk_user_id, user_email, video_quality, video_type, start_time, end_time, clip_length, keywords, caption_style):
         with self.app.app_context():
             try:
                 self.app.logger.info(f"Starting video processing for project: {project_id}")
@@ -137,7 +135,8 @@ class LunarisApp:
                 processed_clip_ids = self.video_processor.crop_and_add_subtitles(
                     downloaded_video_path, 
                     interesting_data, 
-                    video_type, 
+                    video_type,
+                    caption_style,
                     self.output_path, 
                     s3_client=self.s3_client, 
                     s3_bucket=self.s3_bucket, 
@@ -224,6 +223,8 @@ class LunarisApp:
         clerk_user_id = request.form.get('userId')
         video_title = request.form.get('videoTitle')
         video_thumbnail = request.form.get('videoThumbnail')
+        video_duration = request.form.get('videoDuration')
+        processingTimeframe = request.form.get('processingTimeframe')
         user_email = request.form.get('email')
         
         # Check if user exists, if not create a new one
@@ -237,7 +238,7 @@ class LunarisApp:
         else:
             self.app.logger.info(f"Found existing user with ID: {clerk_user_id}")
 
-        project = Project(clerk_user_id, video_link or video_path, video_title, video_thumbnail)
+        project = Project(clerk_user_id, video_link or video_path, video_title, video_thumbnail, video_duration, processingTimeframe)
         project_dict = project.to_dict()
         result = self.projects_collection.insert_one(project_dict)
         project_id = result.inserted_id
@@ -249,6 +250,8 @@ class LunarisApp:
         )
 
         self.app.logger.info(f'Received video: {video_link or video_path}')
+
+        caption_style = request.form.get('captionStyle', 'elon')  # Default to 'elon' if not provided
 
         thread = Thread(target=self.process_video_thread, args=(video_link, 
                                                                 video_path,
@@ -263,7 +266,8 @@ class LunarisApp:
                                                                     'min': float(request.form.get('clipLengthMin')),
                                                                     'max': float(request.form.get('clipLengthMax'))
                                                                 }, 
-                                                                request.form.get('keywords')))
+                                                                request.form.get('keywords'),
+                                                                caption_style))
         thread.start()
         
         return jsonify({'message': 'Video processing started', 'project_id': str(project_id)}), 202

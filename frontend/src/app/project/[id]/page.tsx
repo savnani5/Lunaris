@@ -68,7 +68,8 @@ export default function ProjectPage() {
   return (
     <div className="min-h-screen bg-black text-white p-4">
       <main className="flex flex-col items-center space-y-8">
-        <p>Project Page</p>
+      <h1 className="text-2xl font-bold">Project Page</h1>
+        <p>We will email you once the clips are ready!</p>
         {processing ? (
           <ProcessingBar progress={progress} />
         ) : (
@@ -80,3 +81,13 @@ export default function ProjectPage() {
     </div>
   );
 }
+
+
+// Your video is processing
+// You will receive a notification once your video is done processing, check back soon!
+
+// Fetching video "The fall of the Roman Empire explained | Gregory Aldrete and Lex Fridman"
+// Curation method: ClipBasic...
+// From 0:01:50 to 0:08:52, preferred clip length is auto...
+// Estimated waiting time: ~ 2min
+// Processing & analyzing... 77%

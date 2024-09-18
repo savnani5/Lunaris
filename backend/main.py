@@ -4,7 +4,7 @@
 
 import moviepy.editor as mp_edit
 import mediapipe as mp
-import argparse
+import random
 import os
 import shutil
 import glob
@@ -13,8 +13,7 @@ import subprocess
 import json
 from openai import OpenAI
 import cv2
-from moviepy.editor import TextClip, CompositeVideoClip
-from moviepy.editor import VideoFileClip, AudioFileClip
+from moviepy.editor import TextClip, CompositeVideoClip, ColorClip
 from models.clip import Clip
 from flask import url_for
 from botocore.exceptions import ClientError
@@ -26,6 +25,7 @@ from deepgram import (
 from pydantic import BaseModel
 from typing import List
 
+from caption_styles import CaptionStyleFactory
 from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
@@ -207,12 +207,12 @@ class VideoProcessor:
                 'engagement': engagement,
                 'trend': trend
             })
-        
-        # Write the combined data to a JSON file
-        # with open(output_file, 'w') as json_file:
-        #     json.dump(segment_data, json_file, indent=4)
 
         print(f"Interesting segments extracted!")
+        
+        with open('interesting_segments.json', 'w') as json_file:
+            json.dump(segment_data, json_file, indent=4)
+        
         return segment_data
 
     def detect_faces_and_draw_boxes(self, frame):
@@ -228,7 +228,7 @@ class VideoProcessor:
             return face_bboxes
         return []
 
-    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False):
+    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False):
         # Add directory check
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
@@ -239,16 +239,16 @@ class VideoProcessor:
         prev_box1 = None
         processed_clip_ids = []
 
+        caption_styler = CaptionStyleFactory.get_style(caption_style)
+        
         for segment in segments:
             clip = self.process_segment(video, segment, video_duration)
             if clip is None:
                 continue
             
             processed_clip = self.process_clip(clip, output_video_type, prev_box1)
-            final_clip = self.add_subtitles(processed_clip, segment['word_timings'], segment['start'], output_video_type)
-            
-            _, clip_url = self.save_or_upload_clip(final_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
-            
+            subtitled_clip = caption_styler.add_subtitles(processed_clip, segment['word_timings'], segment['start'], output_video_type)
+            _, clip_url = self.save_or_upload_clip(subtitled_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
             clip_id = self.create_and_save_clip(project_id, segment, clip_url)
             processed_clip_ids.append(clip_id)
 
@@ -303,20 +303,6 @@ class VideoProcessor:
         
         return clip.fl(process_frame)
 
-    def add_subtitles(self, processed_clip, word_timings, start_time, output_video_type):
-        def make_textclip(txt, start_time, end_time, color='white', position=('center', 'center')):
-            txt_clip = TextClip(txt.upper(), fontsize=50 if output_video_type == 'landscape' else 100, 
-                                color=color, font='Arial-Bold', bg_color='black')
-            txt_clip = txt_clip.set_position(position).set_start(start_time).set_duration(end_time - start_time)
-            return txt_clip
-
-        position = ('center', processed_clip.h * (0.85 if output_video_type == 'landscape' else 0.85))
-        txt_clips = [make_textclip(wt['word'], wt['start'] - start_time, wt['end'] - start_time, color='yellow', position=position)
-                     for wt in word_timings]
-        
-        return CompositeVideoClip([processed_clip] + txt_clips)
-
-
     def save_or_upload_clip(self, final_clip, title, output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug):
         clip_filename = f"{title}_{output_video_type}.mp4"
         
@@ -331,10 +317,11 @@ class VideoProcessor:
             project_dir = os.path.join(user_dir, str(project_id))
             if not os.path.exists(project_dir):
                 os.makedirs(project_dir)
-            
+                
             output_file_path = os.path.join(project_dir, clip_filename)
             final_clip.write_videofile(output_file_path, codec='libx264')
             print(f"Video '{title}' processed and subtitled successfully as {output_video_type}!")
+            # clip_url = ""
             clip_url = url_for('get_clip', base_url=output_folder, user_id=user_id, project_id=project_id, filename=clip_filename, _external=True)
             print(f"Debug: Clip URL: {clip_url}")
 
@@ -475,37 +462,39 @@ class VideoProcessor:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description='Run the Lunaris App')
-    parser.add_argument('-d', '--debug', action='store_true', help='Run in debug mode')
-    args = parser.parse_args()
+    # parser = argparse.ArgumentParser(description='Run the Lunaris App')
+    # parser.add_argument('-d', '--debug', action='store_true', help='Run in debug mode')
+    # args = parser.parse_args()
 
-    video_path = "./downloads"
+    # video_path = "./downloads"
 
-    # Initialize VideoProcessor
+    # # Initialize VideoProcessor
     processor = VideoProcessor(db=None)
 
-    # Ensure directories exist
-    os.makedirs(video_path, exist_ok=True)
+    # # Ensure directories exist
+    # os.makedirs(video_path, exist_ok=True)
 
-    youtube_url = input("Enter youtube video url: ")
-    video_quality = input("Enter video quality (high, medium, low): ")
-    output_video_type = input("Enter output video type (portrait, landscape): ")
+    # youtube_url = input("Enter youtube video url: ")
+    # video_quality = input("Enter video quality (high, medium, low): ")
+    # output_video_type = input("Enter output video type (portrait, landscape): ")
    
 
-    # Download video and extract audio
-    downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality)
+    # # Download video and extract audio
+    # downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality)
 
-    # Transcribe audio
-    transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
+    # # Transcribe audio
+    # transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
 
-    # Get interesting segments
-    interesting_data = processor.get_interesting_segments(transcript, word_timings)
+    # # Get interesting segments
+    # interesting_data = processor.get_interesting_segments(transcript, word_timings)
+
     
     # DEBUG: load from file
-    # with open("interesting_segments.json", 'r') as f:
-    #     interesting_data = json.load(f)
-    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/No Priors Ep. 80 | With Andrej Karpathy from OpenAI and Tesla/No Priors Ep. 80 ｜ With Andrej Karpathy from OpenAI and Tesla.webm"
+    with open("interesting_segments.json", 'r') as f:
+        interesting_data = json.load(f)
+    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Oliver Cameron - RAAIS 2023 short/Oliver Cameron - RAAIS 2023 short_cut.webm"
     # output_video_type = "landscape"
+    output_video_type = "portrait"
 
     # Crop video to portrait with faces
-    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, debug=args.debug)
+    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, debug=True)
