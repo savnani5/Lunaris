@@ -59,7 +59,7 @@ export function Create() {
   const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isValidInput, setIsValidInput] = useState(false);
-  const [selectedCaptionStyle, setSelectedCaptionStyle] = useState("pod_p");
+  const [selectedCaptionStyle, setSelectedCaptionStyle] = useState("elon");
 
   const captionStyles = [
     { id: "big_bang", name: "Big Bang", videoSrc: bigBangVideo },

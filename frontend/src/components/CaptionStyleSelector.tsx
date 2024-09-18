@@ -15,22 +15,29 @@ interface CaptionStyleSelectorProps {
 const CaptionStyleSelector: React.FC<CaptionStyleSelectorProps> = ({ styles, selectedStyle, onStyleSelect }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   const goToNext = () => {
-    setCurrentIndex((prevIndex) => (prevIndex + 1) % styles.length);
+    if (containerRef.current) {
+      const containerWidth = containerRef.current.offsetWidth;
+      const videoWidth = containerWidth / 3;
+      const maxIndex = Math.max(0, styles.length - Math.floor(containerWidth / videoWidth));
+      setCurrentIndex((prevIndex) => Math.min(prevIndex + 1, maxIndex));
+    }
   };
 
   const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => (prevIndex - 1 + styles.length) % styles.length);
+    setCurrentIndex((prevIndex) => Math.max(prevIndex - 1, 0));
   };
 
   return (
     <div className="w-full max-w-2xl mt-4">
       <h2 className="text-lg font-bold mb-4">Choose Caption Style</h2>
-      <div className="relative flex items-center overflow-hidden">
+      <div className="relative flex items-center overflow-hidden" ref={containerRef}>
         <button
           onClick={goToPrevious}
           className="absolute left-0 z-10 bg-gray-800 text-white rounded-full p-2"
+          disabled={currentIndex === 0}
         >
           &lt;
         </button>
@@ -48,7 +55,7 @@ const CaptionStyleSelector: React.FC<CaptionStyleSelectorProps> = ({ styles, sel
             >
               <video
                 ref={(el) => { videoRefs.current[index] = el; }}
-                src={`${style.videoSrc}`}
+                src={style.videoSrc}
                 className="w-full h-auto"
                 loop
                 muted
@@ -62,6 +69,7 @@ const CaptionStyleSelector: React.FC<CaptionStyleSelectorProps> = ({ styles, sel
         <button
           onClick={goToNext}
           className="absolute right-0 z-10 bg-gray-800 text-white rounded-full p-2"
+          disabled={currentIndex >= styles.length - 3}
         >
           &gt;
         </button>

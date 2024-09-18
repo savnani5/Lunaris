@@ -30,5 +30,5 @@ class Project:
             "status": self.status,
             "created_at": self.created_at,
             "video_duration": self.video_duration,
-            "processing_timeframe": self.processingTimeframe
+            "processing_timeframe": self.processing_timeframe
         }
