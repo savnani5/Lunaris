@@ -17,17 +17,19 @@ const CaptionStyleSelector: React.FC<CaptionStyleSelectorProps> = ({ styles, sel
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Find the index of the currently selected style
+  const selectedIndex = styles.findIndex(style => style.id === selectedStyle);
+
   const goToNext = () => {
-    if (containerRef.current) {
-      const containerWidth = containerRef.current.offsetWidth;
-      const videoWidth = containerWidth / 3;
-      const maxIndex = Math.max(0, styles.length - Math.floor(containerWidth / videoWidth));
-      setCurrentIndex((prevIndex) => Math.min(prevIndex + 1, maxIndex));
-    }
+    const newIndex = Math.min(selectedIndex + 1, styles.length - 1);
+    setCurrentIndex(Math.min(currentIndex + 1, styles.length - 3));
+    onStyleSelect(styles[newIndex].id);
   };
 
   const goToPrevious = () => {
-    setCurrentIndex((prevIndex) => Math.max(prevIndex - 1, 0));
+    const newIndex = Math.max(selectedIndex - 1, 0);
+    setCurrentIndex(Math.max(currentIndex - 1, 0));
+    onStyleSelect(styles[newIndex].id);
   };
 
   return (
@@ -37,7 +39,7 @@ const CaptionStyleSelector: React.FC<CaptionStyleSelectorProps> = ({ styles, sel
         <button
           onClick={goToPrevious}
           className="absolute left-0 z-10 bg-gray-800 text-white rounded-full p-2"
-          disabled={currentIndex === 0}
+          disabled={selectedIndex === 0}
         >
           &lt;
         </button>
@@ -69,7 +71,7 @@ const CaptionStyleSelector: React.FC<CaptionStyleSelectorProps> = ({ styles, sel
         <button
           onClick={goToNext}
           className="absolute right-0 z-10 bg-gray-800 text-white rounded-full p-2"
-          disabled={currentIndex >= styles.length - 3}
+          disabled={selectedIndex === styles.length - 1}
         >
           &gt;
         </button>

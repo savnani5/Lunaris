@@ -178,7 +178,7 @@ export function Create() {
     const userId = user?.id ?? '';
     const email = user?.primaryEmailAddress?.emailAddress ?? '';
 
-    const processingTimeframe = `${formatTime(startTime)}-${formatTime(endTime)}`;
+    const processingTimeframe = `${formatTime(endTime - startTime)}`;
 
     const formData = new FormData();
     const formFields = {
