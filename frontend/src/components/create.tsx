@@ -180,7 +180,7 @@ export function Create() {
     const userId = user?.id ?? '';
     const email = user?.primaryEmailAddress?.emailAddress ?? '';
 
-    const processingTimeframe = `${formatTime(endTime - startTime)}`;
+    const processingTimeframe = `${formatTime(endTime)} - ${formatTime(startTime)}`;
 
     const formData = new FormData();
     const formFields = {
@@ -364,7 +364,7 @@ export function Create() {
 
   const updateProjectStatus = useCallback(async (projectId: string) => {
     try {
-      const response = await fetch(`${backend_url}/api/video-status/${projectId}`);
+      const response = await fetch(`/api/project-status?userId=${user?.id}&projectId=${projectId}`);
       if (response.ok) {
         const data = await response.json();
         return data;
@@ -373,7 +373,7 @@ export function Create() {
       console.error('Error updating project status:', error);
     }
     return null;
-  }, [backend_url]);
+  }, [user]);
 
   const pollProjectStatuses = useCallback(async () => {
     const processingProjects = projects.filter(project => project.status === 'processing');
