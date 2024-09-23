@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from "next/navigation";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
@@ -33,6 +33,7 @@ interface ProjectStatus {
   videoDuration: number;
   progress?: number;
   processingTimeframe?: string;
+  videoQuality?: string;
 }
 
 export function Create() {
@@ -60,6 +61,7 @@ export function Create() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isValidInput, setIsValidInput] = useState(false);
   const [selectedCaptionStyle, setSelectedCaptionStyle] = useState("elon");
+  const [isPolling, setIsPolling] = useState(false);
 
   const captionStyles = [
     { id: "big_bang", name: "Big Bang", videoSrc: bigBangVideo },
@@ -229,9 +231,11 @@ export function Create() {
         videoDuration: videoDuration || 0,
         progress: 0,
         processingTimeframe,
+        videoQuality,
       };
       setProjects(prevProjects => [...prevProjects, newProject]);
       setProcessing(false);
+      setIsPolling(true); // Start polling immediately
       // Clear the form or reset state as needed
       setVideoLink("");
       setVideoThumbnail("");
@@ -358,6 +362,69 @@ export function Create() {
     setSelectedCaptionStyle(styleId);
   };
 
+  const updateProjectStatus = useCallback(async (projectId: string) => {
+    try {
+      const response = await fetch(`${backend_url}/api/video-status/${projectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        return data;
+      }
+    } catch (error) {
+      console.error('Error updating project status:', error);
+    }
+    return null;
+  }, [backend_url]);
+
+  const pollProjectStatuses = useCallback(async () => {
+    const processingProjects = projects.filter(project => project.status === 'processing');
+    
+    if (processingProjects.length === 0) {
+      setIsPolling(false);
+      return;
+    }
+
+    let updatedAny = false;
+
+    for (const project of processingProjects) {
+      const data = await updateProjectStatus(project.id);
+      if (data) {
+        setProjects(prevProjects =>
+          prevProjects.map(p =>
+            p.id === project.id
+              ? { ...p, status: data.status, progress: data.progress }
+              : p
+          )
+        );
+        if (data.status === 'completed') {
+          updatedAny = true;
+        }
+      }
+    }
+
+    if (updatedAny) {
+      fetchProjects();
+    }
+  }, [projects, updateProjectStatus, fetchProjects]);
+
+  useEffect(() => {
+    let intervalId: NodeJS.Timeout;
+
+    if (isPolling) {
+      intervalId = setInterval(pollProjectStatuses, 5000);
+    }
+
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [isPolling, pollProjectStatuses]);
+
+  useEffect(() => {
+    const hasProcessingProjects = projects.some(project => project.status === 'processing');
+    setIsPolling(hasProcessingProjects);
+  }, [projects]);
+
   return (
     <div className="min-h-screen bg-black text-white p-4">
       <header className="flex items-center justify-between py-4">
@@ -433,7 +500,7 @@ export function Create() {
           >
             <option>Auto</option>
             <option>Podcast</option>
-            <option>Anime</option>
+            {/* <option>Anime</option> */}
             <option>TV shows</option>
           </select>
           <h2 className="text-lg font-bold">Video Quality</h2>
@@ -537,11 +604,7 @@ export function Create() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
                 {projects
                   .filter(project => project.status !== 'failed')
-                  .sort((a, b) => {
-                    if (a.status === 'processing' && b.status !== 'processing') return -1;
-                    if (b.status === 'processing' && a.status !== 'processing') return 1;
-                    return 0;
-                  })
+                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
                   .map((project) => (
                     <ProjectCard
                       key={project.id}

@@ -9,6 +9,7 @@ interface ProjectCardProps {
     videoDuration: number;
     progress?: number;
     processingTimeframe?: string; // Add this line
+    videoQuality?: string;
   };
   onClick: (project: ProjectCardProps['project']) => void;
 }
@@ -23,9 +24,9 @@ const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) => {
   return (
     <div onClick={() => onClick(project)} className="bg-gray-800 rounded-lg overflow-hidden cursor-pointer hover:opacity-80 transition-opacity relative">
       <img src={project.thumbnail} alt={project.title} className="w-full h-32 object-cover" />
-      {/* <div className="absolute top-1 right-1 bg-black bg-opacity-60 text-white text-xs px-1 py-0.5 rounded">
-        {formatDuration(project.videoDuration)}
-      </div> */}
+      <div className="absolute top-1 left-1 bg-black bg-opacity-60 text-white text-xs px-1 py-0.5 rounded">
+        {project.videoQuality}
+      </div>
       {project.processingTimeframe && (
         <div className="absolute top-1 right-1 bg-black bg-opacity-60 text-white text-xs px-1 py-0.5 rounded">
           {project.processingTimeframe}

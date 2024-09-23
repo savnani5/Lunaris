@@ -1,7 +1,3 @@
-## Checkout make viral clips from podcast -> Automate that!
-# If no faces -> detect a human body and use the bounding box of the human body
-# Sliding change of frames -> smooth moving bbox
-
 import moviepy.editor as mp_edit
 import mediapipe as mp
 import random
@@ -13,7 +9,7 @@ import subprocess
 import json
 from openai import OpenAI
 import cv2
-from moviepy.editor import TextClip, CompositeVideoClip, ColorClip
+import numpy as np
 from models.clip import Clip
 from flask import url_for
 from botocore.exceptions import ClientError
@@ -49,6 +45,7 @@ class SegmentList(BaseModel):
 class VideoProcessor:
     def __init__(self, db):
         self.face_detection = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
+        # self.pose_detection = mp.solutions.pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
         self.openai_client = OpenAI()
         self.deepgram_client = DeepgramClient(DG_API_KEY)
         self.db = db
@@ -118,7 +115,7 @@ class VideoProcessor:
             clip = video.subclip(start, end)
             clip.write_videofile(f"{output_folder}/clip_{i+1}.mp4")
 
-    def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords, output_file='interesting_segments.json'):
+    def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords="", output_file='interesting_segments.json'):
         # Generate prompt for OpenAI
         prompt = f"""
         You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content:
@@ -141,7 +138,13 @@ class VideoProcessor:
            - Engagement: Grade A, A+, A-, B, or B+
            - Trend: Grade A, A+, A-, B, or B+
 
-        Ensure each segment is self-contained and engaging, with a good narrative flow. Prioritize segments that will captivate and retain viewer attention.
+        Important requirements:
+        - Ensure segments are non-overlapping. Each segment should cover a unique portion of the transcript.
+        - Present the segments in sequential order as they appear in the transcript.
+        - Ensure each segment is self-contained and engaging, with a good narrative flow.
+        - Prioritize segments that will captivate and retain viewer attention.
+
+        Provide a list of segments that meet these criteria, maintaining the original order from the transcript.
         """
 
         completion = self.openai_client.beta.chat.completions.parse(
@@ -210,23 +213,30 @@ class VideoProcessor:
 
         print(f"Interesting segments extracted!")
         
-        with open('interesting_segments.json', 'w') as json_file:
-            json.dump(segment_data, json_file, indent=4)
+        # with open(output_file, 'w') as json_file:
+        #     json.dump(segment_data, json_file, indent=4)
         
         return segment_data
 
-    def detect_faces_and_draw_boxes(self, frame):
+    def detect_faces_and_pose(self, frame):
         rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        results = self.face_detection.process(rgb_frame)
-        if results.detections:
-            face_bboxes = []
-            for detection in results.detections:
+        face_results = self.face_detection.process(rgb_frame)
+        # pose_results = self.pose_detection.process(rgb_frame)
+        
+        face_bboxes = []
+        pose_detected = False
+        
+        if face_results.detections:
+            for detection in face_results.detections:
                 bbox = detection.location_data.relative_bounding_box
                 x, y, w, h = bbox.xmin, bbox.ymin, bbox.width, bbox.height
                 x, y, w, h = int(x * frame.shape[1]), int(y * frame.shape[0]), int(w * frame.shape[1]), int(h * frame.shape[0])
                 face_bboxes.append((x, y, w, h))
-            return face_bboxes
-        return []
+        
+        # if pose_results.pose_landmarks:
+        #     pose_detected = True
+        
+        return face_bboxes #pose_detected
 
     def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False):
         # Add directory check
@@ -236,7 +246,6 @@ class VideoProcessor:
         video = mp_edit.VideoFileClip(video_path)
         video_duration = video.duration
         
-        prev_box1 = None
         processed_clip_ids = []
 
         caption_styler = CaptionStyleFactory.get_style(caption_style)
@@ -246,7 +255,7 @@ class VideoProcessor:
             if clip is None:
                 continue
             
-            processed_clip = self.process_clip(clip, output_video_type, prev_box1)
+            processed_clip = self.process_clip(clip, output_video_type)
             subtitled_clip = caption_styler.add_subtitles(processed_clip, segment['word_timings'], segment['start'], output_video_type)
             _, clip_url = self.save_or_upload_clip(subtitled_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
             clip_id = self.create_and_save_clip(project_id, segment, clip_url)
@@ -265,43 +274,162 @@ class VideoProcessor:
         
         return video.subclip(start, end)
 
-    def process_clip(self, clip, output_video_type, prev_box1):
-        def process_frame(get_frame, t):
-            nonlocal prev_box1
-            frame = get_frame(t)
+    # Smooth transitions b/w modes required for the video
+    def process_clip(self, clip, output_video_type):
+        if output_video_type != 'portrait':
+            return clip.resize((1920, 1080))
 
-            if output_video_type == 'portrait':
-                frame_height, frame_width, _ = frame.shape
-                target_width, target_height = 1080, 1920
-                faces = self.detect_faces_and_draw_boxes(frame)
-                
-                if faces:
-                    face = faces[0]
-                    (x, y, w, h) = face
-                    new_box = self.adjust_bounding_box(x, y, w, h, frame_height, frame_width)
-                    if prev_box1 is None or self.is_significant_change(prev_box1, new_box):
-                        prev_box1 = new_box
-                    x, y, w, h = prev_box1
-                    face_crop = frame[y:y+h, x:x+w]
-                    processed_frame = cv2.resize(face_crop, (target_width, target_height))
-                elif prev_box1 is not None:
-                    x, y, w, h = prev_box1
-                    face_crop = frame[y:y+h, x:x+w]
-                    processed_frame = cv2.resize(face_crop, (target_width, target_height))
-                else:
-                    center_x, center_y = frame_width // 2, frame_height // 2
-                    default_w, default_h = target_width, target_height
-                    default_x = max(0, center_x - default_w // 2)
-                    default_y = max(0, center_y - default_h // 2)
-                    default_crop = frame[default_y:default_y+default_h, default_x:default_x+default_w]
-                    processed_frame = cv2.resize(default_crop, (target_width, target_height))
-            else:  # landscape
-                target_width, target_height = 1920, 1080
-                processed_frame = cv2.resize(frame, (target_width, target_height))
+        # Constants
+        FACE_DETECTION_THRESHOLD = 3
+        NO_DETECTION_THRESHOLD = 10
+        SMOOTHING_FACTOR = 0.8
+        JITTER_THRESHOLD = 30  # Minimum number of frames to consider a mode change valid
 
-            return processed_frame
+        frame_count = int(clip.duration * clip.fps)
         
+        # First pass: Decide mode for each frame
+        modes = []
+        face_detection_counter = 0
+        no_detection_counter = 0
+        is_initial_phase = True
+
+        for t in range(frame_count):
+            frame = clip.get_frame(t / clip.fps)
+            faces = self.detect_faces_and_pose(frame)
+
+            if is_initial_phase:
+                if len(faces) == 1:
+                    face_detection_counter += 1
+                    if face_detection_counter >= FACE_DETECTION_THRESHOLD:
+                        is_initial_phase = False
+                    modes.append('face')
+                else:
+                    no_detection_counter += 1
+                    if no_detection_counter >= NO_DETECTION_THRESHOLD:
+                        is_initial_phase = False
+                    modes.append('full')
+            else:
+                if len(faces) == 1:
+                    face_detection_counter += 1
+                    no_detection_counter = 0
+                else:
+                    face_detection_counter = 0
+                    no_detection_counter += 1
+
+                if face_detection_counter >= FACE_DETECTION_THRESHOLD:
+                    modes.append('face')
+                elif no_detection_counter >= NO_DETECTION_THRESHOLD:
+                    modes.append('full')
+                else:
+                    modes.append(modes[-1] if modes else 'full')
+
+        # Second pass: Filter out jitter
+        filtered_modes = []
+        current_mode = modes[0]
+        mode_duration = 0
+
+        for mode in modes:
+            if mode == current_mode:
+                mode_duration += 1
+            else:
+                if mode_duration >= JITTER_THRESHOLD:
+                    filtered_modes.extend([current_mode] * mode_duration)
+                else:
+                    filtered_modes.extend([filtered_modes[-1] if filtered_modes else current_mode] * mode_duration)
+                current_mode = mode
+                mode_duration = 1
+
+        # Add the last mode
+        if mode_duration >= JITTER_THRESHOLD:
+            filtered_modes.extend([current_mode] * mode_duration)
+        else:
+            filtered_modes.extend([filtered_modes[-1] if filtered_modes else current_mode] * mode_duration)
+
+        # Third pass: Generate frames
+        last_valid_face = None
+        gradient_colors = None
+
+        def process_frame(get_frame, t):
+            nonlocal last_valid_face, gradient_colors
+
+            frame = get_frame(t)
+            frame_index = int(t * clip.fps)
+            
+            # Ensure frame_index is within bounds
+            if frame_index >= len(filtered_modes):
+                print(f"Warning: frame_index {frame_index} exceeds filtered_modes length {len(filtered_modes)}. Using last known mode.")
+                current_mode = filtered_modes[-1]  # Use the last known mode
+            else:
+                current_mode = filtered_modes[frame_index]
+
+            frame_height, frame_width, _ = frame.shape
+            target_width, target_height = (1080, 1920)
+
+            faces = self.detect_faces_and_pose(frame)
+
+            if current_mode == 'face':
+                processed_frame, last_valid_face = self.process_face_frame(frame, faces, last_valid_face, frame_height, frame_width, target_width, target_height, SMOOTHING_FACTOR)
+            else:  # 'full' mode
+                processed_frame = self.create_landscape_frame(frame, target_width, target_height, gradient_colors)
+
+            gradient_colors = self.update_gradient_colors(processed_frame)
+            
+            # cv2.imshow("Processed Frame", processed_frame)
+            # cv2.waitKey(1)
+            return processed_frame
+
         return clip.fl(process_frame)
+
+    def process_face_frame(self, frame, faces, last_valid_face, frame_height, frame_width, target_width, target_height, smoothing_factor):
+        if faces:
+            face = faces[0]
+            (x, y, w, h) = face
+            new_box = self.adjust_bounding_box(x, y, w, h, frame_height, frame_width)
+            
+            if last_valid_face is None:
+                last_valid_face = new_box
+            elif self.is_significant_change(last_valid_face, new_box):
+                # Apply smoothing
+                last_valid_face = self.smooth_bounding_box(last_valid_face, new_box, smoothing_factor)
+
+        if last_valid_face:
+            x, y, w, h = last_valid_face
+            face_crop = frame[y:y+h, x:x+w]
+            return cv2.resize(face_crop, (target_width, target_height)), last_valid_face
+        else:
+            return self.create_landscape_frame(frame, target_width, target_height, None), None
+
+    def blend_frames(self, frame1, frame2, alpha):
+        return cv2.addWeighted(frame1, alpha, frame2, 1 - alpha, 0)
+
+    def create_landscape_frame(self, frame, target_width, target_height, gradient_colors):
+        aspect_ratio = frame.shape[1] / frame.shape[0]
+        new_height = int(target_width / aspect_ratio)
+        resized_frame = cv2.resize(frame, (target_width, new_height))
+        
+        processed_frame = np.zeros((target_height, target_width, 3), dtype=np.uint8)
+        
+        y_offset = (target_height - new_height) // 2
+        processed_frame[y_offset:y_offset+new_height, :] = resized_frame
+        
+        if gradient_colors is None:
+            gradient_colors = {
+                'top': np.median(resized_frame[:10, :], axis=(0, 1)).astype(np.uint8),
+                'bottom': np.median(resized_frame[-10:, :], axis=(0, 1)).astype(np.uint8)
+            }
+        
+        for i in range(y_offset):
+            alpha = i / y_offset
+            processed_frame[i] = (1 - alpha) * gradient_colors['top'] + alpha * gradient_colors['top']
+            processed_frame[target_height - i - 1] = (1 - alpha) * gradient_colors['bottom'] + alpha * gradient_colors['bottom']
+        
+        return processed_frame
+
+    def update_gradient_colors(self, frame):
+        return {
+            'top': np.median(frame[:10, :], axis=(0, 1)).astype(np.uint8),
+            'bottom': np.median(frame[-10:, :], axis=(0, 1)).astype(np.uint8)
+        }
 
     def save_or_upload_clip(self, final_clip, title, output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug):
         clip_filename = f"{title}_{output_video_type}.mp4"
@@ -425,6 +553,10 @@ class VideoProcessor:
                 abs(w1 - w2) > threshold * w1 or
                 abs(h1 - h2) > threshold * h1)
 
+    def smooth_bounding_box(self, old_box, new_box, smoothing_factor):
+        return tuple(int(old * smoothing_factor + new * (1 - smoothing_factor)) 
+                     for old, new in zip(old_box, new_box))
+
     def transcribe_audio(self, audio_path):
         print("Transcribing audio...")
         
@@ -454,24 +586,21 @@ class VideoProcessor:
             full_transcript += word.word + ' '
         
         full_transcript = full_transcript.strip()
-        with open("transcript.txt", 'w') as file:
-            file.write(full_transcript)
+        # with open("transcript.txt", 'w') as file:
+        #     file.write(full_transcript)
         
         print("Audio transcribed successfully!")
         return full_transcript, word_timings
 
 
-if __name__ == "__main__":
-    # parser = argparse.ArgumentParser(description='Run the Lunaris App')
-    # parser.add_argument('-d', '--debug', action='store_true', help='Run in debug mode')
-    # args = parser.parse_args()
-
+if __name__ == "__main__":#
+   
     # video_path = "./downloads"
 
     # # Initialize VideoProcessor
     processor = VideoProcessor(db=None)
 
-    # # Ensure directories exist
+    # Ensure directories exist
     # os.makedirs(video_path, exist_ok=True)
 
     # youtube_url = input("Enter youtube video url: ")
@@ -479,22 +608,35 @@ if __name__ == "__main__":
     # output_video_type = input("Enter output video type (portrait, landscape): ")
    
 
-    # # Download video and extract audio
-    # downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality)
+    # Download video and extract audio
+    # downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
 
-    # # Transcribe audio
+    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Eric Lander - RAAIS 2023 short/Eric Lander - RAAIS 2023 short_cut.webm"
+    downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Eric Lander - RAAIS 2023 short/Eric Lander - RAAIS 2023 short_cut.mp3"
+    
+    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/The Theory That Angels and Demons Are Actually Aliens/The Theory That Angels and Demons Are Actually Aliens_cut.webm"
+    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/The Theory That Angels and Demons Are Actually Aliens/The Theory That Angels and Demons Are Actually Aliens_cut.mp3"
+    
+    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Assassination of Julius Caesar | Gregory Aldrete and Lex Fridman/Assassination of Julius Caesar ｜ Gregory Aldrete and Lex Fridman_cut.webm"
+    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Assassination of Julius Caesar | Gregory Aldrete and Lex Fridman/Assassination of Julius Caesar ｜ Gregory Aldrete and Lex Fridman_cut.mp3"
+
+    # Transcribe audio
     # transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
 
     # # Get interesting segments
-    # interesting_data = processor.get_interesting_segments(transcript, word_timings)
+    # clip_length = {"min": 0, "max": 60}
+    # interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
+
+    # with open('interesting_segments.json', 'w') as json_file:
+    #     json.dump(interesting_data, json_file, indent=4)
 
     
     # DEBUG: load from file
     with open("interesting_segments.json", 'r') as f:
         interesting_data = json.load(f)
-    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Oliver Cameron - RAAIS 2023 short/Oliver Cameron - RAAIS 2023 short_cut.webm"
+
     # output_video_type = "landscape"
     output_video_type = "portrait"
 
     # Crop video to portrait with faces
-    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, debug=True)
+    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, debug=True)    
