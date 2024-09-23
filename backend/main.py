@@ -238,7 +238,7 @@ class VideoProcessor:
         
         return face_bboxes #pose_detected
 
-    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False):
+    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False, progress_callback=None):
         # Add directory check
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
@@ -250,7 +250,7 @@ class VideoProcessor:
 
         caption_styler = CaptionStyleFactory.get_style(caption_style)
         
-        for segment in segments:
+        for i, segment in enumerate(segments):
             clip = self.process_segment(video, segment, video_duration)
             if clip is None:
                 continue
@@ -260,6 +260,9 @@ class VideoProcessor:
             _, clip_url = self.save_or_upload_clip(subtitled_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
             clip_id = self.create_and_save_clip(project_id, segment, clip_url)
             processed_clip_ids.append(clip_id)
+
+            if progress_callback:
+                progress_callback(i + 1)
 
         return processed_clip_ids
 

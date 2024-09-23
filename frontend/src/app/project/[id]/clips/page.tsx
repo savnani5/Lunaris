@@ -34,7 +34,9 @@ export default function ProjectClipsPage() {
       const response = await fetch(`/api/get-clips?projectId=${projectId}`);
       if (response.ok) {
         const data = await response.json();
-        setClips(data);
+        // Sort clips by score in descending order
+        const sortedClips = data.sort((a: Clip, b: Clip) => b.score - a.score);
+        setClips(sortedClips);
       }
     } catch (error) {
       console.error('Error fetching clips:', error);

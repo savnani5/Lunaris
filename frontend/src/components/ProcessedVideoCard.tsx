@@ -41,9 +41,9 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
   const isLandscape = aspectRatio >= 1;
 
   return (
-    <div className="w-full max-w-2xl bg-gray-800 p-4 rounded-lg">
+    <div className="w-full max-w-2xl bg-gray-800 p-6 rounded-lg shadow-lg">
       <div 
-        className="relative" 
+        className="relative rounded-lg overflow-hidden mb-4" 
         style={{ 
           paddingTop: isLandscape 
             ? `${(1 / aspectRatio) * 100}%` // landscape
@@ -52,17 +52,17 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
       >
         <video src={clip.s3_uri} className="absolute top-0 left-0 w-full h-full" controls />
       </div>
-      <div className="mt-4">
-        <h2 className="text-lg font-bold">{clip.title}</h2>
-        <p>{clip.transcript}</p>
-        <div className="mt-2">
-          <span className="text-sm">Score: {clip.score}</span>
-          <span className="text-sm ml-2">Hook: {clip.hook}</span>
-          <span className="text-sm ml-2">Flow: {clip.flow}</span>
-          <span className="text-sm ml-2">Engagement: {clip.engagement}</span>
-          <span className="text-sm ml-2">Trend: {clip.trend}</span>
-        </div>
+      
+      <div className="flex flex-wrap gap-x-6 gap-y-2 mb-4">
+        <span className="text-white">Score: <span className="text-xl font-semibold text-green-500">{clip.score}</span></span>
+        <span className="text-white">Hook: <span className="text-xl font-semibold text-green-500">{clip.hook}</span></span>
+        <span className="text-white">Flow: <span className="text-xl font-semibold text-green-500">{clip.flow}</span></span>
+        <span className="text-white">Engagement: <span className="text-xl font-semibold text-green-500">{clip.engagement}</span></span>
+        <span className="text-white">Trend: <span className="text-xl font-semibold text-green-500">{clip.trend}</span></span>
       </div>
+      
+      <h2 className="text-xl font-semibold text-white mb-2">{clip.title}</h2>
+      <p className="text-gray-300 text-sm">{clip.transcript}</p>
     </div>
   );
 };

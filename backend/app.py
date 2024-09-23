@@ -27,6 +27,13 @@ class LunarisApp:
         self.processing_videos = {}
         self.video_path = "./downloads"
         self.output_path = "./subtitled_clips"
+        self.processing_stages = {
+            'downloading': 10,
+            'transcribing': 20,
+            'analyzing': 30,
+            'generating': 90,
+            'uploading': 100
+        }
 
         self.configure_app()
         self.setup_cors()
@@ -120,6 +127,7 @@ class LunarisApp:
                     self.app.logger.error(f'Project not found: {project_id}')
                     return
 
+                self.update_project_status(project_id, 'downloading', 0)
                 if video_link:
                     downloaded_video_path, downloaded_audio_path, video_title = self.video_processor.download_video(video_link, self.video_path, video_quality, start_time, end_time)
                 else:
@@ -127,11 +135,18 @@ class LunarisApp:
                     downloaded_audio_path = self.video_processor.extract_audio(video_path)
                     video_title = os.path.splitext(os.path.basename(video_path))[0]
 
+                self.update_project_status(project_id, 'transcribing', self.processing_stages['downloading'])
                 self.app.logger.info(f"Video processed: {downloaded_video_path}")
                 transcript, word_timings = self.video_processor.transcribe_audio(downloaded_audio_path)
+
+                self.update_project_status(project_id, 'analyzing', self.processing_stages['transcribing'])
                 self.app.logger.info(f"Audio transcription completed for project: {project_id}")
                 interesting_data = self.video_processor.get_interesting_segments(transcript, word_timings, clip_length, keywords)
+
+                self.update_project_status(project_id, 'generating', self.processing_stages['analyzing'])
                 self.app.logger.info(f"Interesting segments identified for project: {project_id}")
+                
+                total_segments = len(interesting_data)
                 processed_clip_ids = self.video_processor.crop_and_add_subtitles(
                     downloaded_video_path, 
                     interesting_data, 
@@ -142,15 +157,21 @@ class LunarisApp:
                     s3_bucket=self.s3_bucket, 
                     user_id=clerk_user_id,
                     project_id=project_id,
-                    debug=self.debug
+                    debug=self.debug,
+                    progress_callback=lambda i: self.update_clip_progress(project_id, i, total_segments)
                 )
+
+                self.update_project_status(project_id, 'uploading', self.processing_stages['generating'])
                 self.app.logger.info(f"Cropping and adding subtitles for project: {project_id}")
+                
                 # Update project status, clip_ids and transcript
                 self.projects_collection.update_one(
                     {"_id": project_id},
                     {
                         "$set": {
                             "status": "completed",
+                            "progress": 100,
+                            "stage": "completed",
                             "transcript": transcript,
                             "clip_ids": processed_clip_ids
                         }
@@ -190,17 +211,26 @@ class LunarisApp:
                     self.app.logger.info(f'Folder not found: {video_title_folder}')
             
             except Exception as e:
-                # Update project status, clip_ids and transcript
-                self.projects_collection.update_one(
-                    {"_id": project_id},
-                    {
-                        "$set": {
-                            "status": "failed"
-                        }
-                    }
-                )
+                self.update_project_status(project_id, 'failed', 0)
                 self.app.logger.error(f"Error processing video for project {project_id}: {str(e)}", exc_info=True)
 
+    def update_project_status(self, project_id, stage, progress):
+        self.projects_collection.update_one(
+            {"_id": project_id},
+            {
+                "$set": {
+                    "status": "processing",
+                    "stage": stage,
+                    "progress": progress
+                }
+            }
+        )
+
+    def update_clip_progress(self, project_id, current_clip, total_clips):
+        generating_progress = self.processing_stages['analyzing']
+        clip_progress = (self.processing_stages['generating'] - generating_progress) * (current_clip / total_clips)
+        total_progress = generating_progress + clip_progress
+        self.update_project_status(project_id, 'generating', int(total_progress))
 
     def process_video(self):
         self.app.logger.info("Received request to process video")
@@ -279,7 +309,11 @@ class LunarisApp:
         if not project:
             return jsonify({'error': 'Invalid project ID'}), 404
 
-        return jsonify({'status': project['status']})
+        return jsonify({
+            'status': project['status'],
+            'stage': project.get('stage', 'unknown'),
+            'progress': project.get('progress', 0)
+        })
 
     # TODO: Just send signal of completion to frontend, it will fetch clips directly on frontend from DB connection
     def get_video(self, project_id):
