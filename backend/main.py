@@ -213,8 +213,10 @@ class VideoProcessor:
 
         print(f"Interesting segments extracted!")
         
+        # ____________________
         # with open(output_file, 'w') as json_file:
         #     json.dump(segment_data, json_file, indent=4)
+        # ____________________
         
         return segment_data
 
@@ -286,7 +288,7 @@ class VideoProcessor:
         FACE_DETECTION_THRESHOLD = 3
         NO_DETECTION_THRESHOLD = 10
         SMOOTHING_FACTOR = 0.8
-        JITTER_THRESHOLD = 30  # Minimum number of frames to consider a mode change valid
+        JITTER_THRESHOLD = 30
 
         frame_count = int(clip.duration * clip.fps)
         
@@ -614,8 +616,8 @@ if __name__ == "__main__":#
     # Download video and extract audio
     # downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
 
-    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Eric Lander - RAAIS 2023 short/Eric Lander - RAAIS 2023 short_cut.webm"
-    downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Eric Lander - RAAIS 2023 short/Eric Lander - RAAIS 2023 short_cut.mp3"
+    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Jayalalitha - Tamil Nadu's Most Iconic Woman Ever/Jayalalitha - Tamil Nadu's Most Iconic Woman Ever_cut.webm"
+    downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Jayalalitha - Tamil Nadu's Most Iconic Woman Ever/Jayalalitha - Tamil Nadu's Most Iconic Woman Ever_cut.mp3"
     
     # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/The Theory That Angels and Demons Are Actually Aliens/The Theory That Angels and Demons Are Actually Aliens_cut.webm"
     # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/The Theory That Angels and Demons Are Actually Aliens/The Theory That Angels and Demons Are Actually Aliens_cut.mp3"

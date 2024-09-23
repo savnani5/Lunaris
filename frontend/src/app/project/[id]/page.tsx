@@ -3,29 +3,8 @@
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import ProcessingBar from '@/components/ProcessingBar';
-import ProcessedVideoCard from '@/components/ProcessedVideoCard';
 import { useUser } from '@clerk/nextjs';
 
-interface Clip {
-  _id: string;
-  project_id: string;
-  title: string;
-  transcript: string;
-  s3_uri: string;
-  score: number;
-  hook: string;
-  flow: string;
-  engagement: string;
-  trend: string;
-  created_at: string;
-}
-
-interface Project {
-  _id: string;
-  title: string;
-  processingTimeframe: string;
-  // Add other project properties as needed
-}
 
 interface ProjectStatus {
   status: 'processing' | 'completed' | 'failed';

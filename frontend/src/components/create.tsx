@@ -175,12 +175,18 @@ export function Create() {
   };
 
   const handleProcessClick = async () => {
+    if (!user) {
+      // Redirect unauthenticated user to signin page
+      router.push('/signin');
+      return;
+    }
+
     setProcessing(true);
     
     const userId = user?.id ?? '';
     const email = user?.primaryEmailAddress?.emailAddress ?? '';
 
-    const processingTimeframe = `${formatTime(endTime)} - ${formatTime(startTime)}`;
+    const processingTimeframe = `${formatTime(startTime)} - ${formatTime(endTime)}`;
 
     const formData = new FormData();
     const formFields = {
