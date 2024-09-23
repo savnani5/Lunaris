@@ -68,8 +68,9 @@ export default function ProjectPage() {
   return (
     <div className="min-h-screen bg-black text-white p-4">
       <main className="flex flex-col items-center space-y-8">
-      <h1 className="text-2xl font-bold">Project Page</h1>
-        <p>We will email you once the clips are ready!</p>
+      <h1 className="text-2xl font-bold">Your video is processing</h1>
+        <p>We will email you once your video is done processing, check back soon!</p>
+        <p>Fetching video {project?.title}</p>
         {processing ? (
           <ProcessingBar progress={progress} />
         ) : (
@@ -90,4 +91,5 @@ export default function ProjectPage() {
 // Curation method: ClipBasic...
 // From 0:01:50 to 0:08:52, preferred clip length is auto...
 // Estimated waiting time: ~ 2min
+// Processing & analyzing... 77%
 // Processing & analyzing... 77%
