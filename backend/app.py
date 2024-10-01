@@ -8,14 +8,12 @@ import boto3
 from pymongo import MongoClient
 from main import VideoProcessor
 from dotenv import find_dotenv, load_dotenv
-from models.user import User
-from models.project import Project
 import argparse
 import resend
 from dotenv import load_dotenv
 from werkzeug.utils import secure_filename
 import tempfile
-
+import requests
 
 load_dotenv(find_dotenv())
 
@@ -27,13 +25,6 @@ class LunarisApp:
         self.processing_videos = {}
         self.video_path = "./downloads"
         self.output_path = "./subtitled_clips"
-        self.processing_stages = {
-            'downloading': 10,
-            'transcribing': 20,
-            'analyzing': 30,
-            'generating': 90,
-            'uploading': 100
-        }
 
         self.configure_app()
         self.setup_cors()
@@ -67,10 +58,9 @@ class LunarisApp:
 
     def setup_routes(self):
         self.app.route('/api/process-video', methods=['POST'])(self.process_video)
-        self.app.route('/api/video-status/<project_id>', methods=['GET'])(self.video_status)
-        self.app.route('/api/get-video/<project_id>', methods=['GET'])(self.get_video)
         self.app.route('/<base_url>/<user_id>/<project_id>/<filename>', methods=['GET'])(self.get_clip)
         self.app.route('/health', methods=['GET'])(self.health_check)
+        self.app.route('/api/project-status/<user_id>/<project_id>', methods=['GET'])(self.get_project_status)
 
     def setup_mongoDB(self):
         self.app.config['MONGODB_URI'] = os.environ.get('MONGODB_URI')
@@ -117,17 +107,28 @@ class LunarisApp:
     
     def setup_resend(self):
         resend.api_key = os.environ.get('RESEND_API_KEY')
+        
+    def update_clip_progress(self, clerk_user_id, project_id, current_clip, total_clips):
+        # Calculate the progress percentage
+        base_progress = 40  # Starting progress for generating stage
+        max_progress = 90   # Increased max progress before completion
+        clip_progress = (current_clip / total_clips) * (max_progress - base_progress)
+        total_progress = base_progress + clip_progress
 
-    def process_video_thread(self, video_link, video_path, project_id, clerk_user_id, user_email, video_quality, video_type, start_time, end_time, clip_length, keywords, caption_style):
+        # Update the processing_videos dictionary
+        self.processing_videos[f"{clerk_user_id}_{project_id}"].update({
+            "status": "processing",
+            "stage": "generating",
+            "progress": int(total_progress)
+        })
+
+
+    def process_video_thread(self, video_link, video_path, project_id, clerk_user_id, user_email, video_title, processing_timeframe, video_quality, video_type, start_time, end_time, clip_length, keywords, caption_style):
         with self.app.app_context():
             try:
+                self.update_project_status(clerk_user_id, project_id, "processing", "downloading", 0, video_title, processing_timeframe)
+                
                 self.app.logger.info(f"Starting video processing for project: {project_id}")
-                project = self.projects_collection.find_one({"_id": project_id})
-                if not project:
-                    self.app.logger.error(f'Project not found: {project_id}')
-                    return
-
-                self.update_project_status(project_id, 'downloading', 0)
                 if video_link:
                     downloaded_video_path, downloaded_audio_path, video_title = self.video_processor.download_video(video_link, self.video_path, video_quality, start_time, end_time)
                 else:
@@ -135,15 +136,15 @@ class LunarisApp:
                     downloaded_audio_path = self.video_processor.extract_audio(video_path)
                     video_title = os.path.splitext(os.path.basename(video_path))[0]
 
-                self.update_project_status(project_id, 'transcribing', self.processing_stages['downloading'])
+                self.update_project_status(clerk_user_id, project_id, "processing", "transcribing", 10, video_title, processing_timeframe)
                 self.app.logger.info(f"Video processed: {downloaded_video_path}")
                 transcript, word_timings = self.video_processor.transcribe_audio(downloaded_audio_path)
 
-                self.update_project_status(project_id, 'analyzing', self.processing_stages['transcribing'])
+                self.update_project_status(clerk_user_id, project_id, "processing", "analyzing", 20, video_title, processing_timeframe)
                 self.app.logger.info(f"Audio transcription completed for project: {project_id}")
                 interesting_data = self.video_processor.get_interesting_segments(transcript, word_timings, clip_length, keywords)
 
-                self.update_project_status(project_id, 'generating', self.processing_stages['analyzing'])
+                self.update_project_status(clerk_user_id, project_id, "processing", "generating", 40, video_title, processing_timeframe)
                 self.app.logger.info(f"Interesting segments identified for project: {project_id}")
                 
                 total_segments = len(interesting_data)
@@ -158,25 +159,11 @@ class LunarisApp:
                     user_id=clerk_user_id,
                     project_id=project_id,
                     debug=self.debug,
-                    progress_callback=lambda i: self.update_clip_progress(project_id, i, total_segments)
+                    progress_callback=lambda i: self.update_project_status(clerk_user_id, project_id, "processing", "generating", 40 + int((i / total_segments) * 50), video_title, processing_timeframe)
                 )
 
-                self.update_project_status(project_id, 'uploading', self.processing_stages['generating'])
+                self.update_project_status(clerk_user_id, project_id, "processing", "uploading", 95, video_title, processing_timeframe)
                 self.app.logger.info(f"Cropping and adding subtitles for project: {project_id}")
-                
-                # Update project status, clip_ids and transcript
-                self.projects_collection.update_one(
-                    {"_id": project_id},
-                    {
-                        "$set": {
-                            "status": "completed",
-                            "progress": 100,
-                            "stage": "completed",
-                            "transcript": transcript,
-                            "clip_ids": processed_clip_ids
-                        }
-                    }
-                )
 
                 self.app.logger.info(f'Successfully processed and uploaded clips')
                 
@@ -209,28 +196,23 @@ class LunarisApp:
                     self.app.logger.info(f'Deleted folder and contents: {video_title_folder}')
                 else:
                     self.app.logger.info(f'Folder not found: {video_title_folder}')
-            
+                
+                self.update_project_status(clerk_user_id, project_id, "completed", "completed", 100, video_title, processing_timeframe)
+
             except Exception as e:
-                self.update_project_status(project_id, 'failed', 0)
+                self.update_project_status(clerk_user_id, project_id, "failed", "failed", 0, video_title, processing_timeframe)
                 self.app.logger.error(f"Error processing video for project {project_id}: {str(e)}", exc_info=True)
 
-    def update_project_status(self, project_id, stage, progress):
-        self.projects_collection.update_one(
-            {"_id": project_id},
-            {
-                "$set": {
-                    "status": "processing",
-                    "stage": stage,
-                    "progress": progress
-                }
-            }
-        )
-
-    def update_clip_progress(self, project_id, current_clip, total_clips):
-        generating_progress = self.processing_stages['analyzing']
-        clip_progress = (self.processing_stages['generating'] - generating_progress) * (current_clip / total_clips)
-        total_progress = generating_progress + clip_progress
-        self.update_project_status(project_id, 'generating', int(total_progress))
+    def get_project_status(self, user_id, project_id):
+        project_status = self.processing_videos.get(f"{user_id}_{project_id}", {})
+        
+        return jsonify({
+            "status": project_status.get("status"),
+            "stage": project_status.get("stage"),
+            "progress": project_status.get("progress"),
+            "title": project_status.get("title"),
+            "processing_timeframe": project_status.get("processing_timeframe")
+        })
 
     def process_video(self):
         self.app.logger.info("Received request to process video")
@@ -250,84 +232,42 @@ class LunarisApp:
             video_link = request.form.get('videoLink')
             video_path = None
 
+        # extract for data from request
         clerk_user_id = request.form.get('userId')
-        video_title = request.form.get('videoTitle')
-        video_thumbnail = request.form.get('videoThumbnail')
-        video_duration = request.form.get('videoDuration')
-        processingTimeframe = request.form.get('processingTimeframe')
-        video_quality = request.form.get('videoQuality')
         user_email = request.form.get('email')
-        
-        # Check if user exists, if not create a new one
-        user = self.users_collection.find_one({"_id": clerk_user_id})
-        
-        if not user:
-            new_user = User(clerk_user_id, user_email)
-            user_dict = new_user.to_dict()
-            self.users_collection.insert_one(user_dict)
-            self.app.logger.info(f"Created new user with ID: {clerk_user_id}")
-        else:
-            self.app.logger.info(f"Found existing user with ID: {clerk_user_id}")
-
-        project = Project(clerk_user_id, video_link or video_path, video_title, video_thumbnail, video_duration, processingTimeframe, video_quality)
-        project_dict = project.to_dict()
-        result = self.projects_collection.insert_one(project_dict)
-        project_id = result.inserted_id
-
-        # Update user with new project ID
-        self.users_collection.update_one(
-            {"_id": clerk_user_id},
-            {"$push": {"project_ids": project_id}}
-        )
+        project_id = request.form.get('projectId')
+        video_title = request.form.get('videoTitle')
+        processing_timeframe = request.form.get('processing_timeframe')
+        genre = request.form.get('genre')
+        video_quality = request.form.get('videoQuality')
+        video_type = request.form.get('videoType').lower()
+        start_time = float(request.form.get('startTime'))
+        end_time = float(request.form.get('endTime'))
+        clip_length = {
+            'min': float(request.form.get('clipLengthMin')),
+            'max': float(request.form.get('clipLengthMax'))
+        }
+        keywords = request.form.get('keywords')
+        caption_style = request.form.get('captionStyle', 'elon')
 
         self.app.logger.info(f'Received video: {video_link or video_path}')
-
-        caption_style = request.form.get('captionStyle', 'elon')  # Default to 'elon' if not provided
 
         thread = Thread(target=self.process_video_thread, args=(video_link, 
                                                                 video_path,
                                                                 project_id, 
                                                                 clerk_user_id,
                                                                 user_email,
-                                                                request.form.get('videoQuality'), 
-                                                                request.form.get('videoType').lower(), 
-                                                                float(request.form.get('startTime')), 
-                                                                float(request.form.get('endTime')), 
-                                                                {
-                                                                    'min': float(request.form.get('clipLengthMin')),
-                                                                    'max': float(request.form.get('clipLengthMax'))
-                                                                }, 
-                                                                request.form.get('keywords'),
+                                                                video_title,
+                                                                processing_timeframe,
+                                                                video_quality, 
+                                                                video_type,
+                                                                start_time,
+                                                                end_time,
+                                                                clip_length,
+                                                                keywords,
                                                                 caption_style))
         thread.start()
-        
-        return jsonify({'message': 'Video processing started', 'project_id': str(project_id)}), 202
-
-    def video_status(self, project_id):
-        self.app.logger.info(f"Checking video status for project: {project_id}")
-        project = self.projects_collection.find_one({"_id": project_id})
-        if not project:
-            return jsonify({'error': 'Invalid project ID'}), 404
-
-        return jsonify({
-            'status': project['status'],
-            'stage': project.get('stage', 'unknown'),
-            'progress': project.get('progress', 0)
-        })
-
-    # TODO: Just send signal of completion to frontend, it will fetch clips directly on frontend from DB connection
-    def get_video(self, project_id):
-        self.app.logger.info(f"Fetching video for project: {project_id}")
-        project = self.projects_collection.find_one({"_id": project_id})
-        if not project or project['status'] != 'completed':
-            return jsonify({'error': 'Video not available'}), 404
-
-        clips = list(self.db.clips.find({"project_id": project_id}))
-        if not clips:
-            return jsonify({'error': 'Clip not found'}), 404
-        
-        return jsonify({'clips': clips})
-
+        return jsonify({'message': 'Video processing started'}), 202
     
     def get_clip(self, base_url, user_id, project_id, filename):
         self.app.logger.info(f"Fetching clip: {filename} for project: {project_id}")
@@ -349,6 +289,23 @@ class LunarisApp:
     def run(self):
         port = int(os.environ.get('PORT', 5001))  # Use PORT from environment or default to 5001
         self.app.run(host='0.0.0.0', debug=False, port=port)
+
+    def update_project_status(self, clerk_user_id, project_id, status, stage, progress, title, processing_timeframe):
+        try:
+            data = {
+                'userId': clerk_user_id,
+                'projectId': project_id,
+                'status': status,
+                'progress': progress,
+                'stage': stage,
+                'title': title,
+                'processing_timeframe': processing_timeframe
+            }
+            response = requests.post(f"{self.frontend_url}/api/project-status", json=data)
+            response.raise_for_status()
+            self.app.logger.info(f"Project status updated: {data}")
+        except Exception as e:
+            self.app.logger.error(f"Failed to update project status: {str(e)}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run the Lunaris App')

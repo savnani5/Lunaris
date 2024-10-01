@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import clientPromise from '@/lib/mongodb';
+import { connectToDatabase } from '@/lib/database/mongodb';
+import { DB_NAME } from "@/lib/constants";
 import { ObjectId } from 'mongodb';
 
 export async function GET(request: Request) {
@@ -12,28 +13,50 @@ export async function GET(request: Request) {
   }
 
   try {
-    const client = await clientPromise;
-    const db = client.db('lunarisDB');
-
-    const project = await db.collection('projects').findOne({
-      _id: projectId as unknown as ObjectId,
-      clerk_user_id: userId
-    });
+    const client = await connectToDatabase();
+    const db = client.db(DB_NAME);
+    const project = await db.collection('project').findOne({ _id: new ObjectId(projectId), clerk_user_id: userId });
 
     if (!project) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
     return NextResponse.json({
-      id: project._id,
       status: project.status,
-      title: project.title,
-      processingTimeframe: project.processing_timeframe,
+      progress: project.progress,
       stage: project.stage,
-      progress: project.progress
+      title: project.title,
+      processing_timeframe: project.processing_timeframe
     });
   } catch (error) {
     console.error('Error fetching project status:', error);
     return NextResponse.json({ error: 'Error fetching project status' }, { status: 500 });
   }
 }
+
+export const POST = async (request: Request) => {
+  const { userId, projectId, status, progress, stage, title, processing_timeframe } = await request.json();
+  console.log(`Updating project status: ${projectId}`);
+
+  if (!userId || !projectId || !status) {
+    return NextResponse.json({ error: 'User ID, Project ID, and status are required' }, { status: 400 });
+  }
+
+  try {
+    const client = await connectToDatabase();
+    const db = client.db(DB_NAME);
+    const result = await db.collection('project').updateOne(
+      { _id: new ObjectId(projectId), clerk_user_id: userId },
+      { $set: { status, progress, stage, title, processing_timeframe } }
+    );
+
+    if (result.matchedCount === 0) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ message: 'Project status updated successfully' });
+  } catch (error) {
+    console.error('Error updating project status:', error);
+    return NextResponse.json({ error: 'Error updating project status' }, { status: 500 });
+  }
+};
