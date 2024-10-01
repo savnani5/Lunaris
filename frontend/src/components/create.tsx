@@ -10,6 +10,11 @@ import { Slider } from '@mui/material';
 
 import ProjectCard from '@/components/ProjectCard';
 import CaptionStyleSelector from '@/components/CaptionStyleSelector';
+import { createProject, getProjectsByUserId, updateProjectStatus, getProjectById } from '@/lib/actions/project.actions';
+import { getUserById } from '@/lib/actions/user.actions';
+import { ProjectModel, Project } from '@/lib/database/models/project.model';
+import { backend_url } from '@/lib/constants';
+
 
 const bigBangVideo = '/assets/caption_styles/big_bang.mp4';
 const elonVideo = '/assets/caption_styles/elon.mp4';
@@ -19,22 +24,6 @@ const jakePaulVideo = '/assets/caption_styles/jake_paul.mp4';
 const chrisWilliamsonVideo = '/assets/caption_styles/chris_williamson.mp4';
 const mattRifeVideo = '/assets/caption_styles/matt_rife.mp4';
 
-
-interface ProjectStatus {
-  id: string;
-  clerkUserId: string;
-  youtubeVideoUrl: string;
-  title: string;
-  thumbnail: string;
-  clipIds: string[];
-  transcript: string | null;
-  status: 'completed' | 'processing' | 'failed';
-  createdAt: string;
-  videoDuration: number;
-  progress?: number;
-  processingTimeframe?: string;
-  videoQuality?: string;
-}
 
 export function Create() {
   const router = useRouter(); 
@@ -47,13 +36,14 @@ export function Create() {
   const [videoType, setVideoType] = useState("Portrait");
   const [keywords, setKeywords] = useState("");
   const { user } = useUser();
+  const [userCredits, setUserCredits] = useState(0);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
   const [startTime, setStartTime] = useState(0);
   const [endTime, setEndTime] = useState(0);
   const [startTimePercentage, setStartTimePercentage] = useState(0);
   const [endTimePercentage, setEndTimePercentage] = useState(100);
-  const [projects, setProjects] = useState<ProjectStatus[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [clipLengthRange, setClipLengthRange] = useState({ min: 0, max: 180 });
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
@@ -72,8 +62,6 @@ export function Create() {
     { id: "chris_williamson", name: "Chris Williamson", videoSrc: chrisWilliamsonVideo },
     { id: "matt_rife", name: "Matt Rife", videoSrc: mattRifeVideo },
   ];
-
-  const backend_url = process.env.NEXT_PUBLIC_BACKEND_URL|| "https://lunarisbackend-production.up.railway.app";
 
   const fetchVideoDetails = async (url: string) => {
     try {
@@ -175,83 +163,113 @@ export function Create() {
   };
 
   const handleProcessClick = async () => {
-    if (!user) {
-      // Redirect unauthenticated user to signin page
-      router.push('/signin');
-      return;
-    }
-
     setProcessing(true);
     
     const userId = user?.id ?? '';
     const email = user?.primaryEmailAddress?.emailAddress ?? '';
 
-    const processingTimeframe = `${formatTime(startTime)} - ${formatTime(endTime)}`;
-
-    const formData = new FormData();
-    const formFields = {
-      userId,
-      email,
-      genre,
-      videoQuality,
-      videoType,
-      startTime: startTime.toString(),
-      endTime: endTime.toString(),
-      clipLengthMin: clipLengthRange.min.toString(),
-      clipLengthMax: clipLengthRange.max.toString(),
-      keywords,
-      videoTitle,
-      videoThumbnail,
-      videoDuration: videoDuration?.toString() || '0',
-      captionStyle: selectedCaptionStyle,
-      processingTimeframe,
-    };
-
-    Object.entries(formFields).forEach(([key, value]) => {
-      formData.append(key, value);
-    });
-
-    if (uploadedVideo) {
-      formData.append('video', uploadedVideo);
-    } else {
-      formData.append('videoLink', videoLink);
-    }
-
-    const response = await fetch(`${backend_url}/api/process-video`, {
-      method: "POST",
-      body: formData,
-    });
-
-    if (response.ok) {
-      const data = await response.json();
-      const newProject: ProjectStatus = {
-        id: data.project_id,
-        clerkUserId: userId,
-        youtubeVideoUrl: videoLink,
+    const processing_timeframe = `${formatTime(startTime)} - ${formatTime(endTime)}`;
+    const processingDuration = endTime - startTime;
+    
+    try {
+      const newProject = await createProject({
+        clerk_user_id: userId,
+        youtube_video_url: videoLink,
         title: videoTitle || 'Untitled Project',
         thumbnail: videoThumbnail,
-        clipIds: [],
-        transcript: null,
+        processing_timeframe: processing_timeframe,
+        video_quality: videoQuality,
+        required_credits: Math.ceil(processingDuration / 60),
+        videoDuration: videoDuration,
         status: 'processing',
-        createdAt: new Date().toISOString(),
-        videoDuration: videoDuration || 0,
         progress: 0,
-        processingTimeframe,
-        videoQuality,
-      };
-      setProjects(prevProjects => [...prevProjects, newProject]);
+        stage: 'initializing'
+      } as Omit<ProjectModel, '_id' | 'created_at' | 'clip_ids' | 'transcript'>);
+
+      if (newProject) {
+        // Send data to Flask backend for processing
+        const formData = new FormData();
+        formData.append('userId', userId);
+        formData.append('email', email);
+        formData.append('projectId', newProject._id);
+        formData.append('videoTitle', videoTitle);
+        formData.append('processing_timeframe', processing_timeframe);
+        formData.append('genre', genre);
+        formData.append('videoQuality', videoQuality);
+        formData.append('videoType', videoType);
+        formData.append('startTime', startTime.toString());
+        formData.append('endTime', endTime.toString());
+        formData.append('clipLengthMin', clipLengthRange.min.toString());
+        formData.append('clipLengthMax', clipLengthRange.max.toString());
+        formData.append('keywords', keywords);
+        formData.append('captionStyle', selectedCaptionStyle);
+
+
+        // If there's an uploaded video file, append it to the formData
+        if (uploadedVideo) {
+          formData.append('video', uploadedVideo);
+        } else {
+          formData.append('videoLink', videoLink);
+        }
+
+        const response = await fetch(`${backend_url}/api/process-video`, {
+          method: "POST",
+          body: formData,
+        });
+
+        if (response.ok) {
+          // Start polling for project status
+          setIsPolling(true);
+          pollProjectStatus(userId, newProject._id);
+        } else {
+          console.error('Failed to start video processing');
+          // Update project status to 'failed'
+          await updateProjectStatus(userId, newProject._id, 'failed', 0);
+        }
+
+        // Update local state
+        setProjects(prevProjects => [
+          ...prevProjects,
+          {
+            ...newProject,
+            id: newProject._id,
+            status: 'processing',
+            progress: 0,
+          }
+        ]);
+      }
+    } catch (error) {
+      console.error('Error processing video:', error);
+    } finally {
       setProcessing(false);
-      setIsPolling(true); // Start polling immediately
-      // Clear the form or reset state as needed
-      setVideoLink("");
-      setVideoThumbnail("");
-      setVideoTitle("");
-      setUploadedVideo(null);
-      // ... reset other state variables
-    } else {
-      setProcessing(false);
-      // Handle error
     }
+  };
+
+  const pollProjectStatus = async (userId: string, projectId: string) => {
+    const intervalId = setInterval(async () => {
+      try {
+        const response = await fetch(`/api/project-status?userId=${userId}&projectId=${projectId}`);
+        if (response.ok) {
+          const data = await response.json();
+          setProjects(prevProjects =>
+            prevProjects.map(p =>
+              p._id === projectId
+                ? { ...p, status: data.status, progress: data.progress, stage: data.stage }
+                : p
+            )
+          );
+
+          if (data.status === 'completed' || data.status === 'failed') {
+            clearInterval(intervalId);
+            setIsPolling(false);
+          }
+        } else {
+          console.error('Failed to fetch project status');
+        }
+      } catch (error) {
+        console.error('Error polling project status:', error);
+      }
+    }, 5000);
   };
 
   const handleClipLengthClick = (length: string) => {
@@ -286,9 +304,15 @@ export function Create() {
   };
 
   const formatTime = (seconds: number) => {
-    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
     const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    } else {
+      return `${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`;
+    }
   };
 
   useEffect(() => {
@@ -315,41 +339,63 @@ export function Create() {
   useEffect(() => {
     if (user?.id) {
       fetchProjects();
+      fetchUserCredits(user.id);
     }
   }, [user]);
 
   const fetchProjects = async () => {
     try {
-      const response = await fetch(`/api/get-projects?userId=${user?.id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProjects(data.map((project: any) => ({
-          id: project._id,
-          clerkUserId: project.clerk_user_id,
-          youtubeVideoUrl: project.youtube_video_url,
-          title: project.title,
-          thumbnail: project.thumbnail,
-          clipIds: project.clip_ids,
-          transcript: project.transcript,
-          status: project.status,
-          createdAt: project.created_at,
-          videoDuration: project.video_duration,
-          progress: project.progress || 0,
-          processingTimeframe: project.processing_timeframe,
-        })));
+      if (user?.id) {
+        const fetchedProjects = await getProjectsByUserId(user.id);
+        if (fetchedProjects) {
+          // Fetch status for each project
+          const updatedProjects = await Promise.all(fetchedProjects.map(async (project: Project) => {
+            const status = await fetchProjectStatus(user.id, project._id);
+            return { ...project, ...status };
+          }));
+          setProjects(updatedProjects);
+        }
       }
     } catch (error) {
       console.error('Error fetching projects:', error);
     }
   };
 
-  const handleProjectClick = (project: ProjectStatus) => {
+  const fetchProjectStatus = async (userId: string, projectId: string): Promise<Partial<Project>> => {
+    try {
+      const response = await fetch(`/api/project-status?userId=${userId}&projectId=${projectId}`);
+      if (response.ok) {
+        const data = await response.json();
+        return {
+          status: data.status,
+          progress: data.progress,
+          stage: data.stage
+        };
+      }
+    } catch (error) {
+      console.error('Error fetching project status:', error);
+    }
+    return {};
+  };
+
+  const fetchUserCredits = async (userId: string) => {
+    try {
+      const userData = await getUserById(userId);
+      if (userData) {
+        setUserCredits(userData.credits);
+      }
+    } catch (error) {
+      console.error('Error fetching user credits:', error);
+    }
+  };
+
+  const handleProjectClick = (project: Project) => {
     if (project.status === 'completed') {
       // Directly navigate to the clips page for completed projects
-      router.push(`/project/${project.id}/clips`);
+      router.push(`/project/${project._id}/clips`);
     } else {
       // Navigate to the processing page for projects still in progress
-      router.push(`/project/${project.id}`);
+      router.push(`/project/${project._id}`);
     }
   };
 
@@ -368,19 +414,6 @@ export function Create() {
     setSelectedCaptionStyle(styleId);
   };
 
-  const updateProjectStatus = useCallback(async (projectId: string) => {
-    try {
-      const response = await fetch(`/api/project-status?userId=${user?.id}&projectId=${projectId}`);
-      if (response.ok) {
-        const data = await response.json();
-        return data;
-      }
-    } catch (error) {
-      console.error('Error updating project status:', error);
-    }
-    return null;
-  }, [user]);
-
   const pollProjectStatuses = useCallback(async () => {
     const processingProjects = projects.filter(project => project.status === 'processing');
     
@@ -389,28 +422,21 @@ export function Create() {
       return;
     }
 
-    let updatedAny = false;
-
-    for (const project of processingProjects) {
-      const data = await updateProjectStatus(project.id);
-      if (data) {
-        setProjects(prevProjects =>
-          prevProjects.map(p =>
-            p.id === project.id
-              ? { ...p, status: data.status, progress: data.progress }
-              : p
-          )
-        );
-        if (data.status === 'completed') {
-          updatedAny = true;
-        }
+    const updatedProjects = await Promise.all(projects.map(async (project: Project) => {
+      if (project.status === 'processing') {
+        const status = await fetchProjectStatus(user?.id ?? '', project._id);
+        return { ...project, ...status };
       }
-    }
+      return project;
+    }));
 
-    if (updatedAny) {
-      fetchProjects();
-    }
-  }, [projects, updateProjectStatus, fetchProjects]);
+    setProjects(updatedProjects);
+
+    // Check if any projects are still processing
+    const stillProcessing = updatedProjects.some(project => project.status === 'processing');
+    setIsPolling(stillProcessing);
+
+  }, [projects, user]);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
@@ -431,6 +457,7 @@ export function Create() {
     setIsPolling(hasProcessingProjects);
   }, [projects]);
 
+  
   return (
     <div className="min-h-screen bg-black text-white p-4">
       <header className="flex items-center justify-between py-4">
@@ -438,6 +465,8 @@ export function Create() {
         <div className="flex items-center space-x-4"></div>
       </header>
       <main className="flex flex-col items-center space-y-8">
+        <h1>Welcome, {user?.firstName}</h1>
+        <p>You have {userCredits} minutes of credits left.</p>
         <div className="flex items-center w-full max-w-2xl space-x-4">
           <Input
             placeholder="Drop a YouTube link"
@@ -520,14 +549,14 @@ export function Create() {
             <option>480p</option>
             <option>360p</option>
           </select>
-          <h2 className="text-lg font-bold">Output Video Type</h2>
+          <h2 className="text-lg font-bold">Output Aspect Ratio</h2>
           <select 
             className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
             value={videoType}
             onChange={(e) => setVideoType(e.target.value)}
           >
-            <option>Portrait</option>
-            <option>Landscape</option>
+            <option value="portrait">Portrait (9:16)</option>
+            <option value="landscape">Landscape (16:9)</option>
           </select>
           <div className="flex items-center mb-2">
             <h2 className="text-lg font-bold mr-2">Processing Timeframe</h2>
@@ -610,10 +639,10 @@ export function Create() {
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
                 {projects
                   .filter(project => project.status !== 'failed')
-                  .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                   .map((project) => (
                     <ProjectCard
-                      key={project.id}
+                      key={project._id}
                       project={project}
                       onClick={() => handleProjectClick(project)}
                     />

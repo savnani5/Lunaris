@@ -5,13 +5,12 @@ import { useState, useEffect } from 'react';
 import ProcessingBar from '@/components/ProcessingBar';
 import { useUser } from '@clerk/nextjs';
 
-
 interface ProjectStatus {
-  status: 'processing' | 'completed' | 'failed';
+  status: 'created' | 'processing' | 'completed' | 'failed';
   stage: string;
   progress: number;
   title: string;
-  processingTimeframe: string;
+  processing_timeframe: string;
 }
 
 const stages = ['downloading', 'transcribing', 'analyzing', 'generating', 'uploading'];
@@ -26,43 +25,41 @@ export default function ProjectPage() {
     stage: 'initializing',
     progress: 0,
     title: '',
-    processingTimeframe: ''
+    processing_timeframe: ''
   });
   const { user } = useUser();
 
   useEffect(() => {
     if (id && user) {
-      fetchProjectStatus();
-    }
-  }, [id, user]);
-
-  const fetchProjectStatus = async () => {
-    try {
-      const response = await fetch(`/api/project-status?userId=${user?.id}&projectId=${id}`);
-      if (response.ok) {
-        const data = await response.json();
-        setProjectStatus(data);
-        
-        if (data.status === 'completed') {
-          setProcessing(false);
-          router.push(`/project/${id}/clips`);
-        } else if (data.status === 'failed') {
-          setProcessing(false);
-          // TODO: Handle error
-          // Failed project card appears
+      const fetchProjectStatus = async () => {
+        try {
+          const response = await fetch(`/api/project-status?userId=${user.id}&projectId=${id}`);
+          if (response.ok) {
+            const data: ProjectStatus = await response.json();
+            setProjectStatus(data);
+            
+            if (data.status === 'completed') {
+              setProcessing(false);
+              router.push(`/project/${id}/clips`);
+            } else if (data.status === 'failed') {
+              setProcessing(false);
+              // TODO: Handle error
+              // Failed project card appears
+            }
+          } else if (response.status === 404) {
+            console.error('Project not found');
+            // Handle project not found error
+          }
+        } catch (error) {
+          console.error('Error fetching project status:', error);
         }
-      }
-    } catch (error) {
-      console.error('Error fetching project status:', error);
-    }
-  };
+      };
 
-  useEffect(() => {
-    if (processing) {
+      fetchProjectStatus();
       const interval = setInterval(fetchProjectStatus, 5000);
       return () => clearInterval(interval);
     }
-  }, [processing]);
+  }, [id, user, router]);
 
   const getStageDescription = (stage: string) => {
     switch (stage) {
@@ -83,44 +80,29 @@ export default function ProjectPage() {
         {projectStatus.title && (
           <div className="text-center">
             <p className="text-xl font-semibold">{projectStatus.title}</p>
-            <p className="text-sm text-gray-400">Processing timeframe: {projectStatus.processingTimeframe}</p>
+            {projectStatus.processing_timeframe && (
+              <p className="text-sm text-gray-400">Processing timeframe: {projectStatus.processing_timeframe}</p>
+            )}
           </div>
         )}
-        {processing ? (
-          <>
-            <div className="w-full max-w-2xl">
-              {stages.map((stage, index) => {
-                const isCompleted = stages.indexOf(projectStatus.stage) > index;
-                const isCurrent = projectStatus.stage === stage;
-                return (
-                  <div key={stage} className={`flex items-center mb-2 ${isCompleted ? 'text-green-500' : isCurrent ? 'text-blue-500' : 'text-gray-500'}`}>
-                    <div className={`w-4 h-4 mr-2 rounded-full ${isCompleted ? 'bg-green-500' : isCurrent ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
-                    <p>{getStageDescription(stage)} {isCompleted ? '(Completed)' : isCurrent ? `(${projectStatus.progress}%)` : ''}</p>
-                  </div>
-                );
-              })}
-            </div>
-            <ProcessingBar progress={projectStatus.progress} />
-          </>
-        ) : (
-          <div className="w-full max-w-2xl">
-            {projectStatus.title && (
-              <h2 className="text-xl font-bold mb-2">{projectStatus.title}</h2>
-            )}
-            {projectStatus.processingTimeframe && (
-              <p className="text-sm text-gray-400 mb-4">Processing timeframe: {projectStatus.processingTimeframe}</p>
-            )}
-            <h3 className="text-lg font-bold mb-2">Processing:</h3>
-            <div className="w-full bg-gray-700 rounded-full h-2.5">
-              <div
-                className="bg-blue-500 h-2.5 rounded-full transition-all duration-300 ease-in-out"
-                style={{ width: `${projectStatus.progress}%` }}
-              ></div>
-            </div>
-            <p className="text-right mt-1 text-sm">{projectStatus.progress}%</p>
-          </div>
-        )}
+        <div className="w-full max-w-2xl">
+          {stages.map((stage, index) => {
+            const isCompleted = stages.indexOf(projectStatus.stage) > index;
+            const isCurrent = projectStatus.stage === stage;
+            return (
+              <div key={stage} className={`flex items-center mb-2 ${isCompleted ? 'text-green-500' : isCurrent ? 'text-blue-500' : 'text-gray-500'}`}>
+                <div className={`w-4 h-4 mr-2 rounded-full ${isCompleted ? 'bg-green-500' : isCurrent ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
+                <p>{getStageDescription(stage)} {isCompleted ? '(Completed)' : isCurrent ? `(${projectStatus.progress}%)` : ''}</p>
+              </div>
+            );
+          })}
+        </div>
+        <ProcessingBar progress={projectStatus.progress} />
       </main>
     </div>
   );
 }
+
+
+// Red lines for failed project with error message
+// Give back the credits for the failed project

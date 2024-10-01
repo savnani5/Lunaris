@@ -30,6 +30,7 @@
     "next": "14.2.4",
     "react": "^18",
     "react-dom": "^18",
+    "svix": "^1.36.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "youtubei.js": "^10.4.0"

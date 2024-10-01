@@ -1,6 +1,5 @@
 import moviepy.editor as mp_edit
 import mediapipe as mp
-import random
 import os
 import shutil
 import glob
@@ -20,6 +19,7 @@ from deepgram import (
 )
 from pydantic import BaseModel
 from typing import List
+import requests
 
 from caption_styles import CaptionStyleFactory
 from dotenv import find_dotenv, load_dotenv
@@ -260,8 +260,18 @@ class VideoProcessor:
             processed_clip = self.process_clip(clip, output_video_type)
             subtitled_clip = caption_styler.add_subtitles(processed_clip, segment['word_timings'], segment['start'], output_video_type)
             _, clip_url = self.save_or_upload_clip(subtitled_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
-            clip_id = self.create_and_save_clip(project_id, segment, clip_url)
-            processed_clip_ids.append(clip_id)
+            clip_data = {
+                'project_id': project_id,
+                'title': segment['title'],
+                'transcript': segment['transcript'],
+                's3_uri': clip_url,
+                'score': segment['score'],
+                'hook': segment['hook'],
+                'flow': segment['flow'],
+                'engagement': segment['engagement'],
+                'trend': segment['trend']
+            }
+            self.send_clip_data(clip_data)
 
             if progress_callback:
                 progress_callback(i + 1)
@@ -471,7 +481,7 @@ class VideoProcessor:
                     clip_url = s3_client.generate_presigned_url('get_object',
                                                                 Params={'Bucket': s3_bucket,
                                                                         'Key': s3_key},
-                                                                        ExpiresIn=3600 * 24)  # URL expires in 1 day
+                                                                        ExpiresIn=3600 * 24 * 7)  # URL expires in 7 days
                 except ClientError as e:
                     print(f"Error generating pre-signed URL: {e}")
                     clip_url = None
@@ -485,22 +495,6 @@ class VideoProcessor:
         
         return clip_filename, clip_url
 
-    def create_and_save_clip(self, project_id, segment, clip_url):
-        clip = Clip(project_id, 
-                    segment['title'], 
-                    segment['transcript'], 
-                    clip_url,
-                    score=segment['score'],
-                    hook=segment['hook'],
-                    flow=segment['flow'],
-                    engagement=segment['engagement'],
-                    trend=segment['trend'])
-            
-        # Insert clip into MongoDB
-        clip_dict = clip.to_dict()
-        self.db.clips.insert_one(clip_dict)
-            
-        return clip._id
 
     def adjust_bounding_box(self, x, y, w, h, frame_height, frame_width):
         # Target aspect ratio (9:16)
@@ -596,6 +590,14 @@ class VideoProcessor:
         
         print("Audio transcribed successfully!")
         return full_transcript, word_timings
+
+    def send_clip_data(self, clip_data):
+        try:
+            response = requests.post(f"{os.environ.get('FRONTEND_URL')}/api/get-clips", json=clip_data)
+            response.raise_for_status()
+            print(f"Clip data sent successfully")
+        except Exception as e:
+            print(f"Failed to send clip data: {str(e)}")
 
 
 if __name__ == "__main__":#
