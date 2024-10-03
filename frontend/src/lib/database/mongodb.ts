@@ -1,32 +1,33 @@
 import { MongoClient } from 'mongodb';
+import { DB_NAME } from '../constants';
 
 const MONGODB_URI = process.env.MONGODB_URI as string;
 
-interface MongoConnection {
-  client: MongoClient | null;
-  promise: Promise<MongoClient> | null;
+if (!MONGODB_URI) {
+  throw new Error('Please define the MONGODB_URI environment variable');
 }
 
-let cached: MongoConnection = (global as any).mongoConnection;
-
-if (!cached) {
-  cached = (global as any).mongoConnection = {
-    client: null,
-    promise: null
-  };
+if (!DB_NAME) {
+  throw new Error('Please define the DB_NAME environment variable');
 }
 
-export async function connectToDatabase(): Promise<MongoClient> {
-  if (cached.client) return cached.client;
+let cachedClient: MongoClient | null = null;
+let cachedDb: any = null;
 
-  if (!MONGODB_URI) throw new Error('Missing MONGODB_URI');
+export async function connectToDatabase() {
+  if (cachedClient && cachedDb) {
+    return { client: cachedClient, db: cachedDb };
+  }
 
-  cached.promise = cached.promise || 
-    new MongoClient(MONGODB_URI).connect();
+  const client = await MongoClient.connect(MONGODB_URI, {
+    maxPoolSize: 10,
+  });
 
-  cached.client = await cached.promise;
+  const db = client.db(DB_NAME);
 
-  return cached.client;
+  cachedClient = client;
+  cachedDb = db;
+
+  return { client, db };
 }
 
-export default connectToDatabase;
