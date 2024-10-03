@@ -2,8 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { UserModel } from '@/lib/database/models/user.model';
-import connectToDatabase from '@/lib/database/mongodb';
-import { INITIAL_CREDITS, DB_NAME } from '../constants';
+import { connectToDatabase } from '@/lib/database/mongodb';
+import { INITIAL_CREDITS } from '../constants';
 import { handleError } from "@/lib/utils";
 
 // CREATE
@@ -13,10 +13,8 @@ export async function createUser(userData: {
   firstName: string;
   lastName: string;
 }) {
-  let client;
   try {
-    client = await connectToDatabase();
-    const db = client.db(DB_NAME);
+    const { db } = await connectToDatabase();
 
     const existingUser = await db.collection('user').findOne({ clerk_id: userData.clerk_id });
 
@@ -47,10 +45,8 @@ export async function createUser(userData: {
 
 // READ
 export async function getUserById(userId: string) {
-  let client;
   try {
-    client = await connectToDatabase();
-    const db = client.db(DB_NAME);
+    const { db } = await connectToDatabase();
 
     const user = await db.collection('user').findOne({ clerk_id: userId });
 
@@ -64,10 +60,8 @@ export async function getUserById(userId: string) {
 
 // UPDATE
 export async function updateUser(userId: string, userData: Partial<UserModel>) {
-  let client;
   try {
-    client = await connectToDatabase();
-    const db = client.db(DB_NAME);
+    const { db } = await connectToDatabase();
 
     // First, check if the user exists
     const existingUser = await db.collection('user').findOne({ clerk_id: userId });
@@ -109,10 +103,8 @@ export async function updateUser(userId: string, userData: Partial<UserModel>) {
 
 // DELETE
 export async function deleteUser(userId: string) {
-  let client;
   try {
-    client = await connectToDatabase();
-    const db = client.db(DB_NAME);
+    const { db } = await connectToDatabase();
 
     const deletedUser = await db.collection('user').findOneAndDelete({ clerk_id: userId });
 
@@ -134,8 +126,7 @@ export async function deleteUser(userId: string) {
 export async function updateUserProjects(userId: string, projectId: string, action: 'add' | 'remove') {
   console.log(`Attempting to update projects for user: ${userId}, project: ${projectId}, action: ${action}`);
   try {
-    const client = await connectToDatabase();
-    const db = client.db(DB_NAME);
+    const { db } = await connectToDatabase();
 
     // First, check if the user exists
     const existingUser = await db.collection('user').findOne({ clerk_id: userId });
@@ -169,21 +160,26 @@ export async function updateUserProjects(userId: string, projectId: string, acti
 
 // UPDATE CREDITS
 export async function updateUserCredits(userId: string, creditChange: number) {
-  let client;
   try {
-    client = await connectToDatabase();
-        const db = client.db(DB_NAME);
+    const { db } = await connectToDatabase();
 
-    const updatedUser = await db.collection('user').findOneAndUpdate(
+    console.log(`Attempting to update credits for user ${userId} by ${creditChange}`);
+
+    const result = await db.collection('user').findOneAndUpdate(
       { clerk_id: userId },
       { $inc: { credits: creditChange }},
-      { returnDocument: 'after' }
+      { new: true }
     );
 
-    if (!updatedUser?.value) throw new Error("User credits update failed");
+    if (!result) {
+      console.warn(`User credits update failed for user ${userId}. User not found or update failed.`);
+      return null;
+    }
 
-    return JSON.parse(JSON.stringify(UserModel.fromObject(updatedUser.value)));
+    console.log(`Successfully updated credits for user ${userId}. New credit balance: ${result.credits}`);
+    return JSON.parse(JSON.stringify(UserModel.fromObject(result)));
   } catch (error) {
-    handleError(error);
+    console.error(`Error in updateUserCredits for user ${userId}:`, error);
+    return null;
   }
 }

@@ -11,9 +11,11 @@ import { Slider } from '@mui/material';
 import ProjectCard from '@/components/ProjectCard';
 import CaptionStyleSelector from '@/components/CaptionStyleSelector';
 import { createProject, getProjectsByUserId, updateProjectStatus, getProjectById } from '@/lib/actions/project.actions';
-import { getUserById } from '@/lib/actions/user.actions';
+import { getUserById, updateUserCredits } from '@/lib/actions/user.actions';
 import { ProjectModel, Project } from '@/lib/database/models/project.model';
 import { backend_url } from '@/lib/constants';
+import { checkoutCredits } from '@/lib/actions/transaction.action';
+import CreditWarningPopup from '@/components/CreditWarningPopup';
 
 
 const bigBangVideo = '/assets/caption_styles/big_bang.mp4';
@@ -52,6 +54,7 @@ export function Create() {
   const [isValidInput, setIsValidInput] = useState(false);
   const [selectedCaptionStyle, setSelectedCaptionStyle] = useState("elon");
   const [isPolling, setIsPolling] = useState(false);
+  const [showCreditWarning, setShowCreditWarning] = useState(false);
 
   const captionStyles = [
     { id: "big_bang", name: "Big Bang", videoSrc: bigBangVideo },
@@ -163,15 +166,25 @@ export function Create() {
   };
 
   const handleProcessClick = async () => {
+    const processingDuration = endTime - startTime;
+    const requiredCredits = Math.ceil(processingDuration / 60);
+
+    if (userCredits < requiredCredits) {
+      setShowCreditWarning(true);
+      return;
+    }
+
     setProcessing(true);
     
     const userId = user?.id ?? '';
     const email = user?.primaryEmailAddress?.emailAddress ?? '';
 
     const processing_timeframe = `${formatTime(startTime)} - ${formatTime(endTime)}`;
-    const processingDuration = endTime - startTime;
     
     try {
+      await updateUserCredits(userId, -requiredCredits);
+      setUserCredits(prevCredits => prevCredits - requiredCredits);
+
       const newProject = await createProject({
         clerk_user_id: userId,
         youtube_video_url: videoLink,
@@ -179,7 +192,7 @@ export function Create() {
         thumbnail: videoThumbnail,
         processing_timeframe: processing_timeframe,
         video_quality: videoQuality,
-        required_credits: Math.ceil(processingDuration / 60),
+        required_credits: requiredCredits,
         videoDuration: videoDuration,
         status: 'processing',
         progress: 0,
@@ -204,8 +217,6 @@ export function Create() {
         formData.append('keywords', keywords);
         formData.append('captionStyle', selectedCaptionStyle);
 
-
-        // If there's an uploaded video file, append it to the formData
         if (uploadedVideo) {
           formData.append('video', uploadedVideo);
         } else {
@@ -218,16 +229,18 @@ export function Create() {
         });
 
         if (response.ok) {
-          // Start polling for project status
+          // Deduct credits after project creation
+          
           setIsPolling(true);
           pollProjectStatus(userId, newProject._id);
         } else {
           console.error('Failed to start video processing');
-          // Update project status to 'failed'
           await updateProjectStatus(userId, newProject._id, 'failed', 0);
+          // Refund credits if project processing fails
+          await updateUserCredits(userId, requiredCredits);
+          setUserCredits(prevCredits => prevCredits + requiredCredits);
         }
 
-        // Update local state
         setProjects(prevProjects => [
           ...prevProjects,
           {
@@ -240,6 +253,7 @@ export function Create() {
       }
     } catch (error) {
       console.error('Error processing video:', error);
+      // No need to refund credits here as they haven't been deducted yet
     } finally {
       setProcessing(false);
     }
@@ -457,6 +471,25 @@ export function Create() {
     setIsPolling(hasProcessingProjects);
   }, [projects]);
 
+  const handleBuyCredits = async () => {
+    try {
+      if (!user) {
+        console.error('User not authenticated');
+        return;
+      }
+      await checkoutCredits({
+        plan: 'Test Plan',
+        credits: 100,
+        amount: 9.99,
+        userId: user.id,
+      });
+      // The user will be redirected to Stripe checkout page
+      // Credits will be updated after successful payment via webhook
+    } catch (error) {
+      console.error('Error initiating credit purchase:', error);
+    }
+  };
+
   
   return (
     <div className="min-h-screen bg-black text-white p-4">
@@ -632,6 +665,12 @@ export function Create() {
         >
           {processing ? "Processing..." : "Get viral clips"}
         </Button>
+        <Button 
+          className="w-full max-w-2xl bg-green-500 mt-4 py-3 text-lg font-semibold" 
+          onClick={handleBuyCredits}
+        >
+          Buy 100 Credits for $9.99 (Test)
+        </Button>
         {projects.length > 0 && (
           <div className="w-full mt-8 px-2">
             <div className="max-w-7xl mx-auto">
@@ -652,6 +691,13 @@ export function Create() {
           </div>
         )}
       </main>
+      {showCreditWarning && (
+        <CreditWarningPopup 
+          onClose={() => setShowCreditWarning(false)}
+          availableCredits={userCredits}
+          requiredCredits={Math.ceil((endTime - startTime) / 60)}
+        />
+      )}
     </div>
   );
 }

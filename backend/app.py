@@ -134,7 +134,6 @@ class LunarisApp:
                 else:
                     downloaded_video_path = video_path
                     downloaded_audio_path = self.video_processor.extract_audio(video_path)
-                    video_title = os.path.splitext(os.path.basename(video_path))[0]
 
                 self.update_project_status(clerk_user_id, project_id, "processing", "transcribing", 10, video_title, processing_timeframe)
                 self.app.logger.info(f"Video processed: {downloaded_video_path}")
@@ -301,11 +300,13 @@ class LunarisApp:
                 'title': title,
                 'processing_timeframe': processing_timeframe
             }
+            self.app.logger.info(f"Sending project status update: {data}")
             response = requests.post(f"{self.frontend_url}/api/project-status", json=data)
             response.raise_for_status()
             self.app.logger.info(f"Project status updated: {data}")
-        except Exception as e:
+        except requests.exceptions.RequestException as e:
             self.app.logger.error(f"Failed to update project status: {str(e)}")
+            self.app.logger.error(f"Response content: {e.response.content if e.response else 'No response'}")
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Run the Lunaris App')

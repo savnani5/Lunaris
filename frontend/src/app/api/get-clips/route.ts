@@ -12,8 +12,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const client = await connectToDatabase();
-    const db = client.db(DB_NAME);
+    const { db } = await connectToDatabase();
     const clips = await db.collection('clip').find({ project_id: projectId }).toArray();
 
     return NextResponse.json(clips);
