@@ -73,25 +73,25 @@ export default function ProjectPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-4">
-      <main className="flex flex-col items-center space-y-8">
-        <h1 className="text-2xl font-bold">Your video is processing</h1>
-        <p>We will email you once your video is done processing, check back soon!</p>
+    <div className="min-h-screen bg-n-8 text-n-1 p-4">
+      <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold">Your video is processing</h1>
+        <p className="text-n-3">We will email you once your video is done processing, check back soon!</p>
         {projectStatus.title && (
           <div className="text-center">
             <p className="text-xl font-semibold">{projectStatus.title}</p>
             {projectStatus.processing_timeframe && (
-              <p className="text-sm text-gray-400">Processing timeframe: {projectStatus.processing_timeframe}</p>
+              <p className="text-sm text-n-3">Processing timeframe: {projectStatus.processing_timeframe}</p>
             )}
           </div>
         )}
-        <div className="w-full max-w-2xl">
+        <div className="w-full max-w-2xl bg-n-7 rounded-2xl p-8">
           {stages.map((stage, index) => {
             const isCompleted = stages.indexOf(projectStatus.stage) > index;
             const isCurrent = projectStatus.stage === stage;
             return (
-              <div key={stage} className={`flex items-center mb-2 ${isCompleted ? 'text-green-500' : isCurrent ? 'text-blue-500' : 'text-gray-500'}`}>
-                <div className={`w-4 h-4 mr-2 rounded-full ${isCompleted ? 'bg-green-500' : isCurrent ? 'bg-blue-500' : 'bg-gray-500'}`}></div>
+              <div key={stage} className={`flex items-center mb-2 ${isCompleted ? 'text-green-500' : isCurrent ? 'text-purple-500' : 'text-gray-500'}`}>
+                <div className={`w-4 h-4 mr-2 rounded-full ${isCompleted ? 'bg-green-500' : isCurrent ? 'bg-purple-500' : 'bg-gray-500'}`}></div>
                 <p>{getStageDescription(stage)} {isCompleted ? '(Completed)' : isCurrent ? `(${projectStatus.progress}%)` : ''}</p>
               </div>
             );
@@ -102,7 +102,6 @@ export default function ProjectPage() {
     </div>
   );
 }
-
 
 // Red lines for failed project with error message
 // Give back the credits for the failed project

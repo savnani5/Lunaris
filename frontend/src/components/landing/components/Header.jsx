@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { disablePageScroll, enablePageScroll } from "scroll-lock";
+import { useAuth } from "@clerk/nextjs";
 
 import { brainwave, lunarisLogo } from "../assets";
 import { navigation, authLinks } from "../constants";
@@ -15,6 +16,8 @@ import { useState } from "react";
 const Header = () => {
   const pathname = usePathname();
   const [openNavigation, setOpenNavigation] = useState(false);
+
+  const { isSignedIn } = useAuth();
 
   const toggleNavigation = () => {
     if (openNavigation) {
@@ -67,46 +70,28 @@ const Header = () => {
                 {item.title}
               </Link>
             ))}
-            {/* Add auth links to mobile navigation */}
-            {authLinks.map((item) => (
-              <Link
-                key={item.id}
-                href={item.url}
-                onClick={handleClick}
-                className="block relative font-code text-2xl uppercase text-n-1 transition-colors hover:text-color-1 lg:hidden px-6 py-6 md:py-8"
-              >
-                {item.title}
-              </Link>
-            ))}
-            {/* Add Sign Up button to mobile navigation */}
-            <Link
-              href="/sign-up"
-              onClick={handleClick}
-              className="block relative font-code text-2xl uppercase text-n-1 transition-colors hover:text-color-1 lg:hidden px-6 py-6 md:py-8"
-            >
-              Sign Up
-            </Link>
           </div>
 
           <HamburgerMenu />
         </nav>
 
         <div className="flex items-center">
-          {authLinks.map((item) => (
-            <Link
-              key={item.id}
-              href={item.url}
-              className="hidden lg:block mr-4 text-n-1/50 hover:text-n-1 transition-colors text-base"
-            >
-              {item.title}
+          {isSignedIn ? (
+            <Link href="/home" className="hidden lg:block mr-4 text-n-1/50 hover:text-n-1 transition-colors text-base">
+              My Dashboard
             </Link>
-          ))}
-
-          <Link href="/sign-up" target="_blank" passHref>
-            <Button className="hidden lg:flex">
-              Sign Up
-            </Button>
-          </Link>
+          ) : (
+            <>
+              <Link href="/sign-in" className="hidden lg:block mr-4 text-n-1/50 hover:text-n-1 transition-colors text-base">
+                Sign In
+              </Link>
+              <Link href="/sign-up" target="_blank" passHref>
+                <Button className="hidden lg:flex">
+                  Sign Up
+                </Button>
+              </Link>
+            </>
+          )}
 
           <Button
             className="ml-auto lg:hidden"

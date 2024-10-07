@@ -13,7 +13,7 @@ const Pricing = () => {
   return (
     <Section className="overflow-hidden" id="pricing">
       <div className="container relative z-2">
-        <div className="hidden relative justify-center mb-[6.5rem] lg:flex">
+        {/* <div className="hidden relative justify-center mb-[6.5rem] lg:flex">
           <img
             src={smallSphere}
             className="relative z-1"
@@ -30,11 +30,11 @@ const Pricing = () => {
               alt="Stars"
             />
           </div>
-        </div>
+        </div> */}
 
         <Heading
           tag="Get started with Lunaris"
-          title="Pay once, use forever"
+          title="Choose a plan"
         />
 
         <div className="flex justify-center items-center mb-8">
@@ -50,6 +50,7 @@ const Pricing = () => {
           </label>
           <span className={`ml-4 ${isAnnual ? 'text-n-1' : 'text-n-4'}`}>Annual</span>
         </div>
+        <p className="text-center text-green-500 font-semibold mb-8">Save up to 50% with annual billing</p>
 
         <div className="relative">
           <PricingList isAnnual={isAnnual} />

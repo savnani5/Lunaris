@@ -492,77 +492,93 @@ export function Create() {
 
   
   return (
-    <div className="min-h-screen bg-black text-white p-4">
-      <header className="flex items-center justify-between py-4">
-        <nav className="flex items-center space-x-4"></nav>
-        <div className="flex items-center space-x-4"></div>
-      </header>
-      <main className="flex flex-col items-center space-y-8">
-        <h1>Welcome, {user?.firstName}</h1>
-        <p>You have {userCredits} minutes of credits left.</p>
-        <div className="flex items-center w-full max-w-2xl space-x-4">
-          <Input
-            placeholder="Drop a YouTube link"
-            className="flex-1 bg-gray-800 text-white"
-            value={videoLink}
-            onChange={handleVideoLinkChange}
-            disabled={isUploading || !!uploadedVideo}
-          />
+    <div className="min-h-screen bg-n-8 text-n-1 p-4 sm:p-8">
+      <header className="flex items-center justify-between py-6 max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold">Create Viral Clips</h1>
+        <div className="flex items-center space-x-4">
+          <p className="text-n-3">Credits: {userCredits}</p>
           <Button 
-            className="bg-blue-500" 
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isUploading || !!videoLink}
+            className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200"
+            onClick={handleBuyCredits}
           >
-            {isUploading ? `Uploading ${uploadProgress}%` : "Upload Video"}
+            Buy Credits
           </Button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            className="hidden"
-            accept="video/*"
-            onChange={handleFileUpload}
-          />
         </div>
-        {(videoThumbnail || videoTitle) && (
-          <div className="w-full max-w-2xl flex flex-col items-center space-y-2 relative">
-            {videoThumbnail && (
-              <div className="flex flex-col items-center w-full relative">
-                <div className="relative">
-                  <img 
-                    src={videoThumbnail} 
-                    alt="Video thumbnail" 
-                    width={280} 
-                    height={158} 
-                    className="mx-auto"
-                    onError={() => console.error("Error loading thumbnail")}
-                    onLoad={() => console.log("Thumbnail loaded successfully")}
-                  />
-                  {uploadedVideo && (
-                    <Button
-                      className="absolute -top-3 -right-3 bg-transparent hover:bg-gray-800 text-white rounded-full p-1 transition-colors duration-200"
-                      onClick={handleRemoveVideo}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <circle cx="12" cy="12" r="10" />
-                        <line x1="15" y1="9" x2="9" y2="15" />
-                        <line x1="9" y1="9" x2="15" y2="15" />
-                      </svg>
-                    </Button>
+      </header>
+      <main className="mt-10 space-y-10 max-w-4xl mx-auto">
+        <div className="bg-n-7 rounded-2xl p-8 space-y-6">
+          <h2 className="text-2xl font-semibold">Video Source</h2>
+          <div className="flex items-center w-full space-x-4">
+            <Input
+              placeholder="Drop a YouTube link"
+              className="flex-1 bg-n-6 text-n-1 border-n-5 focus:border-color-1"
+              value={videoLink}
+              onChange={handleVideoLinkChange}
+              disabled={isUploading || !!uploadedVideo}
+            />
+            <Button 
+              className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200" 
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || !!videoLink}
+            >
+              {isUploading ? `Uploading ${uploadProgress}%` : "Upload Video"}
+            </Button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="video/*"
+              onChange={handleFileUpload}
+            />
+          </div>
+          {(videoThumbnail || videoTitle) && (
+            <div className="w-full flex flex-col items-center space-y-2 relative">
+              {videoThumbnail && (
+                <div className="flex flex-col items-center w-full relative">
+                  <div className="relative">
+                    <img 
+                      src={videoThumbnail} 
+                      alt="Video thumbnail" 
+                      width={280} 
+                      height={158} 
+                      className="mx-auto"
+                      onError={() => console.error("Error loading thumbnail")}
+                      onLoad={() => console.log("Thumbnail loaded successfully")}
+                    />
+                    {uploadedVideo && (
+                      <Button
+                        className="absolute -top-3 -right-3 bg-transparent hover:bg-gray-800 text-white rounded-full p-1 transition-colors duration-200"
+                        onClick={handleRemoveVideo}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="10" />
+                          <line x1="15" y1="9" x2="9" y2="15" />
+                          <line x1="9" y1="9" x2="15" y2="15" />
+                        </svg>
+                      </Button>
+                    )}
+                  </div>
+                  {videoTitle && (
+                    <p className="text-center font-semibold mt-2 truncate w-full" style={{ maxWidth: '280px' }}>
+                      {videoTitle}
+                    </p>
                   )}
                 </div>
-                {videoTitle && (
-                  <p className="text-center font-semibold mt-2 truncate w-full" style={{ maxWidth: '280px' }}>
-                    {videoTitle}
-                  </p>
-                )}
-              </div>
-            )}
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="bg-n-7 rounded-2xl p-4 sm:p-8 space-y-6">
+          <h2 className="text-2xl font-semibold">Clip Settings</h2>
+          <div className="flex items-center mb-2">
+            <h3 className="text-lg font-bold mr-2">Genre of Video</h3>
+            <div className="bg-gray-700 bg-opacity-50 text-white text-xs font-semibold px-2 py-2 rounded">
+              save credits
+            </div>
           </div>
-        )}
-        <div className="w-full max-w-2xl bg-gray-800 p-4 rounded-lg">
-          <h2 className="text-lg font-bold">Genre of Video </h2>
           <select 
-            className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
+            className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4"
             value={genre}
             onChange={(e) => setGenre(e.target.value)}
           >
@@ -571,9 +587,9 @@ export function Create() {
             {/* <option>Anime</option> */}
             <option>TV shows</option>
           </select>
-          <h2 className="text-lg font-bold">Video Quality</h2>
+          <h3 className="text-lg font-bold">Video Quality</h3>
           <select 
-            className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
+            className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4"
             value={videoQuality}
             onChange={(e) => setVideoQuality(e.target.value)}
           >
@@ -582,9 +598,9 @@ export function Create() {
             <option>480p</option>
             <option>360p</option>
           </select>
-          <h2 className="text-lg font-bold">Output Aspect Ratio</h2>
+          <h3 className="text-lg font-bold">Output Aspect Ratio</h3>
           <select 
-            className="w-full bg-gray-800 text-white rounded-md p-2 mb-4"
+            className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4"
             value={videoType}
             onChange={(e) => setVideoType(e.target.value)}
           >
@@ -592,7 +608,7 @@ export function Create() {
             <option value="landscape">Landscape (16:9)</option>
           </select>
           <div className="flex items-center mb-2">
-            <h2 className="text-lg font-bold mr-2">Processing Timeframe</h2>
+            <h3 className="text-lg font-bold mr-2">Processing Timeframe</h3>
             <div className="bg-gray-700 bg-opacity-50 text-white text-xs font-semibold px-2 py-2 rounded">
               save credits
             </div>
@@ -605,6 +621,21 @@ export function Create() {
               aria-labelledby="time-range-slider"
               getAriaValueText={(value) => `${formatTime((videoDuration ?? 0) * value / 100)}`}
               valueLabelFormat={(value) => formatTime((videoDuration ?? 0) * value / 100)}
+              sx={{
+                color: '#8B5CF6', // Purple color
+                '& .MuiSlider-thumb': {
+                  backgroundColor: '#8B5CF6',
+                },
+                '& .MuiSlider-rail': {
+                  backgroundColor: '#4B5563',
+                },
+                '& .MuiSlider-track': {
+                  backgroundColor: '#8B5CF6',
+                },
+                '& .MuiSlider-valueLabel': {
+                  backgroundColor: '#8B5CF6',
+                },
+              }}
             />
             {videoDuration && (
               <div className="flex justify-between mt-2">
@@ -613,84 +644,86 @@ export function Create() {
               </div>
             )}
           </div>
-          <h2 className="text-lg font-bold">Preferred Clip Length</h2>
-          <div className="flex space-x-2 mb-4">
+          <h3 className="text-lg font-bold">Preferred Clip Length</h3>
+          <div className="flex flex-wrap gap-2 mb-4">
             <button
-              className={`rounded-md px-2 py-1 ${clipLength === "Auto (0m~1m)" ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
+              className={`rounded-md px-2 py-1 ${clipLength === "Auto (0m~1m)" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
               onClick={() => handleClipLengthClick("Auto (0m~1m)")}>
               Auto (0m~1m)
             </button>
             <button
-              className={`rounded-md px-2 py-1 ${clipLength === "<30s" ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
+              className={`rounded-md px-2 py-1 ${clipLength === "<30s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
               onClick={() => handleClipLengthClick("<30s")}>
               &lt;30s
             </button>
             <button
-              className={`rounded-md px-2 py-1 ${clipLength === "30s~60s" ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
+              className={`rounded-md px-2 py-1 ${clipLength === "30s~60s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
               onClick={() => handleClipLengthClick("30s~60s")}
             >
               30s~60s
             </button>
             <button
-              className={`rounded-md px-2 py-1 ${clipLength === "60s~90s" ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
+              className={`rounded-md px-2 py-1 ${clipLength === "60s~90s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
               onClick={() => handleClipLengthClick("60s~90s")}
             >
               60s~90s
             </button>
             <button
-              className={`rounded-md px-2 py-1 ${clipLength === "90s~3m" ? "bg-blue-500 text-white" : "bg-gray-600 text-white"}`}
+              className={`rounded-md px-2 py-1 ${clipLength === "90s~3m" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
               onClick={() => handleClipLengthClick("90s~3m")}
             >
               90s~3m
             </button>
           </div>
-          <h2 className="text-lg font-bold">Topic filter by keywords (optional)</h2>
+          <h3 className="text-lg font-bold">Topic filter by keywords (optional)</h3>
           <input 
             type="text" 
-            className="w-full bg-gray-800 text-white rounded-md p-2 mb-4" 
+            className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4" 
             placeholder="Add keywords, comma-separated"
             value={keywords}
             onChange={(e) => setKeywords(e.target.value)}
           />
         </div>
-        <CaptionStyleSelector
-          styles={captionStyles}
-          selectedStyle={selectedCaptionStyle}
-          onStyleSelect={handleCaptionStyleSelect}
-        />
+
+        <div className="bg-n-7 rounded-2xl p-4 sm:p-8 space-y-6">
+          <CaptionStyleSelector
+            styles={captionStyles}
+            selectedStyle={selectedCaptionStyle}
+            onStyleSelect={handleCaptionStyleSelect}
+          />
+        </div>
+
         <Button 
-          className="w-full max-w-2xl bg-blue-500 mt-4 py-3 text-lg font-semibold" 
+          className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
           onClick={handleProcessClick} 
           disabled={processing || isUploading || !isValidInput}
         >
           {processing ? "Processing..." : "Get viral clips"}
         </Button>
-        <Button 
-          className="w-full max-w-2xl bg-green-500 mt-4 py-3 text-lg font-semibold" 
-          onClick={handleBuyCredits}
-        >
-          Buy 100 Credits for $9.99 (Test)
-        </Button>
+
         {projects.length > 0 && (
-          <div className="w-full mt-8 px-2">
-            <div className="max-w-7xl mx-auto">
-              <h2 className="text-lg font-bold mb-4">Your Projects</h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-                {projects
-                  .filter(project => project.status !== 'failed')
-                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-                  .map((project) => (
-                    <ProjectCard
-                      key={project._id}
-                      project={project}
-                      onClick={() => handleProjectClick(project)}
-                    />
-                  ))}
-              </div>
-            </div>
+          <div className="w-full mt-8">
+            
           </div>
         )}
       </main>
+      <h2 className="text-lg font-bold mb-4 max-w-7xl mx-auto px-4 mt-8">Your Projects</h2>
+      {projects.length > 0 && (
+        <div className="max-w-7xl mx-auto px-4 mt-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {projects
+              .filter(project => project.status !== 'failed')
+              .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+              .map((project) => (
+                <ProjectCard
+                  key={project._id}
+                  project={project}
+                  onClick={() => handleProjectClick(project)}
+                />
+              ))}
+          </div>
+        </div>
+      )}
       {showCreditWarning && (
         <CreditWarningPopup 
           onClose={() => setShowCreditWarning(false)}

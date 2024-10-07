@@ -1,4 +1,3 @@
-import brainwave from "@/components/landing/assets/brainwave.svg";
 import check from "@/components/landing/assets/check.svg";
 import brainwaveSymbol from "@/components/landing/assets/brainwave-symbol.svg";
 import brainwaveWhiteSymbol from "@/components/landing/assets/brainwave-symbol-white.svg";
@@ -94,7 +93,6 @@ import telegram from "@/components/landing/assets/socials/telegram.svg";
 import twitter from "@/components/landing/assets/socials/twitter.svg";
 
 export {
-  brainwave,
   lunarisLogo,
   check,
   check2,
