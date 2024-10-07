@@ -13,6 +13,7 @@ import {
   Menu,
   X
 } from 'lucide-react';
+import Image from 'next/image';
 
 const Sidebar = () => {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,12 +45,20 @@ const Sidebar = () => {
 
   return (
     <>
-      <button
-        onClick={toggleSidebar}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 bg-color-1 text-n-1 rounded-full shadow-lg"
-      >
-        {isOpen ? <X size={24} /> : <Menu size={24} />}
-      </button>
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 h-20 bg-n-8/90 backdrop-blur-sm flex items-center justify-between px-5 z-50 border-b border-n-6">
+        <button onClick={toggleSidebar} className="flex items-center">
+          <Image src="/assets/lunaris.svg" alt="Lunaris" width={45} height={45} />
+          <span className="ml-2 text-white text-2xl font-bold">Lunaris</span>
+        </button>
+        <div className="flex items-center space-x-3">
+          <UserButton afterSignOutUrl="/" appearance={{
+            elements: {
+              avatarBox: "w-8 h-8"
+            }
+          }} />
+        </div>
+      </div>
 
       {isOpen && (
         <div 
@@ -59,9 +68,10 @@ const Sidebar = () => {
       )}
 
       <div className={`fixed top-0 left-0 h-screen bg-n-7 text-n-1 transition-all duration-300 shadow-xl
-                      md:w-64 ${isOpen ? 'w-4/5' : '-translate-x-full'} md:translate-x-0 z-50`}>
+                      md:w-64 ${isOpen ? 'w-4/5' : '-translate-x-full'} md:translate-x-0 z-50
+                      ${isOpen ? 'mt-20' : ''} md:mt-0`}>
         <div className="flex flex-col h-full">
-          <div className="p-6 mb-8">
+          <div className="p-6 mb-8 hidden md:block">
             <Link href="/home" className="flex items-center space-x-3">
               <img src="/assets/lunaris.svg" alt="Lunaris" className="w-10 h-10" />
               <span className="font-bold text-2xl">Lunaris</span>
@@ -83,16 +93,15 @@ const Sidebar = () => {
             ))}
           </nav>
 
-          <div className="p-6 flex items-center justify-center md:justify-start space-x-3">
-            <UserButton afterSignOutUrl="/" />
-            {user && (
-              <button
-                onClick={() => {/* Add your click handler here */}}
-                className="text-sm truncate hover:underline focus:outline-none focus:ring-2 focus:ring-color-1 rounded"
-              >
-                {user.fullName || user.username}
-              </button>
-            )}
+          <div className="p-6 flex items-center justify-start space-x-3 md:block">
+            <div className="hidden md:flex md:items-center md:space-x-3">
+              <UserButton afterSignOutUrl="/" />
+              {user && (
+                <span className="text-sm truncate">
+                  {user.fullName || user.username}
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </div>

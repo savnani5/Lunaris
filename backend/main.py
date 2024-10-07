@@ -9,7 +9,6 @@ import json
 from openai import OpenAI
 import cv2
 import numpy as np
-from models.clip import Clip
 from flask import url_for
 from botocore.exceptions import ClientError
 from deepgram import (

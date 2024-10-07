@@ -9,7 +9,7 @@ const Collaboration = () => {
   return (
     <Section crosses noHorizontalLine>
       <div className="container lg:flex">
-        <div className="max-w-[30rem]">
+        <div className="max-w-[30rem] mx-auto text-center lg:text-left lg:mx-0">
           <h2 className="h2 mb-4 md:mb-8">
             Schedule your posts and publish automatically
           </h2>
@@ -32,7 +32,7 @@ const Collaboration = () => {
         </div>
 
         <div className="lg:ml-auto xl:w-[38rem] mt-4">
-          <p className="body-2 mb-8 text-n-4 md:mb-16 lg:mb-32 lg:w-[22rem] lg:mx-auto">
+          <p className="body-2 mb-8 text-n-4 md:mb-16 lg:mb-32 mx-auto text-center lg:text-left lg:w-[22rem]">
             {collabText}
           </p>
 

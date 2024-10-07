@@ -496,7 +496,7 @@ export function Create() {
       <header className="flex items-center justify-between py-6 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold">Create Viral Clips</h1>
         <div className="flex items-center space-x-4">
-          <p className="text-n-3">Credits: {userCredits}</p>
+          <p className="text-n-3">⌛ {userCredits}</p>
           <Button 
             className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200"
             onClick={handleBuyCredits}

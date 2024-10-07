@@ -27,7 +27,7 @@ export default function PlatformLayout({
           </div>
         </div>
       </SignedOut>
-      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-n-8 md:pl-64 p-4">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-n-8 md:pl-64 p-4 pt-24 md:pt-4">
         {children}
       </main>
     </div>
