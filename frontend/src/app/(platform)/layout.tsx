@@ -1,5 +1,4 @@
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
-import dynamic from 'next/dynamic';
 import Sidebar from '@/components/shared/sidebar';
 
 export default function PlatformLayout({

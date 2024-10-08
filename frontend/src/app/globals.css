@@ -93,3 +93,36 @@
 .-rotate-360 {
   @apply rotate-[-360deg]
 }
+
+/* Custom styles for Clerk components */
+.cl-rootBox {
+  @apply bg-n-8 text-n-1;
+}
+
+.cl-card {
+  @apply bg-n-7 border-n-6;
+}
+
+.cl-internal-b3fm6y {
+  @apply bg-n-6 text-n-1 border-n-5;
+}
+
+.cl-footerActionLink {
+  @apply text-color-1 hover:text-color-1/80;
+}
+
+.cl-button-primary {
+  @apply bg-color-1 hover:bg-color-1/80 text-n-1;
+}
+
+.cl-socialButtonsIconButton {
+  @apply border-n-5 text-n-1;
+}
+
+.cl-dividerLine {
+  @apply bg-n-6;
+}
+
+.cl-dividerText {
+  @apply text-n-3;
+}

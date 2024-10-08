@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
 import debounce from 'lodash/debounce';
 import { Slider } from '@mui/material';
+import { Spinner } from '@/components/Spinner';
+import Tooltip from '@mui/material/Tooltip';
 
 import ProjectCard from '@/components/ProjectCard';
 import CaptionStyleSelector from '@/components/CaptionStyleSelector';
@@ -55,6 +57,8 @@ export function Create() {
   const [selectedCaptionStyle, setSelectedCaptionStyle] = useState("elon");
   const [isPolling, setIsPolling] = useState(false);
   const [showCreditWarning, setShowCreditWarning] = useState(false);
+  const [isLoadingVideoDetails, setIsLoadingVideoDetails] = useState(false);
+  const [currentPlan, setCurrentPlan] = useState("Basic");
 
   const captionStyles = [
     { id: "big_bang", name: "Big Bang", videoSrc: bigBangVideo },
@@ -67,17 +71,20 @@ export function Create() {
   ];
 
   const fetchVideoDetails = async (url: string) => {
+    setIsLoadingVideoDetails(true);
     try {
       const response = await fetch(`/api/video-details?url=${encodeURIComponent(url)}`);
       if (response.ok) {
         const data = await response.json();
-        console.log("Received video details:", data); // Add this log
+        console.log("Received video details:", data);
         setVideoDuration(parseDuration(data.duration));
         setVideoThumbnail(data.thumbnails.medium?.url || data.thumbnails.default?.url || "");
         setVideoTitle(data.title || "");
       }
     } catch (error) {
       console.error('Error fetching video details:', error);
+    } finally {
+      setIsLoadingVideoDetails(false);
     }
   };
 
@@ -354,6 +361,7 @@ export function Create() {
     if (user?.id) {
       fetchProjects();
       fetchUserCredits(user.id);
+      fetchUserPlan(user.id);
     }
   }, [user]);
 
@@ -400,6 +408,17 @@ export function Create() {
       }
     } catch (error) {
       console.error('Error fetching user credits:', error);
+    }
+  };
+
+  const fetchUserPlan = async (userId: string) => {
+    try {
+      const userData = await getUserById(userId);
+      if (userData && userData.plan) {
+        setCurrentPlan(userData.plan);
+      }
+    } catch (error) {
+      console.error('Error fetching user plan:', error);
     }
   };
 
@@ -496,18 +515,37 @@ export function Create() {
       <header className="flex items-center justify-between py-6 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold">Create Viral Clips</h1>
         <div className="flex items-center space-x-4">
-          <p className="text-n-3">⌛ {userCredits}</p>
+          <Tooltip
+            title={
+              <div className="bg-n-6 text-n-1 p-3 rounded-lg shadow-lg">
+                <p className="font-semibold mb-1">{currentPlan} Plan</p>
+                <p className="text-sm text-n-3">1 credit = 1 minute of video processing</p>
+              </div>
+            }
+            arrow
+            classes={{
+              tooltip: 'bg-transparent',
+              arrow: 'text-n-6'
+            }}
+          >
+            <div className="flex items-center bg-n-6 rounded-full px-3 py-1 cursor-help">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-color-1 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+              </svg>
+              <span className="text-n-1">{userCredits}</span>
+            </div>
+          </Tooltip>
           <Button 
             className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200"
             onClick={handleBuyCredits}
           >
-            Buy Credits
+            Add more credits
           </Button>
         </div>
       </header>
-      <main className="mt-10 space-y-10 max-w-4xl mx-auto">
-        <div className="bg-n-7 rounded-2xl p-8 space-y-6">
-          <h2 className="text-2xl font-semibold">Video Source</h2>
+      <main className="mt-6 space-y-6 max-w-4xl mx-auto"> {/* Reduced top margin and vertical spacing */}
+        <div className="bg-n-7 rounded-2xl p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
+          <h2 className="text-2xl font-semibold mb-2">Video Source</h2> {/* Added bottom margin */}
           <div className="flex items-center w-full space-x-4">
             <Input
               placeholder="Drop a YouTube link"
@@ -531,158 +569,169 @@ export function Create() {
               onChange={handleFileUpload}
             />
           </div>
-          {(videoThumbnail || videoTitle) && (
-            <div className="w-full flex flex-col items-center space-y-2 relative">
-              {videoThumbnail && (
-                <div className="flex flex-col items-center w-full relative">
-                  <div className="relative">
-                    <img 
-                      src={videoThumbnail} 
-                      alt="Video thumbnail" 
-                      width={280} 
-                      height={158} 
-                      className="mx-auto"
-                      onError={() => console.error("Error loading thumbnail")}
-                      onLoad={() => console.log("Thumbnail loaded successfully")}
-                    />
-                    {uploadedVideo && (
-                      <Button
-                        className="absolute -top-3 -right-3 bg-transparent hover:bg-gray-800 text-white rounded-full p-1 transition-colors duration-200"
-                        onClick={handleRemoveVideo}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <circle cx="12" cy="12" r="10" />
-                          <line x1="15" y1="9" x2="9" y2="15" />
-                          <line x1="9" y1="9" x2="15" y2="15" />
-                        </svg>
-                      </Button>
+          {isLoadingVideoDetails ? (
+            <div className="w-full flex justify-center items-center py-8">
+              <Spinner className="w-8 h-8 text-color-1" />
+            </div>
+          ) : (
+            (videoThumbnail || videoTitle) && (
+              <div className="w-full flex flex-col items-center space-y-2 relative">
+                {videoThumbnail && (
+                  <div className="flex flex-col items-center w-full relative">
+                    <div className="relative">
+                      <img 
+                        src={videoThumbnail} 
+                        alt="Video thumbnail" 
+                        width={280} 
+                        height={158} 
+                        className="mx-auto"
+                        onError={() => console.error("Error loading thumbnail")}
+                        onLoad={() => console.log("Thumbnail loaded successfully")}
+                      />
+                      {uploadedVideo && (
+                        <Button
+                          className="absolute -top-3 -right-3 bg-transparent hover:bg-gray-800 text-white rounded-full p-1 transition-colors duration-200"
+                          onClick={handleRemoveVideo}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <circle cx="12" cy="12" r="10" />
+                            <line x1="15" y1="9" x2="9" y2="15" />
+                            <line x1="9" y1="9" x2="15" y2="15" />
+                          </svg>
+                        </Button>
+                      )}
+                    </div>
+                    {videoTitle && (
+                      <p className="text-center font-semibold mt-2 truncate w-full" style={{ maxWidth: '280px' }}>
+                        {videoTitle}
+                      </p>
                     )}
                   </div>
-                  {videoTitle && (
-                    <p className="text-center font-semibold mt-2 truncate w-full" style={{ maxWidth: '280px' }}>
-                      {videoTitle}
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )
           )}
         </div>
 
-        <div className="bg-n-7 rounded-2xl p-4 sm:p-8 space-y-6">
-          <h2 className="text-2xl font-semibold">Clip Settings</h2>
-          <div className="flex items-center mb-2">
-            <h3 className="text-lg font-bold mr-2">Genre of Video</h3>
-            <div className="bg-gray-700 bg-opacity-50 text-white text-xs font-semibold px-2 py-2 rounded">
-              save credits
-            </div>
-          </div>
-          <select 
-            className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4"
-            value={genre}
-            onChange={(e) => setGenre(e.target.value)}
-          >
-            <option>Auto</option>
-            <option>Podcast</option>
-            {/* <option>Anime</option> */}
-            <option>TV shows</option>
-          </select>
-          <h3 className="text-lg font-bold">Video Quality</h3>
-          <select 
-            className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4"
-            value={videoQuality}
-            onChange={(e) => setVideoQuality(e.target.value)}
-          >
-            <option>1080p</option>
-            <option>720p</option>
-            <option>480p</option>
-            <option>360p</option>
-          </select>
-          <h3 className="text-lg font-bold">Output Aspect Ratio</h3>
-          <select 
-            className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4"
-            value={videoType}
-            onChange={(e) => setVideoType(e.target.value)}
-          >
-            <option value="portrait">Portrait (9:16)</option>
-            <option value="landscape">Landscape (16:9)</option>
-          </select>
-          <div className="flex items-center mb-2">
-            <h3 className="text-lg font-bold mr-2">Processing Timeframe</h3>
-            <div className="bg-gray-700 bg-opacity-50 text-white text-xs font-semibold px-2 py-2 rounded">
-              save credits
-            </div>
-          </div>
-          <div className="w-full mb-4 relative">
-            <Slider
-              value={timeRange}
-              onChange={handleTimeRangeChange}
-              valueLabelDisplay="auto"
-              aria-labelledby="time-range-slider"
-              getAriaValueText={(value) => `${formatTime((videoDuration ?? 0) * value / 100)}`}
-              valueLabelFormat={(value) => formatTime((videoDuration ?? 0) * value / 100)}
-              sx={{
-                color: '#8B5CF6', // Purple color
-                '& .MuiSlider-thumb': {
-                  backgroundColor: '#8B5CF6',
-                },
-                '& .MuiSlider-rail': {
-                  backgroundColor: '#4B5563',
-                },
-                '& .MuiSlider-track': {
-                  backgroundColor: '#8B5CF6',
-                },
-                '& .MuiSlider-valueLabel': {
-                  backgroundColor: '#8B5CF6',
-                },
-              }}
-            />
-            {videoDuration && (
-              <div className="flex justify-between mt-2">
-                <span>{formatTime(startTime)}</span>
-                <span>{formatTime(endTime)}</span>
+        <div className="bg-n-7 rounded-2xl p-4 sm:p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
+          <h2 className="text-2xl font-semibold mb-2">Clip Settings</h2> {/* Added bottom margin */}
+          <div className="space-y-3"> {/* Added a wrapper with reduced vertical spacing */}
+            <div>
+              <div className="flex items-center mb-1"> {/* Reduced bottom margin */}
+                <h3 className="text-lg font-bold mr-2">Genre of Video</h3>
               </div>
-            )}
+              <select 
+                className="w-full bg-n-6 text-n-1 rounded-md p-2"
+                value={genre}
+                onChange={(e) => setGenre(e.target.value)}
+              >
+                <option>Auto</option>
+                <option>Podcast</option>
+                {/* <option>Anime</option> */}
+                <option>TV shows</option>
+              </select>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold mb-1">Video Quality</h3> {/* Added bottom margin */}
+              <select 
+                className="w-full bg-n-6 text-n-1 rounded-md p-2"
+                value={videoQuality}
+                onChange={(e) => setVideoQuality(e.target.value)}
+              >
+                <option>1080p</option>
+                <option>720p</option>
+                <option>480p</option>
+                <option>360p</option>
+              </select>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold mb-1">Output Aspect Ratio</h3> {/* Added bottom margin */}
+              <select 
+                className="w-full bg-n-6 text-n-1 rounded-md p-2"
+                value={videoType}
+                onChange={(e) => setVideoType(e.target.value)}
+              >
+                <option value="portrait">Portrait (9:16)</option>
+                <option value="landscape">Landscape (16:9)</option>
+              </select>
+            </div>
+            <div className="flex items-center mb-2">
+              <h3 className="text-lg font-bold mr-2">Processing Timeframe</h3>
+              <div className="bg-gray-700 bg-opacity-50 text-white text-xs font px-2 py-2 rounded">
+                save credits
+              </div>
+            </div>
+            <div className="w-full mb-4 relative">
+              <Slider
+                value={timeRange}
+                onChange={handleTimeRangeChange}
+                valueLabelDisplay="auto"
+                aria-labelledby="time-range-slider"
+                getAriaValueText={(value) => `${formatTime((videoDuration ?? 0) * value / 100)}`}
+                valueLabelFormat={(value) => formatTime((videoDuration ?? 0) * value / 100)}
+                sx={{
+                  color: '#8B5CF6', // Purple color
+                  '& .MuiSlider-thumb': {
+                    backgroundColor: '#8B5CF6',
+                  },
+                  '& .MuiSlider-rail': {
+                    backgroundColor: '#4B5563',
+                  },
+                  '& .MuiSlider-track': {
+                    backgroundColor: '#8B5CF6',
+                  },
+                  '& .MuiSlider-valueLabel': {
+                    backgroundColor: '#8B5CF6',
+                  },
+                }}
+              />
+              {videoDuration && (
+                <div className="flex justify-between mt-2">
+                  <span>{formatTime(startTime)}</span>
+                  <span>{formatTime(endTime)}</span>
+                </div>
+              )}
+            </div>
+            <h3 className="text-lg font-bold">Preferred Clip Length</h3>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <button
+                className={`rounded-md px-2 py-1 ${clipLength === "Auto (0m~1m)" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
+                onClick={() => handleClipLengthClick("Auto (0m~1m)")}>
+                Auto (0m~1m)
+              </button>
+              <button
+                className={`rounded-md px-2 py-1 ${clipLength === "<30s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
+                onClick={() => handleClipLengthClick("<30s")}>
+                &lt;30s
+              </button>
+              <button
+                className={`rounded-md px-2 py-1 ${clipLength === "30s~60s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
+                onClick={() => handleClipLengthClick("30s~60s")}
+              >
+                30s~60s
+              </button>
+              <button
+                className={`rounded-md px-2 py-1 ${clipLength === "60s~90s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
+                onClick={() => handleClipLengthClick("60s~90s")}
+              >
+                60s~90s
+              </button>
+              <button
+                className={`rounded-md px-2 py-1 ${clipLength === "90s~3m" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
+                onClick={() => handleClipLengthClick("90s~3m")}
+              >
+                90s~3m
+              </button>
+            </div>
+            <h3 className="text-lg font-bold">Topic filter by keywords (optional)</h3>
+            <input 
+              type="text" 
+              className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4" 
+              placeholder="Add keywords, comma-separated"
+              value={keywords}
+              onChange={(e) => setKeywords(e.target.value)}
+            />
           </div>
-          <h3 className="text-lg font-bold">Preferred Clip Length</h3>
-          <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              className={`rounded-md px-2 py-1 ${clipLength === "Auto (0m~1m)" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-              onClick={() => handleClipLengthClick("Auto (0m~1m)")}>
-              Auto (0m~1m)
-            </button>
-            <button
-              className={`rounded-md px-2 py-1 ${clipLength === "<30s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-              onClick={() => handleClipLengthClick("<30s")}>
-              &lt;30s
-            </button>
-            <button
-              className={`rounded-md px-2 py-1 ${clipLength === "30s~60s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-              onClick={() => handleClipLengthClick("30s~60s")}
-            >
-              30s~60s
-            </button>
-            <button
-              className={`rounded-md px-2 py-1 ${clipLength === "60s~90s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-              onClick={() => handleClipLengthClick("60s~90s")}
-            >
-              60s~90s
-            </button>
-            <button
-              className={`rounded-md px-2 py-1 ${clipLength === "90s~3m" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-              onClick={() => handleClipLengthClick("90s~3m")}
-            >
-              90s~3m
-            </button>
-          </div>
-          <h3 className="text-lg font-bold">Topic filter by keywords (optional)</h3>
-          <input 
-            type="text" 
-            className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4" 
-            placeholder="Add keywords, comma-separated"
-            value={keywords}
-            onChange={(e) => setKeywords(e.target.value)}
-          />
         </div>
 
         <div className="bg-n-7 rounded-2xl p-4 sm:p-8 space-y-6">

@@ -44,8 +44,8 @@ export default function ProjectClipsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white p-4">
-      <main className="flex flex-col items-center space-y-8">
+    <div className="min-h-screen bg-n-8 text-n-1 p-4"> {/* Updated background color */}
+      <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto"> {/* Added max width and auto margins */}
         <h1 className="text-2xl font-bold">Project Clips</h1>
         {clips.map((clip) => (
           <ProcessedVideoCard key={clip._id} clip={clip} />

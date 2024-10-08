@@ -62,6 +62,18 @@ export const navigation = [
     title: "Roadmap",
     url: "#roadmap",
   },
+  {
+    id: "4",
+    title: "Sign In",
+    url: "/sign-in",
+    onlyMobile: true,
+  },
+  {
+    id: "5",
+    title: "Sign Up",
+    url: "/sign-up",
+    onlyMobile: true,
+  },
 ];
 
 export const authLinks = [

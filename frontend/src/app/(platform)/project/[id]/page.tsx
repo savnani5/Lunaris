@@ -76,7 +76,7 @@ export default function ProjectPage() {
     <div className="min-h-screen bg-n-8 text-n-1 p-4">
       <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold">Your video is processing</h1>
-        <p className="text-n-3">We will email you once your video is done processing, check back soon!</p>
+        <p className="text-n-3">We will email you once your video is done processing, please check back soon!</p>
         {projectStatus.title && (
           <div className="text-center">
             <p className="text-xl font-semibold">{projectStatus.title}</p>
