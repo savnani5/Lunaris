@@ -66,9 +66,6 @@ class LunarisApp:
         self.app.config['MONGODB_URI'] = os.environ.get('MONGODB_URI')
         self.client = MongoClient(self.app.config['MONGODB_URI'])
         self.db = self.client['lunarisDB']
-        self.users_collection = self.db['users']
-        self.projects_collection = self.db['projects']
-        self.clips_collection = self.db['clips']
 
     def setup_logging(self):
         # Consider using CloudWatch for logging in production
