@@ -5,9 +5,7 @@ import Footer from "@/components/landing/components/Footer";
 import Header from "@/components/landing/components/Header";
 import Hero from "@/components/landing/components/Hero";
 import Pricing from "@/components/landing/components/Pricing";
-import Roadmap from "@/components/landing/components/Roadmap";
 import Videowall from "@/components/landing/components/Videowall";
-import Services from "@/components/landing/components/Services";
 
 export default function Home() {
   return (
@@ -18,9 +16,7 @@ export default function Home() {
         <Videowall />
         <Benefits />
         <Collaboration />
-        {/* <Services />  */}
         <Pricing />
-        <Roadmap />
         <Footer /> 
       </div>
 

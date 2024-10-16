@@ -120,7 +120,7 @@ class LunarisApp:
         })
 
 
-    def process_video_thread(self, video_link, video_path, project_id, clerk_user_id, user_email, video_title, processing_timeframe, video_quality, video_type, start_time, end_time, clip_length, keywords, caption_style):
+    def process_video_thread(self, video_link, video_path, project_id, clerk_user_id, user_email, video_title, processing_timeframe, video_quality, video_type, start_time, end_time, clip_length, keywords, caption_style, add_watermark):
         with self.app.app_context():
             try:
                 self.update_project_status(clerk_user_id, project_id, "processing", "downloading", 0, video_title, processing_timeframe)
@@ -155,7 +155,8 @@ class LunarisApp:
                     user_id=clerk_user_id,
                     project_id=project_id,
                     debug=self.debug,
-                    progress_callback=lambda i: self.update_project_status(clerk_user_id, project_id, "processing", "generating", 40 + int((i / total_segments) * 50), video_title, processing_timeframe)
+                    progress_callback=lambda i: self.update_project_status(clerk_user_id, project_id, "processing", "generating", 40 + int((i / total_segments) * 50), video_title, processing_timeframe),
+                    add_watermark=add_watermark
                 )
 
                 self.update_project_status(clerk_user_id, project_id, "processing", "uploading", 95, video_title, processing_timeframe)
@@ -245,7 +246,8 @@ class LunarisApp:
         }
         keywords = request.form.get('keywords')
         caption_style = request.form.get('captionStyle', 'elon')
-
+        add_watermark = request.form.get('addWatermark', False)
+        
         self.app.logger.info(f'Received video: {video_link or video_path}')
 
         thread = Thread(target=self.process_video_thread, args=(video_link, 
@@ -261,7 +263,8 @@ class LunarisApp:
                                                                 end_time,
                                                                 clip_length,
                                                                 keywords,
-                                                                caption_style))
+                                                                caption_style,
+                                                                add_watermark))
         thread.start()
         return jsonify({'message': 'Video processing started'}), 202
     

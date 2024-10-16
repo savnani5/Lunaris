@@ -20,7 +20,7 @@ class ElonStyle(CaptionStyle):
                 color = random.choice(['rgb(255, 255, 0)', 'rgb(0, 200, 0)'])
 
             txt_clip = TextClip(txt.upper(), fontsize=fontsize, font='Arial-Black', color=color, 
-                                stroke_color='black', stroke_width=stroke_width, method='label', kerning=-3)
+                                stroke_color='black', stroke_width=stroke_width * 1.5, method='label', kerning=-3)
             
             txt_clip = txt_clip.set_position(position).set_start(start_time).set_duration(end_time - start_time)
             return txt_clip

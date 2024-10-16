@@ -207,36 +207,81 @@ export const collabApps = [
 export const pricing = [
   {
     id: "0",
-    title: "Basic",
-    description: "AI chatbot, personalized recommendations",
-    price: "0",
-    features: [
-      "An AI chatbot that can understand your queries",
-      "Personalized recommendations based on your preferences",
-      "Ability to explore the app and its features without any cost",
-    ],
+    title: "Starter",
+    description: "Kickstart your content creation journey with essential tools.",
+    buttonText: "Get started",
+    price_plans: [
+       {
+         "link": process.env.NODE_ENV === 'development' ? "https://buy.stripe.com/test_5kAbJu3218Pf0XmeV0" : "",
+         "priceID": process.env.NODE_ENV === 'development' ? "price_1Q8ptJ06DvcoKeSzonbKvnTk" : "",
+         "price": "15/month", 
+         "credits": "100",
+         "planType": "Starter",
+         "billingCycle": "monthly",
+         "features": [
+          "Get 100 credits per month",
+          "Project storage for 30 days",
+          "Ability to buy extra credits at a discounted rate",
+          "Community support",
+          "Project notifications"
+        ],
+       },
+       {
+         "link": process.env.NODE_ENV === 'development' ? "https://buy.stripe.com/test_cN24h20TT3uVgWkcMT" : "",
+         "priceID": process.env.NODE_ENV === 'development' ? "price_1Q8ptl06DvcoKeSzJOSPvKd3" : "",
+         "og_price": "180/year",
+         "price": "149/year",
+         "credits": "1200",
+         "planType": "Starter",
+         "billingCycle": "annual",
+         "features": [
+          "Get 1200 credits per year (available instantly)",
+          "Project storage for 30 days",
+          "Ability to buy extra credits at a discounted rate",
+          "Community support",
+          "Project notifications"
+        ],
+       },
+    ]
   },
   {
     id: "1",
-    title: "Premium",
-    description: "Advanced AI chatbot, priority support, analytics dashboard",
-    price: "9.99",
-    features: [
-      "An advanced AI chatbot that can understand complex queries",
-      "An analytics dashboard to track your conversations",
-      "Priority support to solve issues quickly",
-    ],
-  },
-  {
-    id: "2",
-    title: "Enterprise",
-    description: "Custom AI chatbot, advanced analytics, dedicated account",
-    price: null,
-    features: [
-      "An AI chatbot that can understand your queries",
-      "Personalized recommendations based on your preferences",
-      "Ability to explore the app and its features without any cost",
-    ],
+    title: "Custom",
+    description: "Unleash unlimited potential with custom-tailored solutions.",
+    buttonText: "Contact us",
+    price_plans: [
+      {
+        "link": "mailto:sales@lunaris.media",
+        "priceID": "",
+        "price": "",
+        "credits": "",
+        "planType": "Custom",
+        "billingCycle": "monthly",
+        "features": [
+          "Everything in Starter plan",
+          "Customized credits",
+          "Dedicated storage",
+          "Tailored features",
+          "Priority support",
+        ],
+      },
+      {
+        "link": "mailto:sales@lunaris.media",
+        "priceID": "",
+        "og_price": "",
+        "price": "",
+        "credits": "",
+        "planType": "Custom",
+        "billingCycle": "annual",
+        "features": [
+          "Everything in Starter plan",
+          "Customized credits",
+          "Dedicated storage",
+          "Tailored features",
+          "Priority support",
+        ],
+      }
+    ]
   },
 ];
 
@@ -304,7 +349,7 @@ export const socials = [
     id: "1",
     title: "Twitter",
     iconUrl: x,
-    url: "#",
+    url: "https://x.com/lunaris_ai",
   },
   {
     id: "2",

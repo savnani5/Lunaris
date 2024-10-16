@@ -18,7 +18,7 @@ const CreditWarningPopup: React.FC<CreditWarningPopupProps> = ({ onClose, availa
 
   return (
     <div className="fixed inset-0 bg-n-8 bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-n-7 p-4 sm:p-6 rounded-lg w-full max-w-sm sm:max-w-md">
+      <div className="bg-n-7 p-4 sm:p-6 rounded-lg w-full max-w-sm sm:max-w-md shadow-lg">
         <h2 className="text-lg sm:text-xl font-bold mb-3 sm:mb-4 text-n-1">Not Enough ⌛ Credits</h2>
         <p className="mb-2 text-sm sm:text-base text-n-2">Available ⌛: {availableCredits}</p>
         <p className="mb-2 text-sm sm:text-base text-n-2">Required ⌛: {requiredCredits}</p>

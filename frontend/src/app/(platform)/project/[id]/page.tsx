@@ -2,7 +2,7 @@
 
 import { useParams, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import ProcessingBar from '@/components/ProcessingBar';
+import ProcessingBar from '@/components/platform/ProcessingBar';
 import { useUser } from '@clerk/nextjs';
 
 interface ProjectStatus {
@@ -73,7 +73,7 @@ export default function ProjectPage() {
   };
 
   return (
-    <div className="min-h-screen bg-n-8 text-n-1 p-4">
+    <div className="min-h-screen bg-black text-n-1 p-4"> {/* Changed bg-n-8 to bg-black */}
       <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold">Your video is processing</h1>
         <p className="text-n-3">We will email you once your video is done processing, please check back soon!</p>

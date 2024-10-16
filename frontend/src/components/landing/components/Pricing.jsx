@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Section from "./Section";
-import { smallSphere, stars } from "../assets";
 import Heading from "./Heading";
+import Button from "./Button";
 import PricingList from "./PricingList";
 import { LeftLine, RightLine } from "./design/Pricing";
 
@@ -13,25 +13,6 @@ const Pricing = () => {
   return (
     <Section className="overflow-hidden" id="pricing">
       <div className="container relative z-2">
-        {/* <div className="hidden relative justify-center mb-[6.5rem] lg:flex">
-          <img
-            src={smallSphere}
-            className="relative z-1"
-            width={255}
-            height={255}
-            alt="Sphere"
-          />
-          <div className="absolute top-1/2 left-1/2 w-[60rem] -translate-x-1/2 -translate-y-1/2 pointer-events-none">
-            <img
-              src={stars}
-              className="w-full"
-              width={950}
-              height={400}
-              alt="Stars"
-            />
-          </div>
-        </div> */}
-
         <Heading
           tag="Get started with Lunaris"
           title="Choose a plan"
@@ -50,20 +31,18 @@ const Pricing = () => {
           </label>
           <span className={`ml-4 ${isAnnual ? 'text-n-1' : 'text-n-4'}`}>Annual</span>
         </div>
-        <p className="text-center text-green-500 font-semibold mb-8">Save up to 50% with annual billing</p>
+        <p className="text-center text-green-500 font-semibold mb-8">Save 20% with annual billing</p>
 
         <div className="relative">
           <PricingList isAnnual={isAnnual} />
           <LeftLine />
           <RightLine />
         </div>
-
-        <div className="flex justify-center mt-10">
-          <a
-            className="text-xs font-code font-bold tracking-wider uppercase border-b"
-            href="/pricing"
-          >
-            See the full details
+      </div>
+      <div className="container md:pb-10 mt-16 md:mt-20 xl:mt-24">
+        <div className="flex justify-center mt-12 md:mt-15 xl:mt-20">
+          <a href="mailto:support@lunaris.media">
+            <Button>Contact Support</Button>
           </a>
         </div>
       </div>

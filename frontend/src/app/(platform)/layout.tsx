@@ -1,5 +1,6 @@
 import { SignedIn, SignedOut, SignInButton } from '@clerk/nextjs';
 import Sidebar from '@/components/shared/sidebar';
+import './platform.css';
 
 export default function PlatformLayout({
   children,
@@ -7,7 +8,7 @@ export default function PlatformLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="flex min-h-screen bg-n-8">
+    <div className="flex min-h-screen">
       <SignedIn>
         <Sidebar />
       </SignedIn>
@@ -26,7 +27,7 @@ export default function PlatformLayout({
           </div>
         </div>
       </SignedOut>
-      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-n-8 md:pl-64 p-4 pt-24 md:pt-4">
+      <main className="flex-1 overflow-x-hidden overflow-y-auto bg-black md:pl-64 p-4 pt-24 md:pt-4"> {/* Change bg-n-8 to bg-black */}
         {children}
       </main>
     </div>

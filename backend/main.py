@@ -239,7 +239,7 @@ class VideoProcessor:
         
         return face_bboxes #pose_detected
 
-    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False, progress_callback=None):
+    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False, progress_callback=None, add_watermark=False):
         # Add directory check
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
@@ -256,7 +256,7 @@ class VideoProcessor:
             if clip is None:
                 continue
             
-            processed_clip = self.process_clip(clip, output_video_type)
+            processed_clip = self.process_clip(clip, output_video_type, add_watermark)
             subtitled_clip = caption_styler.add_subtitles(processed_clip, segment['word_timings'], segment['start'], output_video_type)
             _, clip_url = self.save_or_upload_clip(subtitled_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
             clip_data = {
@@ -289,7 +289,7 @@ class VideoProcessor:
         return video.subclip(start, end)
 
     # Smooth transitions b/w modes required for the video
-    def process_clip(self, clip, output_video_type):
+    def process_clip(self, clip, output_video_type, add_watermark=False):
         if output_video_type != 'portrait':
             return clip.resize((1920, 1080))
 
@@ -363,6 +363,20 @@ class VideoProcessor:
         last_valid_face = None
         gradient_colors = None
 
+        # Load and prepare the watermark
+        if add_watermark:
+            target_height = frame.shape[0]  # Assuming 'frame' is your input image/video frame
+            watermark = cv2.imread('/Users/parassavnani/Desktop/dev/Lunaris/backend/watermark.png', cv2.IMREAD_UNCHANGED)
+            watermark_height = int(target_height * 0.05)  # 5% of frame height
+            aspect_ratio = watermark.shape[1] / watermark.shape[0]
+            watermark_width = int(watermark_height * aspect_ratio)
+            watermark = cv2.resize(watermark, (watermark_width, watermark_height))
+
+            # Separate the alpha channel and convert to float
+            watermark_alpha = watermark[:, :, 3].astype(float) / 255.0
+            watermark_alpha = np.expand_dims(watermark_alpha, axis=2)
+            watermark_rgb = watermark[:, :, :3].astype(float) / 255.0
+
         def process_frame(get_frame, t):
             nonlocal last_valid_face, gradient_colors
 
@@ -388,8 +402,9 @@ class VideoProcessor:
 
             gradient_colors = self.update_gradient_colors(processed_frame)
             
-            # cv2.imshow("Processed Frame", processed_frame)
-            # cv2.waitKey(1)
+            if add_watermark:
+                processed_frame = self.add_watermark(processed_frame, watermark_rgb, watermark_alpha)
+                     
             return processed_frame
 
         return clip.fl(process_frame)
@@ -597,6 +612,26 @@ class VideoProcessor:
             print(f"Clip data sent successfully")
         except Exception as e:
             print(f"Failed to send clip data: {str(e)}")
+
+    def add_watermark(self, frame, watermark_rgb, watermark_alpha):
+        frame_height, frame_width = frame.shape[:2]
+        watermark_height, watermark_width = watermark_rgb.shape[:2]
+
+        # Calculate position (bottom-right corner with a small margin)
+        margin = 10
+        y = frame_height - watermark_height - margin
+        x = frame_width - watermark_width - margin
+
+        # Extract the region of interest (ROI) from the frame
+        roi = frame[y:y+watermark_height, x:x+watermark_width].astype(float) / 255.0
+
+        # Blend the watermark with the ROI
+        blended = (1.0 - watermark_alpha) * roi + watermark_alpha * watermark_rgb
+
+        # Put the blended image back into the frame
+        frame[y:y+watermark_height, x:x+watermark_width] = (blended * 255).astype(np.uint8)
+
+        return frame
 
 
 if __name__ == "__main__":#

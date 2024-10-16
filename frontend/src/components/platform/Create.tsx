@@ -7,17 +7,19 @@ import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
 import debounce from 'lodash/debounce';
 import { Slider } from '@mui/material';
-import { Spinner } from '@/components/Spinner';
+import { Spinner } from '@/components/platform/Spinner';
 import Tooltip from '@mui/material/Tooltip';
 
-import ProjectCard from '@/components/ProjectCard';
-import CaptionStyleSelector from '@/components/CaptionStyleSelector';
-import { createProject, getProjectsByUserId, updateProjectStatus, getProjectById } from '@/lib/actions/project.actions';
+import ProjectCard from '@/components/platform/ProjectCard';
+import CaptionStyleSelector from '@/components/platform/CaptionStyleSelector';
+import { createProject, getProjectsByUserId, updateProjectStatus } from '@/lib/actions/project.actions';
 import { getUserById, updateUserCredits } from '@/lib/actions/user.actions';
 import { ProjectModel, Project } from '@/lib/database/models/project.model';
+import { UserModel } from '@/lib/database/models/user.model';
 import { backend_url } from '@/lib/constants';
-import { checkoutCredits } from '@/lib/actions/transaction.action';
-import CreditWarningPopup from '@/components/CreditWarningPopup';
+import CreditPurchasePopup from '@/components/platform/CreditPurchasePopup';
+import CreditWarningPopup from '@/components/platform/CreditWarningPopup';
+import SubscriptionRequiredPopup from '@/components/platform/SubscriptionRequiredPopup';
 
 
 const bigBangVideo = '/assets/caption_styles/big_bang.mp4';
@@ -39,7 +41,8 @@ export function Create() {
   const [videoQuality, setVideoQuality] = useState("Auto");
   const [videoType, setVideoType] = useState("Portrait");
   const [keywords, setKeywords] = useState("");
-  const { user } = useUser();
+  const { user: clerkUser } = useUser();
+  const [user, setUser] = useState<UserModel | null>(null);
   const [userCredits, setUserCredits] = useState(0);
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
   const [videoTitle, setVideoTitle] = useState("");
@@ -59,6 +62,8 @@ export function Create() {
   const [showCreditWarning, setShowCreditWarning] = useState(false);
   const [isLoadingVideoDetails, setIsLoadingVideoDetails] = useState(false);
   const [currentPlan, setCurrentPlan] = useState("Basic");
+  const [showCreditPurchasePopup, setShowCreditPurchasePopup] = useState(false);
+  const [showSubscriptionRequiredPopup, setShowSubscriptionRequiredPopup] = useState(false);
 
   const captionStyles = [
     { id: "big_bang", name: "Big Bang", videoSrc: bigBangVideo },
@@ -183,14 +188,16 @@ export function Create() {
 
     setProcessing(true);
     
-    const userId = user?.id ?? '';
-    const email = user?.primaryEmailAddress?.emailAddress ?? '';
+    const userId = clerkUser?.id ?? '';
+    const email = clerkUser?.primaryEmailAddress?.emailAddress ?? '';
 
     const processing_timeframe = `${formatTime(startTime)} - ${formatTime(endTime)}`;
     
     try {
-      await updateUserCredits(userId, -requiredCredits);
-      setUserCredits(prevCredits => prevCredits - requiredCredits);
+      const updatedUser = await updateUserCredits(userId, -requiredCredits);
+      if (updatedUser) {
+        setUserCredits(updatedUser.credits);
+      }
 
       const newProject = await createProject({
         clerk_user_id: userId,
@@ -358,28 +365,33 @@ export function Create() {
   };
 
   useEffect(() => {
-    if (user?.id) {
-      fetchProjects();
-      fetchUserCredits(user.id);
-      fetchUserPlan(user.id);
+    if (clerkUser?.id) {
+      fetchUserData(clerkUser.id);
+      fetchUserProjects(clerkUser.id);
     }
-  }, [user]);
+  }, [clerkUser]);
 
-  const fetchProjects = async () => {
+  const fetchUserData = async (userId: string) => {
     try {
-      if (user?.id) {
-        const fetchedProjects = await getProjectsByUserId(user.id);
-        if (fetchedProjects) {
-          // Fetch status for each project
-          const updatedProjects = await Promise.all(fetchedProjects.map(async (project: Project) => {
-            const status = await fetchProjectStatus(user.id, project._id);
-            return { ...project, ...status };
-          }));
-          setProjects(updatedProjects);
-        }
+      const userData = await getUserById(userId);
+      if (userData) {
+        setUser(UserModel.fromObject(userData));
+        setUserCredits(userData.credits);
+        setCurrentPlan(userData.planType || '');
       }
     } catch (error) {
-      console.error('Error fetching projects:', error);
+      console.error('Error fetching user data:', error);
+    }
+  };
+
+  const fetchUserProjects = async (userId: string) => {
+    try {
+      const userProjects = await getProjectsByUserId(userId);
+      if (userProjects) {
+        setProjects(userProjects);
+      }
+    } catch (error) {
+      console.error('Error fetching user projects:', error);
     }
   };
 
@@ -400,27 +412,6 @@ export function Create() {
     return {};
   };
 
-  const fetchUserCredits = async (userId: string) => {
-    try {
-      const userData = await getUserById(userId);
-      if (userData) {
-        setUserCredits(userData.credits);
-      }
-    } catch (error) {
-      console.error('Error fetching user credits:', error);
-    }
-  };
-
-  const fetchUserPlan = async (userId: string) => {
-    try {
-      const userData = await getUserById(userId);
-      if (userData && userData.plan) {
-        setCurrentPlan(userData.plan);
-      }
-    } catch (error) {
-      console.error('Error fetching user plan:', error);
-    }
-  };
 
   const handleProjectClick = (project: Project) => {
     if (project.status === 'completed') {
@@ -457,7 +448,7 @@ export function Create() {
 
     const updatedProjects = await Promise.all(projects.map(async (project: Project) => {
       if (project.status === 'processing') {
-        const status = await fetchProjectStatus(user?.id ?? '', project._id);
+        const status = await fetchProjectStatus(clerkUser?.id ?? '', project._id);
         return { ...project, ...status };
       }
       return project;
@@ -469,7 +460,7 @@ export function Create() {
     const stillProcessing = updatedProjects.some(project => project.status === 'processing');
     setIsPolling(stillProcessing);
 
-  }, [projects, user]);
+  }, [projects, clerkUser]);
 
   useEffect(() => {
     let intervalId: NodeJS.Timeout;
@@ -490,31 +481,28 @@ export function Create() {
     setIsPolling(hasProcessingProjects);
   }, [projects]);
 
-  const handleBuyCredits = async () => {
-    try {
-      if (!user) {
-        console.error('User not authenticated');
-        return;
-      }
-      await checkoutCredits({
-        plan: 'Test Plan',
-        credits: 100,
-        amount: 9.99,
-        userId: user.id,
-      });
-      // The user will be redirected to Stripe checkout page
-      // Credits will be updated after successful payment via webhook
-    } catch (error) {
-      console.error('Error initiating credit purchase:', error);
+  const handleBuyCredits = () => {
+    if (!user?.isSubscribed) {
+      setShowSubscriptionRequiredPopup(true);
+    } else {
+      setShowCreditPurchasePopup(true);
     }
   };
 
-  
+  const formatCredits = (credits: number) => {
+    const hours = Math.floor(credits / 60);
+    const minutes = credits % 60;
+    if (hours > 0) {
+      return `${hours}h ${minutes}m`;
+    }
+    return `${minutes}m`;
+  };
+
   return (
-    <div className="min-h-screen bg-n-8 text-n-1 p-4 sm:p-8">
-      <header className="flex items-center justify-between py-6 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold">Create Viral Clips</h1>
-        <div className="flex items-center space-x-4">
+    <div className="min-h-screen bg-black text-n-1 p-4 sm:p-8">
+      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-6 max-w-4xl mx-auto">
+        <h1 className="text-3xl font-bold mb-4 sm:mb-0">Create Viral Clips</h1>
+        <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
           <Tooltip
             title={
               <div className="bg-n-6 text-n-1 p-3 rounded-lg shadow-lg">
@@ -529,17 +517,17 @@ export function Create() {
             }}
           >
             <div className="flex items-center bg-n-6 rounded-full px-3 py-1 cursor-help">
-              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-color-1 mr-1" viewBox="0 0 20 20" fill="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 mr-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
               </svg>
-              <span className="text-n-1">{userCredits}</span>
+              <span className="text-green-500 font-semibold whitespace-nowrap">{formatCredits(userCredits)}</span>
             </div>
           </Tooltip>
           <Button 
-            className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200"
+            className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 whitespace-nowrap"
             onClick={handleBuyCredits}
           >
-            Add more credits
+            Add credits
           </Button>
         </div>
       </header>
@@ -709,7 +697,7 @@ export function Create() {
                 onClick={() => handleClipLengthClick("30s~60s")}
               >
                 30s~60s
-              </button>
+              </button> 
               <button
                 className={`rounded-md px-2 py-1 ${clipLength === "60s~90s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
                 onClick={() => handleClipLengthClick("60s~90s")}
@@ -756,10 +744,10 @@ export function Create() {
           </div>
         )}
       </main>
-      <h2 className="text-lg font-bold mb-4 max-w-7xl mx-auto px-4 mt-8">Your Projects</h2>
-      {projects.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 mt-8">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+      <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-4 mt-8">Your Projects</h2>
+      {projects.length > 0 ? (
+        <div className="max-w-[1920px] mx-auto px-4 mt-8">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {projects
               .filter(project => project.status !== 'failed')
               .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
@@ -772,12 +760,26 @@ export function Create() {
               ))}
           </div>
         </div>
+      ) : (
+        <p className="text-center text-n-3">No projects found. Start creating your first project!</p>
       )}
       {showCreditWarning && (
         <CreditWarningPopup 
           onClose={() => setShowCreditWarning(false)}
           availableCredits={userCredits}
           requiredCredits={Math.ceil((endTime - startTime) / 60)}
+        />
+      )}
+      {showCreditPurchasePopup && user && (
+        <CreditPurchasePopup
+          onClose={() => setShowCreditPurchasePopup(false)}
+          userId={user.clerk_id}
+          planType={user.planType || ''}
+        />
+      )}
+      {showSubscriptionRequiredPopup && (
+        <SubscriptionRequiredPopup
+          onClose={() => setShowSubscriptionRequiredPopup(false)}
         />
       )}
     </div>

@@ -6,53 +6,67 @@ import Button from "./Button";
 
 const PricingList = ({ isAnnual }) => {
   return (
-    <div className="flex gap-[1rem] max-lg:flex-wrap">
-      {pricing.map((item) => (
-        <div
-          key={item.id}
-          className="w-[19rem] max-lg:w-full h-full px-6 bg-n-8 border border-n-6 rounded-[2rem] lg:w-auto even:py-14 odd:py-8 odd:my-4 [&>h4]:first:text-color-2 [&>h4]:even:text-color-1 [&>h4]:last:text-color-3"
-        >
-          <h4 className="h4 mb-4">{item.title}</h4>
-
-          <p className="body-2 min-h-[4rem] mb-3 text-n-1/50">
-            {item.description}
-          </p>
-
-          <div className="flex items-center h-[5.5rem] mb-6">
-            {item.price && (
-              <>
-                <div className="h3">$</div>
-                <div className="text-[5.5rem] leading-none font-bold">
-                  {isAnnual ? item.yearlyPrice : item.price}
-                </div>
-                <div className="text-n-1/50 ml-2">
-                  {isAnnual ? "/year" : "/month"}
-                </div>
-              </>
-            )}
-          </div>
-
-          <Button
-            className="w-full mb-6"
-            href={item.price ? "/pricing" : "mailto:contact@jsmastery.pro"}
-            white={!!item.price}
+    <div className="flex justify-center gap-[1.5rem] max-lg:flex-wrap">
+      {pricing.map((item) => {
+        const currentPlan = item.price_plans?.find(plan => plan.billingCycle === (isAnnual ? 'annual' : 'monthly'));
+        
+        return (
+          <div
+            key={item.id}
+            className="w-[32rem] h-full px-8 bg-n-8 border border-n-6 rounded-[2rem] py-14 [&>h4]:first:text-color-2 [&>h4]:even:text-color-1 [&>h4]:last:text-color-3"
           >
-            {item.price ? "Get started" : "Contact us"}
-          </Button>
+            <h4 className="h4 mb-4">{item.title}</h4>
 
-          <ul>
-            {item.features.map((feature, index) => (
-              <li
-                key={index}
-                className="flex items-start py-5 border-t border-n-6"
-              >
-                <img src={check} width={24} height={24} alt="Check" />
-                <p className="body-2 ml-4">{feature}</p>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+            <p className="body-2 min-h-[4rem] mb-3 text-n-1/50">
+              {item.description}
+            </p>
+
+            <div className="flex items-center h-[5.5rem] mb-6">
+              {currentPlan && currentPlan.price && (
+                <>
+                  <div className="h3">$</div>
+                  <div className="text-[5.5rem] leading-none font-bold">
+                    {currentPlan.price.split('/')[0]}
+                  </div>
+                  <div className="text-n-1/50 ml-2">
+                    {isAnnual ? "/year" : "/month"}
+                  </div>
+                  {isAnnual && currentPlan.og_price && (
+                    <div className="ml-4 flex flex-col items-start">
+                      <span className="text-n-1/50 line-through text-2xl">
+                        ${currentPlan.og_price.split('/')[0]}
+                      </span>
+                      <span className="text-green-500 text-sm">
+                        Save ${parseInt(currentPlan.og_price) - parseInt(currentPlan.price)}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+
+            <Button
+              className="w-full mb-6"
+              href={currentPlan?.link || "mailto:sales@lunaris.media"}
+              white={!!currentPlan?.price}
+            >
+              {item.buttonText}
+            </Button>
+
+            <ul>
+              {currentPlan?.features.map((feature, index) => (
+                <li
+                  key={index}
+                  className="flex items-start py-3 border-t border-n-6"
+                >
+                  <img src={check} width={20} height={20} alt="Check" className="mt-0.5 mr-4" />
+                  <p className="text-base font-normal">{feature}</p>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 };
