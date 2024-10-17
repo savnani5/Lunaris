@@ -3,18 +3,15 @@
 import { curve, heroBackground, hero_video } from "@/components/landing/assets"; 
 import Button from "./Button";
 import Section from "./Section";
-import { BackgroundCircles, BottomLine, Gradient } from "./design/Hero";
-import { heroIcons } from "../constants";
-import { ScrollParallax } from "react-just-parallax";
 import { useRef } from "react";
-import Generating from "./Generating";
-import Notification from "./Notification";
 import CompanyLogos from "./CompanyLogos";
 import Image from "next/image";
-
+import { useUser } from "@clerk/nextjs";
+import Link from "next/link";
 
 const Hero = () => {
   const parallaxRef = useRef(null);
+  const { isSignedIn } = useUser();
 
   return (
     <Section
@@ -42,11 +39,13 @@ const Hero = () => {
           <p className="body-1 max-w-3xl mx-auto mb-6 text-n-2 lg:mb-10">
             Go viral with AI generated short videos with automatic captions, reframing and background music. 
           </p>
-          <a href="/home">
-            <Button white>
-            &nbsp;Free Trial&nbsp;
-            </Button>
-          </a>
+          {!isSignedIn && (
+            <Link href="/sign-up">
+              <Button white>
+                &nbsp;Get Free Credits&nbsp;
+              </Button>
+            </Link>
+          )}
         </div>
         <div className="relative max-w-[23rem] mx-auto md:max-w-6xl xl:mb-24">
           <div className="relative z-20 p-0.5 rounded-2xl bg-conic-gradient">

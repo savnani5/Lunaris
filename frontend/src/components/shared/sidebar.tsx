@@ -111,7 +111,11 @@ const Sidebar = () => {
 
           <nav className="flex-grow flex flex-col justify-center md:justify-start">
             {navItems.map((item) => (
-              <Link key={item.href} href={item.href || '#'} passHref>
+              <Link 
+                key={item.label}
+                href={item.href || '#'} 
+                passHref
+              >
                 <div 
                   className={`flex items-center space-x-4 px-6 py-4 cursor-pointer transition-colors
                               ${pathname === item.href ? 'bg-color-1/20' : 'hover:bg-n-6'}`}
