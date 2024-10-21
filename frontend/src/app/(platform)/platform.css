@@ -1,0 +1,12 @@
+/* Import global styles */
+@import '../globals.css';
+
+/* Override background for platform pages */
+body {
+  background-color: black;
+}
+
+/* Ensure black background when scrolling */
+html {
+  background-color: black;
+}

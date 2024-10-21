@@ -6,6 +6,12 @@ export interface User {
   credits: number;
   project_ids: string[];
   created_at: Date;
+  planType: string | null; // Starter, Custom
+  billingCycle: string | null; // one-time, monthly, annual
+  isSubscribed: boolean; 
+  planCredits: number; 
+  nextRenewalDate: Date | null;
+  subscriptionId: string | null;
 }
 
 export class UserModel implements User {
@@ -15,9 +21,14 @@ export class UserModel implements User {
     public firstName: string,
     public lastName: string,
     public credits: number,
-    public project_ids: string[] = [],
-    public created_at: Date = new Date(),
-    
+    public project_ids: string[],
+    public created_at: Date,
+    public planType: string | null = null,
+    public billingCycle: string | null = null,
+    public isSubscribed: boolean = false,
+    public planCredits: number = 0,
+    public nextRenewalDate: Date | null = null,
+    public subscriptionId: string | null = null
   ) {}
 
   static fromObject(obj: any): UserModel {
@@ -28,7 +39,13 @@ export class UserModel implements User {
       obj.lastName,
       obj.credits,
       obj.project_ids,
-      new Date(obj.created_at)
+      new Date(obj.created_at),
+      obj.planType,
+      obj.billingCycle,
+      obj.isSubscribed || false,
+      obj.planCredits,
+      obj.nextRenewalDate ? new Date(obj.nextRenewalDate) : null,
+      obj.subscriptionId
     );
   }
 
@@ -40,7 +57,13 @@ export class UserModel implements User {
       lastName: this.lastName,
       credits: this.credits,
       project_ids: this.project_ids,
-      created_at: this.created_at
+      created_at: this.created_at,
+      planType: this.planType,
+      billingCycle: this.billingCycle,
+      isSubscribed: this.isSubscribed,
+      planCredits: this.planCredits,
+      nextRenewalDate: this.nextRenewalDate,
+      subscriptionId: this.subscriptionId
     };
   }
 }

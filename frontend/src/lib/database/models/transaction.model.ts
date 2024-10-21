@@ -4,10 +4,12 @@ export interface Transaction {
   _id: string;
   stripeId: string;
   amount: number;
-  plan: string;
+  planType: string | null; // Starter or Custom
+  billingCycle: string | null; // one-time, monthly, annual
   credits: number;
   userId: string;
   createdAt: Date;
+  type: string; // "subscription created" or "subscription renewal" or "subscription cancelled" or "pay-as-you-go"
 }
 
 export class TransactionModel implements Transaction {
@@ -15,10 +17,12 @@ export class TransactionModel implements Transaction {
     public _id: string = new ObjectId().toString(),
     public stripeId: string,
     public amount: number,
-    public plan: string,
+    public planType: string | null,
+    public billingCycle: string | null,
     public credits: number,
     public userId: string,
-    public createdAt: Date = new Date()
+    public createdAt: Date = new Date(),
+    public type: string
   ) {}
 
   static fromObject(obj: any): TransactionModel {
@@ -26,10 +30,12 @@ export class TransactionModel implements Transaction {
       obj._id,
       obj.stripeId,
       obj.amount,
-      obj.plan,
+      obj.planType || null,
+      obj.billingCycle || null,
       obj.credits,
       obj.userId,
-      new Date(obj.createdAt)
+      new Date(obj.createdAt),
+      obj.type
     );
   }
 
@@ -38,10 +44,12 @@ export class TransactionModel implements Transaction {
       _id: this._id,
       stripeId: this.stripeId,
       amount: this.amount,
-      plan: this.plan,
+      planType: this.planType || null,
+      billingCycle: this.billingCycle || null,
       credits: this.credits,
       userId: this.userId,
-      createdAt: this.createdAt
+      createdAt: this.createdAt,
+      type: this.type
     };
   }
 }
