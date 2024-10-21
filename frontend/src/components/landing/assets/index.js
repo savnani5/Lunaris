@@ -8,7 +8,6 @@ import smallSphere from "@/components/landing/assets/4-small.png";
 import grid from "@/components/landing/assets/grid.png";
 import check2 from "@/components/landing/assets/check-02.svg";
 import loading1 from "@/components/landing/assets/loading-01.svg";
-import yourlogo from "@/components/landing/assets/yourlogo.svg";
 import homeSmile from "@/components/landing/assets/home-smile.svg";
 import file02 from "@/components/landing/assets/file-02.svg";
 import searchMd from "@/components/landing/assets/search-md.svg";
@@ -43,9 +42,6 @@ import protopie from "@/components/landing/assets/collaboration/protopie.png";
 import raindrop from "@/components/landing/assets/collaboration/raindrop.png";
 import slack from "@/components/landing/assets/collaboration/slack.png";
 
-import service1 from "@/components/landing/assets/services/service-1.png";
-import service2 from "@/components/landing/assets/services/service-2.png";
-import service3 from "@/components/landing/assets/services/service-3.png";
 
 import lines from "@/components/landing/assets/pricing/lines.svg";
 import stars from "@/components/landing/assets/pricing/stars.svg";
@@ -54,20 +50,11 @@ import big_bang from "@/components/landing/assets/videowall/big_bang.mp4";
 import jake_paul from "@/components/landing/assets/videowall/jake_paul.mp4";
 import chris_williamson from "@/components/landing/assets/videowall/chris_williamson.mp4";
 import matt_rife from "@/components/landing/assets/videowall/matt_rife.mp4";
-import dbz from "@/components/landing/assets/videowall/dbz.mp4";
 import imanGadzi from "@/components/landing/assets/videowall/iman_gadzi.mp4";
 import yc from "@/components/landing/assets/videowall/yc.mp4";
 import naruto from "@/components/landing/assets/videowall/naruto.mp4";
 import elon from "@/components/landing/assets/videowall/elon.mp4";
 
-import coins from "@/components/landing/assets/roadmap/coins.png";
-import done from "@/components/landing/assets/roadmap/done.svg";
-import hero from "@/components/landing/assets/roadmap/hero.png";
-import roadmap1 from "@/components/landing/assets/roadmap/image-1.png";
-import roadmap2 from "@/components/landing/assets/roadmap/image-2.png";
-import roadmap3 from "@/components/landing/assets/roadmap/image-3.png";
-import roadmap4 from "@/components/landing/assets/roadmap/image-4.png";
-import undone from "@/components/landing/assets/roadmap/undone.svg";
 
 import notification1 from "@/components/landing/assets/notification/image-1.png";
 import notification2 from "@/components/landing/assets/notification/image-2.png";
@@ -133,19 +120,8 @@ export {
   protopie,
   raindrop,
   slack,
-  service1,
-  service2,
-  service3,
   lines,
   stars,
-  coins,
-  done,
-  hero,
-  roadmap1,
-  roadmap2,
-  roadmap3,
-  roadmap4,
-  undone,
   notification1,
   notification2,
   notification3,
@@ -170,7 +146,6 @@ export {
   jake_paul,
   chris_williamson,
   matt_rife,
-  dbz,
   imanGadzi,
   yc,
   naruto,

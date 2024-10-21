@@ -18,9 +18,10 @@ export default function Home() {
         <Collaboration />
         <Pricing />
         <Footer /> 
+        <ButtonGradient />
       </div>
 
-      <ButtonGradient />
+      
     </>
   );
 }

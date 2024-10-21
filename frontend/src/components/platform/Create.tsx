@@ -240,11 +240,14 @@ export function Create() {
         const response = await fetch(`${backend_url}/api/process-video`, {
           method: "POST",
           body: formData,
+          headers: {
+            'Accept': 'application/json',
+          },
         });
 
         if (response.ok) {
           // Deduct credits after project creation
-          
+          console.log("Project created, starting polling");
           setIsPolling(true);
           pollProjectStatus(userId, newProject._id);
         } else {
@@ -498,6 +501,9 @@ export function Create() {
     return `${minutes}m`;
   };
 
+  // Calculate required credits based on start and end times
+  const requiredCredits = Math.ceil((endTime - startTime) / 60);
+
   return (
     <div className="min-h-screen bg-black text-n-1 p-4 sm:p-8">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-6 max-w-4xl mx-auto">
@@ -645,8 +651,21 @@ export function Create() {
             </div>
             <div className="flex items-center mb-2">
               <h3 className="text-lg font-bold mr-2">Processing Timeframe</h3>
-              <div className="bg-gray-700 bg-opacity-50 text-white text-xs font px-2 py-2 rounded">
+              <div className="bg-gray-700 bg-opacity-50 text-white text-xs font px-2 py-2 rounded flex items-center">
                 save credits
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-5 w-5 ml-2"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <span className="ml-1">{requiredCredits}</span>
               </div>
             </div>
             <div className="w-full mb-4 relative">
@@ -674,10 +693,13 @@ export function Create() {
                 }}
               />
               {videoDuration && (
-                <div className="flex justify-between mt-2">
-                  <span>{formatTime(startTime)}</span>
-                  <span>{formatTime(endTime)}</span>
-                </div>
+                <>
+                  <div className="flex justify-between mt-2">
+                    <span>{formatTime(startTime)}</span>
+                    <span>{formatTime(endTime)}</span>
+                  </div>
+                  {/* Removed the credits display below the slider */}
+                </>
               )}
             </div>
             <h3 className="text-lg font-bold">Preferred Clip Length</h3>

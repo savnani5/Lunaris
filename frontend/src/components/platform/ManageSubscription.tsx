@@ -8,6 +8,7 @@ import { pricing } from "@/components/landing/constants";
 import { check } from "@/components/landing/assets";
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 
+
 const ManageSubscription: React.FC = () => {
   const { user } = useUser();
   const [userPlanType, setUserPlanType] = useState<string | null>(null);
@@ -153,6 +154,7 @@ const ManageSubscription: React.FC = () => {
                   currentPlan?.priceID || '',
                   currentPlan?.link || ''
                 )}
+                px={4}
                 white={true}
               >
                 {userPlanType === currentPlan?.planType ? 'Manage Subscription' : item.buttonText}
