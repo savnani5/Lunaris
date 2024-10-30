@@ -1,0 +1,15 @@
+downloads/
+subtitled_clips/
+*.log
+__pycache__/
+*.pyc
+.git
+.vscode
+.DS_Store
+*.zip
+*.json
+*.mp4
+*.mp3
+*.pem
+transcript.txt
+try.py

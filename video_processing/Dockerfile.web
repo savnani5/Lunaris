@@ -1,0 +1,36 @@
+# Platform
+FROM --platform=linux/amd64 python:3.11-slim
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
+    curl \
+    ffmpeg \
+    imagemagick 
+
+# Update ImageMagick policy to allow required operations
+RUN sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<!-- <policy domain="path" rights="none" pattern="@*" -->/g' /etc/ImageMagick-6/policy.xml && \
+sed -i 's/<policy domain="coder" rights="none" pattern="PDF"/<!-- <policy domain="coder" rights="none" pattern="PDF" -->/g' /etc/ImageMagick-6/policy.xml
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy requirements and install dependencies
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+# Copy application files
+COPY . .
+
+# Expose port
+EXPOSE 5001
+
+# Environment variables
+ENV FLASK_APP=app.py \
+    FLASK_ENV=production \
+    PYTHONUNBUFFERED=1 \
+    WORKERS=4
+
+# Use Gunicorn with multiple workers
+CMD ["gunicorn", "--bind", "0.0.0.0:5001", "--workers", "4", "--threads", "2", "--worker-class", "gthread", "--worker-tmp-dir", "/dev/shm", "wsgi:app"]
