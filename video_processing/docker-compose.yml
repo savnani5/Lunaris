@@ -1,41 +1,53 @@
 version: '3'
 services:
   web:
-    build: .
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      platforms:
+        - linux/amd64
     ports:
       - "5001:5001"
+    env_file:
+      - vp.env
     environment:
       - FLASK_ENV=development
       - FLASK_APP=app.py
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - FRONTEND_URL=http://host.docker.internal:3000
-    env_file:
-      - .env
-    depends_on:
-      - redis
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
     networks:
       - app-network
 
   worker:
-    build: .
-    command: celery -A celery_worker.celery worker --loglevel=info
-    environment:
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - FRONTEND_URL=http://host.docker.internal:3000
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+      platforms:
+        - linux/amd64
+    volumes:
+      - ytdl_cache:/app/ytdl_cache
     env_file:
-      - .env
-    depends_on:
-      - redis
-    networks:
-      - app-network
-
-  redis:
-    image: "redis:alpine"
+      - vp.env
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
     networks:
       - app-network
 
 networks:
   app-network:
     driver: bridge
+
+volumes:
+  ytdl_cache: 

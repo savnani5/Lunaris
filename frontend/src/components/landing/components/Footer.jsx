@@ -10,7 +10,7 @@ const Footer = () => {
           © {new Date().getFullYear()}. All rights reserved.
         </p>
         <ul className="flex gap-5 flex-wrap">
-          {socials.map((item) => (
+          {/* {socials.map((item) => (
             <a
               key={item.id}
               href={item.url}
@@ -19,7 +19,7 @@ const Footer = () => {
             >
               <img src={item.iconUrl} width={20} height={20} alt={item.title} />
             </a>
-          ))}
+          ))} */}
         </ul>
         <p className="caption text-n-4 lg:block">
           Made with &nbsp;❤️&nbsp; in San Francisco

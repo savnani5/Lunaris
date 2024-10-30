@@ -3,14 +3,11 @@ import mediapipe as mp
 import os
 import shutil
 import glob
-import tempfile
 import subprocess
 import json
 from openai import OpenAI
 import cv2
 import numpy as np
-from flask import url_for
-from botocore.exceptions import ClientError
 from deepgram import (
     DeepgramClient,
     PrerecordedOptions,
@@ -19,6 +16,8 @@ from deepgram import (
 from pydantic import BaseModel
 from typing import List
 import requests
+import threading
+import resend
 
 from caption_styles import CaptionStyleFactory
 from dotenv import find_dotenv, load_dotenv
@@ -43,11 +42,26 @@ class SegmentList(BaseModel):
 
 class VideoProcessor:
     def __init__(self):
-        self.face_detection = mp.solutions.face_detection.FaceDetection(model_selection=1, min_detection_confidence=0.5)
-        # self.pose_detection = mp.solutions.pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
-        self.openai_client = OpenAI()
-        self.deepgram_client = DeepgramClient(DG_API_KEY)
+        # Add thread locks for shared resources
+        self._face_detection_lock = threading.Lock()
+        self._openai_lock = threading.Lock()
+        self._deepgram_lock = threading.Lock()
+        
+        # Initialize clients in a thread-safe way
+        with self._face_detection_lock:
+            self.face_detection = mp.solutions.face_detection.FaceDetection(
+                model_selection=1, 
+                min_detection_confidence=0.5
+            )
+        
+        with self._openai_lock:
+            self.openai_client = OpenAI()
+            
+        with self._deepgram_lock:
+            self.deepgram_client = DeepgramClient(DG_API_KEY)
 
+        resend.api_key = os.environ.get('RESEND_API_KEY')
+    
     def download_video(self, source, path, quality, start_time, end_time):
         # Add directory check
         if not os.path.exists(path):
@@ -56,6 +70,7 @@ class VideoProcessor:
         quality = quality.replace('p', '')
         
         if isinstance(source, str):  # It's a URL
+            # video_title = subprocess.check_output(["yt-dlp", source, "--get-title", "--username", "oauth", "--password", "", "--cache-dir", "/efs/ytdl_cache"], universal_newlines=True).strip()
             video_title = subprocess.check_output(["yt-dlp", source, "--get-title"], universal_newlines=True).strip()
             path = os.path.join(path, video_title)
             if not os.path.exists(path):
@@ -67,6 +82,23 @@ class VideoProcessor:
                     if os.path.isfile(file_path):
                         os.remove(file_path)
             
+            # Update yt-dlp command to use EFS cache
+            # subprocess.run([
+            #     "yt-dlp", 
+            #     source, 
+            #     "-P", 
+            #     path,
+            #     "-S", 
+            #     f"res:{quality}",
+            #     "--output",
+            #     "%(title)s.%(ext)s",
+            #     "--username",
+            #     "oauth",
+            #     "--password",
+            #     "",
+            #     "--cache-dir",
+            #     "/efs/ytdl_cache"
+            # ])
             subprocess.run(["yt-dlp", source, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
             print("Video downloaded successfully!")
             video_path = glob.glob(os.path.join(path, "*.*"))[0]
@@ -145,16 +177,17 @@ class VideoProcessor:
         Provide a list of segments that meet these criteria, maintaining the original order from the transcript.
         """
 
-        completion = self.openai_client.beta.chat.completions.parse(
-            model="gpt-4o-2024-08-06",
-            messages=[
-                {"role": "system", "content": "You are an AI assistant specialized in analyzing podcast transcripts and identifying engaging segments for short-form content creation. Your task is to extract interesting, cohesive segments that maintain context and flow, suitable for social media clips."},
-                {"role": "user", "content": prompt},
-            ],
-            response_format=SegmentList,
-        )
+        with self._openai_lock:
+            completion = self.openai_client.beta.chat.completions.parse(
+                model="gpt-4o-2024-08-06",
+                messages=[
+                    {"role": "system", "content": "You are an AI assistant specialized in analyzing podcast transcripts and identifying engaging segments for short-form content creation. Your task is to extract interesting, cohesive segments that maintain context and flow, suitable for social media clips."},
+                    {"role": "user", "content": prompt},
+                ],
+                response_format=SegmentList,
+            )
 
-        segments = completion.choices[0].message.parsed.segments
+            segments = completion.choices[0].message.parsed.segments
 
         # Build the combined segment data
         segment_data = []
@@ -219,24 +252,25 @@ class VideoProcessor:
         return segment_data
 
     def detect_faces_and_pose(self, frame):
-        rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        face_results = self.face_detection.process(rgb_frame)
-        # pose_results = self.pose_detection.process(rgb_frame)
-        
-        face_bboxes = []
-        pose_detected = False
-        
-        if face_results.detections:
-            for detection in face_results.detections:
-                bbox = detection.location_data.relative_bounding_box
-                x, y, w, h = bbox.xmin, bbox.ymin, bbox.width, bbox.height
-                x, y, w, h = int(x * frame.shape[1]), int(y * frame.shape[0]), int(w * frame.shape[1]), int(h * frame.shape[0])
-                face_bboxes.append((x, y, w, h))
-        
-        # if pose_results.pose_landmarks:
-        #     pose_detected = True
-        
-        return face_bboxes #pose_detected
+        with self._face_detection_lock:
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            face_results = self.face_detection.process(rgb_frame)
+            # pose_results = self.pose_detection.process(rgb_frame)
+            
+            face_bboxes = []
+            pose_detected = False
+            
+            if face_results.detections:
+                for detection in face_results.detections:
+                    bbox = detection.location_data.relative_bounding_box
+                    x, y, w, h = bbox.xmin, bbox.ymin, bbox.width, bbox.height
+                    x, y, w, h = int(x * frame.shape[1]), int(y * frame.shape[0]), int(w * frame.shape[1]), int(h * frame.shape[0])
+                    face_bboxes.append((x, y, w, h))
+            
+            # if pose_results.pose_landmarks:
+            #     pose_detected = True
+            
+            return face_bboxes #pose_detected
 
     def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False, progress_callback=None, add_watermark=False):
         # Add directory check
@@ -459,57 +493,41 @@ class VideoProcessor:
             'bottom': np.median(frame[-10:, :], axis=(0, 1)).astype(np.uint8)
         }
 
-    def save_or_upload_clip(self, final_clip, title, output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug):
-        clip_filename = f"{title}_{output_video_type}.mp4"
+    def save_or_upload_clip(self, clip, title, video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug=False):
+        if not debug and (s3_client is None or s3_bucket is None):
+            raise ValueError("S3 configuration must be provided in production mode")
+        
+        # Generate a unique filename
+        filename = f"{user_id}_{project_id}_{title}_{video_type}.mp4"
+        local_path = os.path.join(output_folder, filename)
+        
+        # Save locally first
+        clip.write_videofile(local_path)
         
         if debug:
-            # Create user directory if it doesn't exist
-            user_dir = os.path.join(output_folder, str(user_id))
-            if not os.path.exists(user_dir):
-                os.makedirs(user_dir)
-            
-            # Create project directory if it doesn't exist
-            project_dir = os.path.join(user_dir, str(project_id))
-            if not os.path.exists(project_dir):
-                os.makedirs(project_dir)
-                
-            output_file_path = os.path.join(project_dir, clip_filename)
-            final_clip.write_videofile(output_file_path, codec='libx264')
-            print(f"Video '{title}' processed and subtitled successfully as {output_video_type}!")
-            # clip_url = ""
-            clip_url = url_for('get_clip', base_url=output_folder, user_id=user_id, project_id=project_id, filename=clip_filename, _external=True)
-            print(f"Debug: Clip URL: {clip_url}")
-        elif s3_client and s3_bucket:
-            with tempfile.NamedTemporaryFile(suffix='.mp4', delete=False) as temp_file:
-                temp_filename = temp_file.name
-                final_clip.write_videofile(temp_filename, codec='libx264')
-            try:
-                s3_key = os.path.join(str(user_id), str(project_id), clip_filename)
-                s3_client.upload_file(temp_filename, s3_bucket, s3_key)
-                
-                # Generate a pre-signed URL
-                try:
-                    clip_url = s3_client.generate_presigned_url('get_object',
-                                                                Params={'Bucket': s3_bucket,
-                                                                        'Key': s3_key},
-                                                                        ExpiresIn=3600 * 24 * 7)  # URL expires in 7 days
-                except ClientError as e:
-                    print(f"Error generating pre-signed URL: {e}")
-                    clip_url = None
-
-                print(f"Debug: Pre-signed URL: {clip_url}")
-                print(f"Video '{title}' processed, subtitled, and uploaded to S3 successfully as {output_video_type}!")
-            finally:
-                os.unlink(temp_filename)
-        else:
-            # Log the values for debugging
-            print(f"Debug: {debug}")
-            print(f"S3 Client: {s3_client}")
-            print(f"S3 Bucket: {s3_bucket}")
-            raise ValueError("Either debug mode or S3 configuration must be provided")
+            return local_path, f"file://{local_path}"
         
-        return clip_filename, clip_url
-
+        try:
+            # Upload to S3
+            s3_key = f"{user_id}/{project_id}/{filename}"
+            s3_client.upload_file(local_path, s3_bucket, s3_key)
+            
+            # Generate presigned URL (expires in 7 days)
+            presigned_url = s3_client.generate_presigned_url('get_object',
+                Params={
+                    'Bucket': s3_bucket,
+                    'Key': s3_key
+                },
+                ExpiresIn=604800  # 7 days in seconds
+            )
+            
+            # Clean up local file
+            os.remove(local_path)
+            
+            return s3_key, presigned_url
+        except Exception as e:
+            print(f"Failed to upload to S3: {str(e)}")
+            raise
 
     def adjust_bounding_box(self, x, y, w, h, frame_height, frame_width):
         # Target aspect ratio (9:16)
@@ -586,7 +604,8 @@ class VideoProcessor:
             smart_format=True
         )
 
-        response = self.deepgram_client.listen.prerecorded.v("1").transcribe_file(payload, options)
+        with self._deepgram_lock:
+            response = self.deepgram_client.listen.prerecorded.v("1").transcribe_file(payload, options)
 
         word_timings = []
         full_transcript = ''
@@ -633,6 +652,102 @@ class VideoProcessor:
         frame[y:y+watermark_height, x:x+watermark_width] = (blended * 255).astype(np.uint8)
 
         return frame
+
+    def process_video(self, video_link, video_path=None, project_id=None, clerk_user_id=None, 
+                     user_email=None, video_title=None, processing_timeframe=None, 
+                     video_quality="720p", video_type="portrait", start_time=0, end_time=60, 
+                     clip_length=None, keywords="", caption_style="elon", add_watermark=False,
+                     update_status_callback=None, s3_client=None, s3_bucket=None):
+        try:
+            
+            if update_status_callback:
+                update_status_callback(clerk_user_id, project_id, "processing", "downloading", 0, video_title, processing_timeframe)
+            
+            if video_link:
+                downloaded_video_path, downloaded_audio_path, video_title = self.download_video(video_link, "./downloads", video_quality, start_time, end_time)
+            else:
+                downloaded_video_path = video_path
+                downloaded_audio_path = self.extract_audio(video_path)
+
+            if update_status_callback:
+                update_status_callback(clerk_user_id, project_id, "processing", "transcribing", 10, video_title, processing_timeframe)
+            
+            transcript, word_timings = self.transcribe_audio(downloaded_audio_path)
+
+            if update_status_callback:
+                update_status_callback(clerk_user_id, project_id, "processing", "analyzing", 20, video_title, processing_timeframe)
+            
+            interesting_data = self.get_interesting_segments(transcript, word_timings, clip_length, keywords)
+
+            if update_status_callback:
+                update_status_callback(clerk_user_id, project_id, "processing", "generating", 40, video_title, processing_timeframe)
+            
+            total_segments = len(interesting_data)
+
+            def progress_callback(i):
+                if update_status_callback:
+                    update_status_callback(clerk_user_id, project_id, "processing", "generating", 40 + int((i / total_segments) * 50), video_title, processing_timeframe)
+
+            processed_clip_ids = self.crop_and_add_subtitles(
+                downloaded_video_path,
+                interesting_data,
+                output_video_type=video_type,
+                caption_style=caption_style,
+                output_folder='./subtitled_clips',
+                s3_client=s3_client,
+                s3_bucket=s3_bucket,
+                user_id=clerk_user_id,
+                project_id=project_id,
+                debug=False,  # Force production mode
+                progress_callback=progress_callback,
+                add_watermark=add_watermark
+            )
+
+            if update_status_callback:
+                update_status_callback(clerk_user_id, project_id, "processing", "uploading", 95, video_title, processing_timeframe)
+
+            # Clean up downloaded files
+            video_title_folder = os.path.join("./downloads", video_title)
+            if os.path.exists(video_title_folder):
+                for file in os.listdir(video_title_folder):
+                    file_path = os.path.join(video_title_folder, file)
+                    if os.path.isfile(file_path):
+                        os.remove(file_path)
+                os.rmdir(video_title_folder)
+
+            # Send email notification
+            try:
+                print(f"Sending completion email to {user_email}")
+                email_params: resend.Emails.SendParams = {
+                    "from": "Lunaris Clips <output@lunaris.media>",
+                    "to": [user_email],
+                    "subject": "Your clips are ready 🎬!",
+                    "html": f"""
+                    <p>Hey there 👋</p>
+                    <p>The clips for your video "<b>{video_title}</b>" are ready!</p> 
+                    <p>You can view your clips <a href="{os.environ.get('FRONTEND_URL')}/project/{project_id}/clips">here</a>.</p>
+                    """
+                }
+                resend.Emails.send(email_params)
+                print("Email sent successfully")
+            except Exception as e:
+                print(f"Email notification failed: {str(e)}")
+
+            if update_status_callback:
+                update_status_callback(
+                    clerk_user_id, project_id, "completed", "completed", 100,
+                    video_title, processing_timeframe
+                )
+
+            return processed_clip_ids
+
+        except Exception as e:
+            if update_status_callback:
+                update_status_callback(
+                    clerk_user_id, project_id, "failed", "failed", 0,
+                    video_title, processing_timeframe
+                )
+            raise e
 
 
 if __name__ == "__main__":#

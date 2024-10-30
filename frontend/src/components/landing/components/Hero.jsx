@@ -70,13 +70,13 @@ const Hero = () => {
           </div>
 
           <div className="absolute -top-[80%] left-1/2 w-[125%] -translate-x-1/2 md:-top-[50%] md:w-[88%] lg:-top-[65%] z-10">
-            <Image
+            {/* <Image
               src={heroBackground}
               className="w-full"
               width={1440}
               height={1800}
               alt="hero"
-            />
+            /> */}
           </div>
         </div>
         <CompanyLogos className="hidden relative z-20 mt-20 lg:block" />

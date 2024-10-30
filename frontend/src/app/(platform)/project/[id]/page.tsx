@@ -72,11 +72,33 @@ export default function ProjectPage() {
     }
   };
 
+  const getStatusMessage = () => {
+    switch (projectStatus.status) {
+      case 'created':
+        return {
+          title: "Your video is queued",
+          subtitle: "We'll start processing your video shortly. Please check back soon!"
+        };
+      case 'processing':
+        return {
+          title: "Your video is processing",
+          subtitle: "We will email you once your video is done processing, please check back soon!"
+        };
+      default:
+        return {
+          title: "Your video is processing",
+          subtitle: "We will email you once your video is done processing, please check back soon!"
+        };
+    }
+  };
+
+  const statusMessage = getStatusMessage();
+
   return (
-    <div className="min-h-screen bg-black text-n-1 p-4"> {/* Changed bg-n-8 to bg-black */}
+    <div className="min-h-screen bg-black text-n-1 p-4">
       <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold">Your video is processing</h1>
-        <p className="text-n-3">We will email you once your video is done processing, please check back soon!</p>
+        <h1 className="text-3xl font-bold">{statusMessage.title}</h1>
+        <p className="text-n-3">{statusMessage.subtitle}</p>
         {projectStatus.title && (
           <div className="text-center">
             <p className="text-xl font-semibold">{projectStatus.title}</p>

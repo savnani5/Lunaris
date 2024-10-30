@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/database/mongodb';
-import { DB_NAME } from "@/lib/constants";
 import { createClip } from '@/lib/actions/clip.action';
 
 export async function GET(request: Request) {

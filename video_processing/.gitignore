@@ -3,7 +3,7 @@ __pycache__/
 ../.DS_Store
 downloads/
 subtitled_clips/
-.env
+*.env
 *.zip
 *.log
 *.json

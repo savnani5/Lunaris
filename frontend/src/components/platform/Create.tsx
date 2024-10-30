@@ -502,7 +502,7 @@ export function Create() {
   };
 
   // Calculate required credits based on start and end times
-  const requiredCredits = Math.ceil((endTime - startTime) / 60);
+  const requiredCredits = Math.floor((endTime - startTime) / 60);
 
   return (
     <div className="min-h-screen bg-black text-n-1 p-4 sm:p-8">
@@ -652,7 +652,7 @@ export function Create() {
             <div className="flex items-center mb-2">
               <h3 className="text-lg font-bold mr-2">Processing Timeframe</h3>
               <div className="bg-gray-700 bg-opacity-50 text-white text-xs font px-2 py-2 rounded flex items-center">
-                save credits
+                required credits
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
                   className="h-5 w-5 ml-2"
