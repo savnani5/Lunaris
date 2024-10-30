@@ -11,8 +11,7 @@ services:
     env_file:
       - vp.env
     environment:
-      - FLASK_ENV=development
-      - FLASK_APP=app.py
+      - WORKERS=4
     deploy:
       resources:
         limits:
@@ -35,6 +34,7 @@ services:
     env_file:
       - vp.env
     deploy:
+      replicas: 1
       resources:
         limits:
           cpus: '4'

@@ -10,6 +10,8 @@ from werkzeug.utils import secure_filename
 import tempfile
 import requests
 import json
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 load_dotenv(find_dotenv())
 
@@ -33,6 +35,10 @@ class LunarisApp:
     s3_client = None
     s3_bucket = None
     debug = False
+
+    # Add thread-safe SQS client
+    _sqs_lock = threading.Lock()
+    _executor = ThreadPoolExecutor(max_workers=8)  # For async tasks
 
     @classmethod
     def setup_s3(cls):
@@ -138,7 +144,7 @@ class LunarisApp:
         app.logger.info("Received request to process video")
         
         try:
-            # Check if the post request has the file part
+            # Process file upload or video link synchronously
             if 'video' in request.files:
                 file = request.files['video']
                 if file.filename == '':
@@ -153,71 +159,66 @@ class LunarisApp:
                 video_link = request.form.get('videoLink')
                 video_path = None
 
-            # extract for data from request
-            clerk_user_id = request.form.get('userId')
-            user_email = request.form.get('email')
-            project_id = request.form.get('projectId')
-            video_title = request.form.get('videoTitle')
-            processing_timeframe = request.form.get('processing_timeframe')
-            genre = request.form.get('genre')
-            video_quality = request.form.get('videoQuality')
-            video_type = request.form.get('videoType').lower()
-            start_time = float(request.form.get('startTime'))
-            end_time = float(request.form.get('endTime'))
-            clip_length = {
-                'min': float(request.form.get('clipLengthMin')),
-                'max': float(request.form.get('clipLengthMax'))
-            }
-            keywords = request.form.get('keywords')
-            caption_style = request.form.get('captionStyle', 'elon')
-            add_watermark = request.form.get('addWatermark', False)
-            
-            app.logger.info(f'Received video: {video_link or video_path}')
-
-            # Create message for SQS
+            # Extract request data
             message = {
                 'video_link': video_link,
                 'video_path': video_path,
-                'project_id': project_id,
-                'clerk_user_id': clerk_user_id,
-                'user_email': user_email,
-                'video_title': video_title,
-                'processing_timeframe': processing_timeframe,
-                'video_quality': video_quality,
-                'video_type': video_type,
-                'start_time': start_time,
-                'end_time': end_time,
-                'clip_length': clip_length,
-                'keywords': keywords,
-                'caption_style': caption_style,
-                'add_watermark': add_watermark
+                'project_id': request.form.get('projectId'),
+                'clerk_user_id': request.form.get('userId'),
+                'user_email': request.form.get('email'),
+                'video_title': request.form.get('videoTitle'),
+                'processing_timeframe': request.form.get('processing_timeframe'),
+                'video_quality': request.form.get('videoQuality'),
+                'video_type': request.form.get('videoType').lower(),
+                'start_time': float(request.form.get('startTime')),
+                'end_time': float(request.form.get('endTime')),
+                'clip_length': {
+                    'min': float(request.form.get('clipLengthMin')),
+                    'max': float(request.form.get('clipLengthMax'))
+                },
+                'keywords': request.form.get('keywords'),
+                'caption_style': request.form.get('captionStyle', 'elon'),
+                'add_watermark': request.form.get('addWatermark', False)
             }
 
-            # Send message to SQS (removed FIFO-specific parameters)
-            try:
-                response = self.sqs.send_message(
-                    QueueUrl=self.sqs_queue_url,
-                    MessageBody=json.dumps(message)
-                )
-                
-                return jsonify({
-                    'message': 'Video processing queued successfully',
-                    'task_id': response['MessageId']
-                }), 202
-                
-            except Exception as e:
-                app.logger.error(f"Failed to queue video processing: {str(e)}")
-                return jsonify({
-                    'error': 'Failed to queue video processing'
-                }), 500
+            # Send to SQS in a thread-safe way
+            with self._sqs_lock:
+                try:
+                    response = self.sqs.send_message(
+                        QueueUrl=self.sqs_queue_url,
+                        MessageBody=json.dumps(message)
+                    )
+                    
+                    # Clean up temporary file asynchronously if it exists
+                    if video_path:
+                        self._executor.submit(self._cleanup_temp_file, video_path)
+                    
+                    return jsonify({
+                        'message': 'Video processing queued successfully',
+                        'task_id': response['MessageId']
+                    }), 202
+                    
+                except Exception as e:
+                    app.logger.error(f"Failed to queue video processing: {str(e)}")
+                    if video_path:
+                        self._executor.submit(self._cleanup_temp_file, video_path)
+                    return jsonify({
+                        'error': 'Failed to queue video processing'
+                    }), 500
                 
         except Exception as e:
             app.logger.error(f"Error processing video request: {str(e)}")
             return jsonify({
                 'error': 'Failed to process video request'
             }), 500
-    
-        
+
+    def _cleanup_temp_file(self, file_path):
+        try:
+            if os.path.exists(file_path):
+                os.unlink(file_path)
+        except Exception as e:
+            app.logger.error(f"Failed to cleanup temporary file {file_path}: {str(e)}")
+
     def health_check(self):
         logger.info("Health check called")
         return jsonify({'status': 'healthy'}), 200

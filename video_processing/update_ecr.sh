@@ -11,9 +11,5 @@ docker push 022499016824.dkr.ecr.us-west-1.amazonaws.com/lunaris-web:latest
 docker buildx build --platform linux/amd64 -t 022499016824.dkr.ecr.us-west-1.amazonaws.com/lunaris-worker:latest -f Dockerfile.worker .
 docker push 022499016824.dkr.ecr.us-west-1.amazonaws.com/lunaris-worker:latest
 
-# Update the services
-# aws ecs update-service --cluster lunaris-cluster --service lunaris-web-service --force-new-deployment --task-definition lunaris-web-task
-# aws ecs update-service --cluster lunaris-cluster --service lunaris-worker-service --force-new-deployment --task-definition lunaris-worker-task
-
 # Done
-echo "Images built and pushed to ECR, task definitions updated, services updated"
+echo "Images built and pushed to ECR"

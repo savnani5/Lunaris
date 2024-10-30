@@ -3,7 +3,7 @@ import os
 
 # Create cache directory if it doesn't exist
 cache_dir = "/efs/ytdl_cache"
-os.makedirs(cache_dir, exist_ok=True)
+# os.makedirs(cache_dir, exist_ok=True)
 
 subprocess.run([
     "yt-dlp",

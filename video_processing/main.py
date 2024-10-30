@@ -70,8 +70,8 @@ class VideoProcessor:
         quality = quality.replace('p', '')
         
         if isinstance(source, str):  # It's a URL
-            # video_title = subprocess.check_output(["yt-dlp", source, "--get-title", "--username", "oauth", "--password", "", "--cache-dir", "/efs/ytdl_cache"], universal_newlines=True).strip()
-            video_title = subprocess.check_output(["yt-dlp", source, "--get-title"], universal_newlines=True).strip()
+            video_title = subprocess.check_output(["yt-dlp", source, "--get-title", "--username", "oauth", "--password", "", "--cache-dir", "/efs/ytdl_cache"], universal_newlines=True).strip()
+            # video_title = subprocess.check_output(["yt-dlp", source, "--get-title"], universal_newlines=True).strip()
             path = os.path.join(path, video_title)
             if not os.path.exists(path):
                 os.mkdir(path)
@@ -83,23 +83,23 @@ class VideoProcessor:
                         os.remove(file_path)
             
             # Update yt-dlp command to use EFS cache
-            # subprocess.run([
-            #     "yt-dlp", 
-            #     source, 
-            #     "-P", 
-            #     path,
-            #     "-S", 
-            #     f"res:{quality}",
-            #     "--output",
-            #     "%(title)s.%(ext)s",
-            #     "--username",
-            #     "oauth",
-            #     "--password",
-            #     "",
-            #     "--cache-dir",
-            #     "/efs/ytdl_cache"
-            # ])
-            subprocess.run(["yt-dlp", source, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
+            subprocess.run([
+                "yt-dlp", 
+                source, 
+                "-P", 
+                path,
+                "-S", 
+                f"res:{quality}",
+                "--output",
+                "%(title)s.%(ext)s",
+                "--username",
+                "oauth",
+                "--password",
+                "",
+                "--cache-dir",
+                "/efs/ytdl_cache"
+            ])
+            # subprocess.run(["yt-dlp", source, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
             print("Video downloaded successfully!")
             video_path = glob.glob(os.path.join(path, "*.*"))[0]
         else:  # It's a local file path

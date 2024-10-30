@@ -7,6 +7,8 @@ from dotenv import find_dotenv, load_dotenv
 from main import VideoProcessor
 from app import LunarisApp
 import time
+from concurrent.futures import ThreadPoolExecutor
+import threading
 
 # Configure logging
 logging.basicConfig(
@@ -60,6 +62,11 @@ class Worker:
         self.video_processor = VideoProcessor()
         self.running = True
         
+        # Initialize thread pool with max workers
+        self.executor = ThreadPoolExecutor(max_workers=4)
+        self.active_tasks = []
+        self.tasks_lock = threading.Lock()
+
         # Set up signal handlers
         signal.signal(signal.SIGTERM, self.handle_shutdown)
         signal.signal(signal.SIGINT, self.handle_shutdown)
@@ -72,6 +79,11 @@ class Worker:
     def handle_shutdown(self, signum, frame):
         logger.info("Received shutdown signal. Cleaning up...")
         self.running = False
+        # Wait for active tasks to complete
+        with self.tasks_lock:
+            for future in self.active_tasks:
+                future.result()
+        self.executor.shutdown(wait=True)
 
     def update_project_status(self, clerk_user_id, project_id, status, stage, progress, title, processing_timeframe):
         LunarisApp.update_project_status(clerk_user_id, project_id, status, stage, progress, title, processing_timeframe)
@@ -126,28 +138,26 @@ class Worker:
         
         while self.running:
             try:
-                # Receive messages (reduced to 1 message at a time)
+                # Receive up to 4 messages
                 response = self.sqs.receive_message(
                     QueueUrl=self.sqs_queue_url,
-                    MaxNumberOfMessages=1,  # Changed from 3 to 1
+                    MaxNumberOfMessages=4,
                     WaitTimeSeconds=20,
                     VisibilityTimeout=3600
                 )
 
                 if 'Messages' in response:
-                    message = response['Messages'][0]  # Process single message
-                    if not self.running:
-                        break
-                    
-                    # Process message directly
-                    success = self.process_message(message)
-                    if success:
-                        # Delete message from queue only after successful processing
-                        self.sqs.delete_message(
-                            QueueUrl=self.sqs_queue_url,
-                            ReceiptHandle=message['ReceiptHandle']
-                        )
-                        logger.info(f"Successfully processed and deleted message {message['MessageId']}")
+                    for message in response['Messages']:
+                        if not self.running:
+                            break
+                        
+                        # Submit task to thread pool
+                        future = self.executor.submit(self.process_message, message)
+                        
+                        # Clean up completed tasks
+                        with self.tasks_lock:
+                            self.active_tasks = [t for t in self.active_tasks if not t.done()]
+                            self.active_tasks.append(future)
                     
                     time.sleep(1)  # Small delay to prevent tight polling
                             

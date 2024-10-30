@@ -5,15 +5,15 @@ FROM --platform=linux/amd64 python:3.11-slim
 RUN apt-get update && apt-get install -y \
     libgl1-mesa-glx \
     libglib2.0-0 \
+    curl \
     ffmpeg \
-    imagemagick \
-    awscli
+    imagemagick 
 
 # Update ImageMagick policy to allow required operations
 RUN sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<!-- <policy domain="path" rights="none" pattern="@*" -->/g' /etc/ImageMagick-6/policy.xml && \
 sed -i 's/<policy domain="coder" rights="none" pattern="PDF"/<!-- <policy domain="coder" rights="none" pattern="PDF" -->/g' /etc/ImageMagick-6/policy.xml
 
-# Set the working directory
+# Set working directory
 WORKDIR /app
 
 # Create ytdl cache directory
@@ -27,5 +27,5 @@ RUN python3 -m pip install -U "yt-dlp[default]"
 # Copy application files
 COPY . .
 
-# Run the worker
+# Command to run the worker
 CMD ["python", "worker.py"]
