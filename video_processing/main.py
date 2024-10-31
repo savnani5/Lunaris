@@ -5,7 +5,7 @@ import shutil
 import glob
 import subprocess
 import json
-from openai import OpenAI
+from anthropic import Anthropic
 import cv2
 import numpy as np
 from deepgram import (
@@ -13,8 +13,7 @@ from deepgram import (
     PrerecordedOptions,
     FileSource,
 )
-from pydantic import BaseModel
-from typing import List
+
 import requests
 import threading
 import resend
@@ -24,27 +23,14 @@ from dotenv import find_dotenv, load_dotenv
 
 load_dotenv(find_dotenv())
 
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
 DG_API_KEY = os.environ["DG_API_KEY"]
-
-class Segment(BaseModel):
-    title: str
-    text: str
-    transcript: str
-    score: int
-    hook: str
-    flow: str
-    engagement: str
-    trend: str
-
-class SegmentList(BaseModel):
-    segments: List[Segment]
 
 class VideoProcessor:
     def __init__(self):
         # Add thread locks for shared resources
         self._face_detection_lock = threading.Lock()
-        self._openai_lock = threading.Lock()
+        self._anthropic_lock = threading.Lock()
         self._deepgram_lock = threading.Lock()
         
         # Initialize clients in a thread-safe way
@@ -54,8 +40,8 @@ class VideoProcessor:
                 min_detection_confidence=0.5
             )
         
-        with self._openai_lock:
-            self.openai_client = OpenAI()
+        with self._anthropic_lock:
+            self.anthropic_client = Anthropic()
             
         with self._deepgram_lock:
             self.deepgram_client = DeepgramClient(DG_API_KEY)
@@ -70,8 +56,8 @@ class VideoProcessor:
         quality = quality.replace('p', '')
         
         if isinstance(source, str):  # It's a URL
-            video_title = subprocess.check_output(["yt-dlp", source, "--get-title", "--username", "oauth", "--password", "", "--cache-dir", "/efs/ytdl_cache"], universal_newlines=True).strip()
-            # video_title = subprocess.check_output(["yt-dlp", source, "--get-title"], universal_newlines=True).strip()
+            # video_title = subprocess.check_output(["yt-dlp", source, "--get-title", "--username", "oauth", "--password", "", "--cache-dir", "/efs/ytdl_cache"], universal_newlines=True).strip()
+            video_title = subprocess.check_output(["yt-dlp", source, "--get-title"], universal_newlines=True).strip()
             path = os.path.join(path, video_title)
             if not os.path.exists(path):
                 os.mkdir(path)
@@ -83,23 +69,23 @@ class VideoProcessor:
                         os.remove(file_path)
             
             # Update yt-dlp command to use EFS cache
-            subprocess.run([
-                "yt-dlp", 
-                source, 
-                "-P", 
-                path,
-                "-S", 
-                f"res:{quality}",
-                "--output",
-                "%(title)s.%(ext)s",
-                "--username",
-                "oauth",
-                "--password",
-                "",
-                "--cache-dir",
-                "/efs/ytdl_cache"
-            ])
-            # subprocess.run(["yt-dlp", source, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
+            # subprocess.run([
+            #     "yt-dlp", 
+            #     source, 
+            #     "-P", 
+            #     path,
+            #     "-S", 
+            #     f"res:{quality}",
+            #     "--output",
+            #     "%(title)s.%(ext)s",
+            #     "--username",
+            #     "oauth",
+            #     "--password",
+            #     "",
+            #     "--cache-dir",
+            #     "/efs/ytdl_cache"
+            # ])
+            subprocess.run(["yt-dlp", source, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
             print("Video downloaded successfully!")
             video_path = glob.glob(os.path.join(path, "*.*"))[0]
         else:  # It's a local file path
@@ -146,9 +132,8 @@ class VideoProcessor:
             clip.write_videofile(f"{output_folder}/clip_{i+1}.mp4")
 
     def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords="", output_file='interesting_segments.json'):
-        # Generate prompt for OpenAI
-        prompt = f"""
-        You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content:
+        # Generate prompt for Claude
+        prompt = f"""You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content.
 
         Transcript:
         {transcript_text}
@@ -158,98 +143,100 @@ class VideoProcessor:
         2. Each segment should be cohesive, maintaining context and flow.
         3. Segment length: {clip_length['min']} to {clip_length['max']} seconds.
         4. If provided, focus on segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
-        5. For each segment, provide:
-           - Title: A catchy, relevant title
-           - Text: The exact transcript without punctuation
-           - Transcript: The same text with proper punctuation and capitalization
-           - Score: A number between 70 and 100, indicating overall quality
-           - Hook: Grade A, A+, A-, B, or B+
-           - Flow: Grade A, A+, A-, B, or B+
-           - Engagement: Grade A, A+, A-, B, or B+
-           - Trend: Grade A, A+, A-, B, or B+
+
+        Return the analysis in this exact JSON format, with no additional text or explanation:
+        {{
+            "segments": [
+                {{
+                    "title": "Catchy, relevant title",
+                    "text": "Exact transcript without punctuation",
+                    "transcript": "Same text with proper punctuation and capitalization",
+                    "score": "Number between 70 and 100",
+                    "hook": "Grade A, A+, A-, B, or B+",
+                    "flow": "Grade A, A+, A-, B, or B+",
+                    "engagement": "Grade A, A+, A-, B, or B+",
+                    "trend": "Grade A, A+, A-, B, or B+"
+                }}
+            ]
+        }}
 
         Important requirements:
-        - Ensure segments are non-overlapping. Each segment should cover a unique portion of the transcript.
-        - Present the segments in sequential order as they appear in the transcript.
-        - Ensure each segment is self-contained and engaging, with a good narrative flow.
-        - Prioritize segments that will captivate and retain viewer attention.
-
-        Provide a list of segments that meet these criteria, maintaining the original order from the transcript.
+        - Ensure segments are non-overlapping
+        - Present segments in sequential order
+        - Each segment must be self-contained and engaging
+        - Prioritize segments that will captivate viewers
+        - Return only the JSON object, no other text
         """
 
-        with self._openai_lock:
-            completion = self.openai_client.beta.chat.completions.parse(
-                model="gpt-4o-2024-08-06",
-                messages=[
-                    {"role": "system", "content": "You are an AI assistant specialized in analyzing podcast transcripts and identifying engaging segments for short-form content creation. Your task is to extract interesting, cohesive segments that maintain context and flow, suitable for social media clips."},
-                    {"role": "user", "content": prompt},
-                ],
-                response_format=SegmentList,
+        with self._anthropic_lock:
+            response = self.anthropic_client.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=4096,
+                messages=[{
+                    "role": "user",
+                    "content": prompt
+                }]
             )
-
-            segments = completion.choices[0].message.parsed.segments
-
-        # Build the combined segment data
-        segment_data = []
-
-        for segment in segments:
-            title = segment.title
-            text = segment.text
-            transcript = segment.transcript
-            score = segment.score
-            hook = segment.hook
-            flow = segment.flow
-            engagement = segment.engagement
-            trend = segment.trend
-            word_timings_in_segment = []
-
-            # Find the start and end times for the combined text
-            words = text.lower().split()
-            start_time = None
-            end_time = None
-            start = False
-
-            for i in range(len(word_timings)):
-                if start:
-                    word_timings_in_segment.append(word_timings[i])
-
-                # Check if the first 10 words match
-                if [wt['word'] for wt in word_timings[i:i+10]] == words[:10]:
-                    start_time = word_timings[i]['start']
-                    start = True
-                    word_timings_in_segment.append(word_timings[i])
-
-                # Check if the last 10 words match
-                if [wt['word'] for wt in word_timings[i:i+10]] == words[-10:]:
-                    end_time = word_timings[i+9]['end']
-                    word_timings_in_segment.extend(word_timings[i+1:i+10])
-                    break
             
-            if start_time is None or end_time is None:
-                continue
+            # Extract the text from the TextBlock and parse it as JSON
+            json_str = response.content[0].text  # Get the text from first TextBlock
+            segments = json.loads(json_str)["segments"]
+            
+            # Build the combined segment data
+            segment_data = []
+            for segment in segments:
+                # Access dictionary values
+                title = segment['title']
+                text = segment['text']
+                transcript = segment['transcript']
+                score = segment['score']
+                hook = segment['hook']
+                flow = segment['flow']
+                engagement = segment['engagement']
+                trend = segment['trend']
+                word_timings_in_segment = []
 
-            segment_data.append({
-                'title': title,
-                'start': start_time,
-                'end': end_time,
-                'text': text,
-                'transcript': transcript,
-                'word_timings': word_timings_in_segment,
-                'score': score,
-                'hook': hook,
-                'flow': flow,
-                'engagement': engagement,
-                'trend': trend
-            })
+                # Find the start and end times for the combined text
+                words = text.lower().split()
+                start_time = None
+                end_time = None
+                start = False
 
-        print(f"Interesting segments extracted!")
-        
-        # ____________________
-        # with open(output_file, 'w') as json_file:
-        #     json.dump(segment_data, json_file, indent=4)
-        # ____________________
-        
-        return segment_data
+                for i in range(len(word_timings)):
+                    if start:
+                        word_timings_in_segment.append(word_timings[i])
+
+                    # Check if the first 10 words match
+                    if [wt['word'] for wt in word_timings[i:i+10]] == words[:10]:
+                        start_time = word_timings[i]['start']
+                        start = True
+                        word_timings_in_segment.append(word_timings[i])
+
+                    # Check if the last 10 words match
+                    if [wt['word'] for wt in word_timings[i:i+10]] == words[-10:]:
+                        end_time = word_timings[i+9]['end']
+                        word_timings_in_segment.extend(word_timings[i+1:i+10])
+                        break
+                
+                if start_time is None or end_time is None:
+                    continue
+
+                segment_data.append({
+                    'title': title,
+                    'start': start_time,
+                    'end': end_time,
+                    'text': text,
+                    'transcript': transcript,
+                    'word_timings': word_timings_in_segment,
+                    'score': score,
+                    'hook': hook,
+                    'flow': flow,
+                    'engagement': engagement,
+                    'trend': trend
+                })
+
+            print(f"Interesting segments extracted!")
+            return segment_data
 
     def detect_faces_and_pose(self, frame):
         with self._face_detection_lock:
@@ -303,7 +290,7 @@ class VideoProcessor:
                 'engagement': segment['engagement'],
                 'trend': segment['trend']
             }
-            self.send_clip_data(clip_data)
+            # self.send_clip_data(clip_data)
 
             if progress_callback:
                 progress_callback(i + 1)
@@ -330,7 +317,7 @@ class VideoProcessor:
         FACE_DETECTION_THRESHOLD = 3
         NO_DETECTION_THRESHOLD = 10
         SMOOTHING_FACTOR = 0.8
-        JITTER_THRESHOLD = 30
+        JITTER_THRESHOLD = 60
 
         frame_count = int(clip.duration * clip.fps)
         
@@ -750,9 +737,9 @@ class VideoProcessor:
             raise e
 
 
-if __name__ == "__main__":#
+if __name__ == "__main__":
    
-    # video_path = "./downloads"
+    video_path = "./downloads"
 
     # # Initialize VideoProcessor
     processor = VideoProcessor()
@@ -760,32 +747,26 @@ if __name__ == "__main__":#
     # Ensure directories exist
     # os.makedirs(video_path, exist_ok=True)
 
-    # youtube_url = input("Enter youtube video url: ")
-    # video_quality = input("Enter video quality (high, medium, low): ")
-    # output_video_type = input("Enter output video type (portrait, landscape): ")
+    youtube_url = input("Enter youtube video url: ")
+    video_quality = "low"
+    output_video_type = "portrait"
    
 
     # Download video and extract audio
-    # downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
+    downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
 
-    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Jayalalitha - Tamil Nadu's Most Iconic Woman Ever/Jayalalitha - Tamil Nadu's Most Iconic Woman Ever_cut.webm"
-    downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Jayalalitha - Tamil Nadu's Most Iconic Woman Ever/Jayalalitha - Tamil Nadu's Most Iconic Woman Ever_cut.mp3"
-    
-    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/The Theory That Angels and Demons Are Actually Aliens/The Theory That Angels and Demons Are Actually Aliens_cut.webm"
-    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/The Theory That Angels and Demons Are Actually Aliens/The Theory That Angels and Demons Are Actually Aliens_cut.mp3"
-    
-    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Assassination of Julius Caesar | Gregory Aldrete and Lex Fridman/Assassination of Julius Caesar ｜ Gregory Aldrete and Lex Fridman_cut.webm"
-    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/backend/downloads/Assassination of Julius Caesar | Gregory Aldrete and Lex Fridman/Assassination of Julius Caesar ｜ Gregory Aldrete and Lex Fridman_cut.mp3"
-
+    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Joe Clarifies Why a Kamala Harris Podcast Didn't Happen/Joe Clarifies Why a Kamala Harris Podcast Didn't Happen_cut.webm"
+    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Joe Clarifies Why a Kamala Harris Podcast Didn't Happen/Joe Clarifies Why a Kamala Harris Podcast Didn't Happen_cut.mp3"
+ 
     # Transcribe audio
-    # transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
+    transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
 
-    # # Get interesting segments
-    # clip_length = {"min": 0, "max": 60}
-    # interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
+    # Get interesting segments
+    clip_length = {"min": 0, "max": 30}
+    interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
 
-    # with open('interesting_segments.json', 'w') as json_file:
-    #     json.dump(interesting_data, json_file, indent=4)
+    with open('interesting_segments.json', 'w') as json_file:
+        json.dump(interesting_data, json_file, indent=4)
 
     
     # DEBUG: load from file
@@ -793,7 +774,6 @@ if __name__ == "__main__":#
         interesting_data = json.load(f)
 
     # output_video_type = "landscape"
-    output_video_type = "portrait"
 
     # Crop video to portrait with faces
-    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, debug=True)    
+    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, debug=True) 
