@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
     curl \
     ffmpeg \
-    imagemagick 
+    imagemagick \
+    tini
 
 # Update ImageMagick policy to allow required operations
 RUN sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<!-- <policy domain="path" rights="none" pattern="@*" -->/g' /etc/ImageMagick-6/policy.xml && \
@@ -26,6 +27,9 @@ RUN python3 -m pip install -U "yt-dlp[default]"
 
 # Copy application files
 COPY . .
+
+# Use tini as init system
+ENTRYPOINT ["/usr/bin/tini", "-g", "--"]
 
 # Command to run the worker
 CMD ["python", "worker.py"]

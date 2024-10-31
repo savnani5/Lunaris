@@ -9,6 +9,8 @@ from app import LunarisApp
 import time
 from concurrent.futures import ThreadPoolExecutor
 import threading
+from datetime import datetime
+import tempfile
 
 # Configure logging
 logging.basicConfig(
@@ -71,27 +73,51 @@ class Worker:
         signal.signal(signal.SIGTERM, self.handle_shutdown)
         signal.signal(signal.SIGINT, self.handle_shutdown)
 
-        # Set up yt-dlp cache directory
-        self.ytdl_cache_dir = "/efs/ytdl_cache"
-        os.makedirs(self.ytdl_cache_dir, exist_ok=True)
-        os.environ["YTDL_CACHE_DIR"] = self.ytdl_cache_dir
+        # Determine if we're running locally or in production
+        self.is_production = os.environ.get('AWS_EXECUTION_ENV') is not None
+        
+        # Set cache directory based on environment
+        if self.is_production:
+            self.ytdl_cache_dir = '/efs/ytdl_cache'
+        else:
+            # Use system temp directory for local development
+            self.ytdl_cache_dir = os.path.join(tempfile.gettempdir(), 'ytdl_cache')
+        
+        # Create cache directory if it doesn't exist
+        try:
+            os.makedirs(self.ytdl_cache_dir, exist_ok=True)
+            logger.info(f"Using cache directory: {self.ytdl_cache_dir}")
+        except OSError as e:
+            logger.warning(f"Could not create cache directory {self.ytdl_cache_dir}: {e}")
+            # Fallback to temporary directory
+            self.ytdl_cache_dir = os.path.join(tempfile.gettempdir(), 'ytdl_cache')
+            os.makedirs(self.ytdl_cache_dir, exist_ok=True)
+            logger.info(f"Using fallback cache directory: {self.ytdl_cache_dir}")
 
     def handle_shutdown(self, signum, frame):
         logger.info("Received shutdown signal. Cleaning up...")
         self.running = False
-        # Wait for active tasks to complete
+        
+        # Wait for active tasks to complete with timeout
         with self.tasks_lock:
             for future in self.active_tasks:
-                future.result()
+                try:
+                    future.result(timeout=10)  # 10 second timeout
+                except TimeoutError:
+                    logger.warning("Task didn't complete within timeout during shutdown")
+                except Exception as e:
+                    logger.error(f"Task failed during shutdown: {e}")
+        
         self.executor.shutdown(wait=True)
+        logger.info("Shutdown complete")
 
     def update_project_status(self, clerk_user_id, project_id, status, stage, progress, title, processing_timeframe):
         LunarisApp.update_project_status(clerk_user_id, project_id, status, stage, progress, title, processing_timeframe)
 
     def process_message(self, message):
-        data = json.loads(message['Body'])
-        
         try:
+            data = json.loads(message['Body'])
+            
             logger.info(f"Processing video: {data['video_title']}")
             processed_clip_ids = self.video_processor.process_video(
                 video_link=data['video_link'],
@@ -113,6 +139,13 @@ class Worker:
                 s3_client=self.s3,  # Pass S3 client
                 s3_bucket=self.s3_bucket  # Pass S3 bucket
             )
+
+            # Delete the message from the queue after successful processing
+            self.sqs.delete_message(
+                QueueUrl=self.sqs_queue_url,
+                ReceiptHandle=message['ReceiptHandle']
+            )
+            
             return True
 
         except Exception as e:
@@ -131,6 +164,13 @@ class Worker:
                 data['video_title'],
                 data['processing_timeframe']
             )
+            
+            # Delete failed messages to prevent reprocessing
+            self.sqs.delete_message(
+                QueueUrl=self.sqs_queue_url,
+                ReceiptHandle=message['ReceiptHandle']
+            )
+            
             return False
 
     def run(self):
@@ -167,6 +207,128 @@ class Worker:
 
         logger.info("Worker shutting down...")
 
+    def list_inflight_messages(self):
+        """List all in-flight messages without affecting them"""
+        try:
+            # Get queue attributes to see message counts
+            response = self.sqs.get_queue_attributes(
+                QueueUrl=self.sqs_queue_url,
+                AttributeNames=['ApproximateNumberOfMessages', 'ApproximateNumberOfMessagesNotVisible']
+            )
+            
+            attrs = response['Attributes']
+            logger.info(f"Queue status:")
+            logger.info(f"Messages available: {attrs['ApproximateNumberOfMessages']}")
+            logger.info(f"Messages in flight: {attrs['ApproximateNumberOfMessagesNotVisible']}")
+            
+            # Attempt to peek at in-flight messages (they won't be returned until visibility timeout expires)
+            response = self.sqs.receive_message(
+                QueueUrl=self.sqs_queue_url,
+                MaxNumberOfMessages=10,
+                VisibilityTimeout=0  # Don't change current visibility timeout
+            )
+            
+            if 'Messages' in response:
+                for msg in response['Messages']:
+                    body = json.loads(msg['Body'])
+                    logger.info(f"Message ID: {msg['MessageId']}")
+                    logger.info(f"Project ID: {body.get('project_id')}")
+                    logger.info(f"Video Title: {body.get('video_title')}")
+                    logger.info("---")
+            
+            return response.get('Messages', [])
+            
+        except Exception as e:
+            logger.error(f"Error listing in-flight messages: {e}")
+            return []
+
+    def purge_all_messages(self):
+        """Purge all messages (both queued and in-flight)"""
+        try:
+            # First purge the queue (removes available messages)
+            self.sqs.purge_queue(QueueUrl=self.sqs_queue_url)
+            logger.info("Queue purged successfully")
+            
+            # Wait 60 seconds (required by AWS between purge operations)
+            logger.info("Waiting 60 seconds before cleaning up in-flight messages...")
+            time.sleep(60)
+            
+            # Then receive and delete any in-flight messages as they become visible
+            messages_deleted = 0
+            while True:
+                response = self.sqs.receive_message(
+                    QueueUrl=self.sqs_queue_url,
+                    MaxNumberOfMessages=10,
+                    VisibilityTimeout=1  # Short timeout to make messages visible again quickly
+                )
+                
+                if 'Messages' not in response:
+                    break
+                    
+                for message in response['Messages']:
+                    try:
+                        self.sqs.delete_message(
+                            QueueUrl=self.sqs_queue_url,
+                            ReceiptHandle=message['ReceiptHandle']
+                        )
+                        messages_deleted += 1
+                    except Exception as e:
+                        logger.error(f"Error deleting message: {e}")
+                
+            logger.info(f"Cleanup complete. Deleted {messages_deleted} in-flight messages")
+            
+        except Exception as e:
+            logger.error(f"Error during queue purge: {e}")
+
+    def cancel_specific_project(self, project_id):
+        """Cancel processing for a specific project"""
+        try:
+            messages_checked = 0
+            messages_deleted = 0
+            
+            while True:
+                response = self.sqs.receive_message(
+                    QueueUrl=self.sqs_queue_url,
+                    MaxNumberOfMessages=10,
+                    VisibilityTimeout=30
+                )
+                
+                if 'Messages' not in response:
+                    break
+                    
+                for message in response['Messages']:
+                    messages_checked += 1
+                    body = json.loads(message['Body'])
+                    
+                    if body.get('project_id') == project_id:
+                        try:
+                            self.sqs.delete_message(
+                                QueueUrl=self.sqs_queue_url,
+                                ReceiptHandle=message['ReceiptHandle']
+                            )
+                            messages_deleted += 1
+                            logger.info(f"Deleted message for project {project_id}")
+                        except Exception as e:
+                            logger.error(f"Error deleting message: {e}")
+                    else:
+                        # Return message to queue if it's not for our target project
+                        try:
+                            self.sqs.change_message_visibility(
+                                QueueUrl=self.sqs_queue_url,
+                                ReceiptHandle=message['ReceiptHandle'],
+                                VisibilityTimeout=0
+                            )
+                        except Exception as e:
+                            logger.error(f"Error returning message to queue: {e}")
+                            
+            logger.info(f"Project cancellation complete. Checked {messages_checked} messages, deleted {messages_deleted} messages for project {project_id}")
+            
+        except Exception as e:
+            logger.error(f"Error cancelling project: {e}")
+
 if __name__ == '__main__':
     worker = Worker()
     worker.run()
+    # worker.list_inflight_messages()
+    # worker.purge_all_messages()
+    # worker.cancel_specific_project("project_123")
