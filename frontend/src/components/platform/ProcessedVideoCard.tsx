@@ -55,7 +55,7 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-full bg-n-7 rounded-2xl shadow-lg overflow-hidden"
+      className="w-full bg-n-7/70 rounded-2xl shadow-lg overflow-hidden"
       style={{ maxWidth: '52rem' }}
     >
       <div className={`mx-auto p-6 ${isLandscape ? 'w-11/12' : 'w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'}`}>
@@ -81,7 +81,7 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
         </div>
         
         <h2 className="text-xl font-semibold text-n-1">{clip.title}</h2>
-        <p className="text-n-3 text-sm line-clamp-3">{clip.transcript}</p>
+        <p className="text-n-3 text-sm whitespace-pre-wrap">{clip.transcript}</p>
         
         <button 
           className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-2 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"

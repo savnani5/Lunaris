@@ -107,7 +107,7 @@ export default function ProjectPage() {
             )}
           </div>
         )}
-        <div className="w-full max-w-2xl bg-n-7 rounded-2xl p-8">
+        <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8">
           {stages.map((stage, index) => {
             const isCompleted = stages.indexOf(projectStatus.stage) > index;
             const isCurrent = projectStatus.stage === stage;

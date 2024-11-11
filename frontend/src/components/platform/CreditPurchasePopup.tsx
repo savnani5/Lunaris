@@ -63,7 +63,7 @@ const CreditPurchasePopup: React.FC<CreditPurchasePopupProps> = ({ onClose, user
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-95 flex items-center justify-center z-50">
+    <div className="fixed inset-0 bg-black bg-opacity-97 flex items-center justify-center z-50">
       <div className="bg-n-7 p-6 rounded-lg w-full max-w-md">
         <h2 className="text-2xl font-bold mb-4 text-n-1">Purchase Credits</h2>
         <p className="text-n-3 mb-4">1 credit = 1 minute of processing</p>

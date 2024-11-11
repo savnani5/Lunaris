@@ -22,13 +22,35 @@ import CreditWarningPopup from '@/components/platform/CreditWarningPopup';
 import SubscriptionRequiredPopup from '@/components/platform/SubscriptionRequiredPopup';
 
 
-const bigBangVideo = '/assets/caption_styles/big_bang.mp4';
+const noCaptionVideo = '/assets/caption_styles/no_captions.mp4';
+const jreVideo = '/assets/caption_styles/jre.mp4';
 const elonVideo = '/assets/caption_styles/elon.mp4';
-const imanGadziVideo = '/assets/caption_styles/iman_gadzi.mp4';
-const ycVideo = '/assets/caption_styles/yc.mp4';
-const jakePaulVideo = '/assets/caption_styles/jake_paul.mp4';
-const chrisWilliamsonVideo = '/assets/caption_styles/chris_williamson.mp4';
-const mattRifeVideo = '/assets/caption_styles/matt_rife.mp4';
+const imanVideo = '/assets/caption_styles/iman.mp4';
+const sadiaVideo = '/assets/caption_styles/sadia.mp4';
+const jakeVideo = '/assets/caption_styles/jake.mp4';
+const chrisVideo = '/assets/caption_styles/chris.mp4';
+const mattVideo = '/assets/caption_styles/matt.mp4';
+
+
+// Add these styles near the top of the file with other constants
+const aspectRatioOptions = [
+  {
+    id: 'portrait',
+    label: 'Portrait (9:16)',
+    ratio: '9:16',
+    icon: (selected: boolean) => (
+      <div className={`w-6 h-10 border-2 ${selected ? 'border-color-1 bg-color-1/20' : 'border-n-3'} rounded-sm`} />
+    )
+  },
+  {
+    id: 'landscape',
+    label: 'Landscape (16:9)',
+    ratio: '16:9',
+    icon: (selected: boolean) => (
+      <div className={`w-10 h-6 border-2 ${selected ? 'border-color-1 bg-color-1/20' : 'border-n-3'} rounded-sm`} />
+    )
+  }
+];
 
 
 export function Create() {
@@ -39,7 +61,7 @@ export function Create() {
   const [clipLength, setClipLength] = useState("Auto (0m~1m)");
   const [genre, setGenre] = useState("Auto");
   const [videoQuality, setVideoQuality] = useState("Auto");
-  const [videoType, setVideoType] = useState("Portrait");
+  const [videoType, setVideoType] = useState("portrait");
   const [keywords, setKeywords] = useState("");
   const { user: clerkUser } = useUser();
   const [user, setUser] = useState<UserModel | null>(null);
@@ -57,7 +79,7 @@ export function Create() {
   const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isValidInput, setIsValidInput] = useState(false);
-  const [selectedCaptionStyle, setSelectedCaptionStyle] = useState("elon");
+  const [selectedCaptionStyle, setSelectedCaptionStyle] = useState("iman");
   const [isPolling, setIsPolling] = useState(false);
   const [showCreditWarning, setShowCreditWarning] = useState(false);
   const [isLoadingVideoDetails, setIsLoadingVideoDetails] = useState(false);
@@ -66,13 +88,14 @@ export function Create() {
   const [showSubscriptionRequiredPopup, setShowSubscriptionRequiredPopup] = useState(false);
 
   const captionStyles = [
-    { id: "big_bang", name: "Big Bang", videoSrc: bigBangVideo },
-    { id: "elon", name: "Elon Musk", videoSrc: elonVideo },
-    { id: "iman_gadzi", name: "Iman Gadzi", videoSrc: imanGadziVideo },
-    { id: "yc", name: "YC", videoSrc: ycVideo },
-    { id: "jake_paul", name: "Jake Paul", videoSrc: jakePaulVideo },
-    { id: "chris_williamson", name: "Chris Williamson", videoSrc: chrisWilliamsonVideo },
-    { id: "matt_rife", name: "Matt Rife", videoSrc: mattRifeVideo },
+    { id: "no_captions", name: "No Captions", videoSrc: noCaptionVideo },
+    { id: "iman", name: "Viral Highlights", videoSrc: imanVideo },
+    { id: "sadia", name: "Neon Glow", videoSrc: sadiaVideo },
+    { id: "chris", name: "Simple Bold", videoSrc: chrisVideo },
+    { id: "elon", name: "Classic", videoSrc: elonVideo },
+    { id: "matt", name: "Funky", videoSrc: mattVideo },
+    { id: "jake", name: "Bold", videoSrc: jakeVideo },
+    { id: "jre", name: "Lowercase Magic", videoSrc: jreVideo }
   ];
 
   const fetchVideoDetails = async (url: string) => {
@@ -511,7 +534,7 @@ export function Create() {
         <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
           <Tooltip
             title={
-              <div className="bg-n-6 text-n-1 p-3 rounded-lg shadow-lg">
+              <div className="bg-n-6/70 text-n-1 p-3 rounded-lg shadow-lg">
                 <p className="font-semibold mb-1">{currentPlan} Plan</p>
                 <p className="text-sm text-n-3">1 credit = 1 minute of video processing</p>
               </div>
@@ -519,10 +542,10 @@ export function Create() {
             arrow
             classes={{
               tooltip: 'bg-transparent',
-              arrow: 'text-n-6'
+              arrow: 'text-n-6/70'
             }}
           >
-            <div className="flex items-center bg-n-6 rounded-full px-3 py-1 cursor-help">
+            <div className="flex items-center bg-n-6/70 rounded-full px-3 py-1 cursor-help">
               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-500 mr-1" viewBox="0 0 20 20" fill="currentColor">
                 <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
               </svg>
@@ -538,7 +561,7 @@ export function Create() {
         </div>
       </header>
       <main className="mt-6 space-y-6 max-w-4xl mx-auto"> {/* Reduced top margin and vertical spacing */}
-        <div className="bg-n-7 rounded-2xl p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
+        <div className="bg-n-7/70 rounded-2xl p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
           <h2 className="text-2xl font-semibold mb-2">Video Source</h2> {/* Added bottom margin */}
           <div className="flex items-center w-full space-x-4">
             <Input
@@ -607,7 +630,7 @@ export function Create() {
           )}
         </div>
 
-        <div className="bg-n-7 rounded-2xl p-4 sm:p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
+        <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
           <h2 className="text-2xl font-semibold mb-2">Clip Settings</h2> {/* Added bottom margin */}
           <div className="space-y-3"> {/* Added a wrapper with reduced vertical spacing */}
             <div>
@@ -636,17 +659,6 @@ export function Create() {
                 <option>720p</option>
                 <option>480p</option>
                 <option>360p</option>
-              </select>
-            </div>
-            <div>
-              <h3 className="text-lg font-bold mb-1">Output Aspect Ratio</h3> {/* Added bottom margin */}
-              <select 
-                className="w-full bg-n-6 text-n-1 rounded-md p-2"
-                value={videoType}
-                onChange={(e) => setVideoType(e.target.value)}
-              >
-                <option value="portrait">Portrait (9:16)</option>
-                <option value="landscape">Landscape (16:9)</option>
               </select>
             </div>
             <div className="flex items-center mb-2">
@@ -744,12 +756,32 @@ export function Create() {
           </div>
         </div>
 
-        <div className="bg-n-7 rounded-2xl p-4 sm:p-8 space-y-6">
-          <CaptionStyleSelector
-            styles={captionStyles}
-            selectedStyle={selectedCaptionStyle}
-            onStyleSelect={handleCaptionStyleSelect}
-          />
+        <div className="bg-n-7/70 rounded-2xl p-4 sm:p-8 space-y-6">
+          <div className="space-y-6">
+            <div>
+              <h3 className="text-lg font-bold mb-3">Output Aspect Ratio</h3>
+              <div className="grid grid-cols-2 gap-4 mb-8">
+                {aspectRatioOptions.map((option) => (
+                  <button
+                    key={option.id}
+                    onClick={() => setVideoType(option.id)}
+                    className={`flex items-center justify-center space-x-3 p-4 rounded-lg border-2 transition-all
+                      ${videoType === option.id 
+                        ? 'border-color-1 bg-n-6/50' 
+                        : 'border-n-5/50 hover:border-n-4'}`}
+                  >
+                    {option.icon(videoType === option.id)}
+                    <span className="text-sm font-medium">{option.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+            <CaptionStyleSelector
+              styles={captionStyles}
+              selectedStyle={selectedCaptionStyle}
+              onStyleSelect={handleCaptionStyleSelect}
+            />
+          </div>
         </div>
 
         <Button 

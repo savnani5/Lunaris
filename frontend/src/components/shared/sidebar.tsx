@@ -11,7 +11,8 @@ import {
   Settings, 
   User,
   Menu,
-  Calendar
+  Calendar,
+  HelpCircle
 } from 'lucide-react';
 import Image from 'next/image';
 import CreditPurchasePopup from '@/components/platform/CreditPurchasePopup';
@@ -47,6 +48,7 @@ const Sidebar = () => {
     { href: '/manage-subscription', label: 'Subscription', icon: Settings },
     { href: '/buy-credits', label: 'Buy Credits', icon: CreditCard, onClick: handleBuyCreditsClick },
     { label: 'Schedule Posts', icon: Calendar, onClick: handleSchedulePostsClick },
+    { href: 'mailto:support@lunaris.media', label: 'Support', icon: HelpCircle },
   ], [handleBuyCreditsClick, handleSchedulePostsClick]);
 
   const toggleSidebar = useCallback(() => {
@@ -98,7 +100,7 @@ const Sidebar = () => {
         ></div>
       )}
 
-      <div className={`fixed top-0 left-0 h-screen bg-n-7 text-n-1 transition-all duration-300 shadow-xl
+      <div className={`fixed top-0 left-0 h-screen bg-n-7/70 text-n-1 transition-all duration-300 shadow-xl
                       md:w-64 ${isOpen ? 'w-4/5' : '-translate-x-full'} md:translate-x-0 z-50
                       ${isOpen ? 'mt-20' : ''} md:mt-0`}>
         <div className="flex flex-col h-full">

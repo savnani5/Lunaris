@@ -46,15 +46,6 @@ import slack from "@/components/landing/assets/collaboration/slack.png";
 import lines from "@/components/landing/assets/pricing/lines.svg";
 import stars from "@/components/landing/assets/pricing/stars.svg";
 
-import big_bang from "@/components/landing/assets/videowall/big_bang.mp4";
-import jake_paul from "@/components/landing/assets/videowall/jake_paul.mp4";
-import chris_williamson from "@/components/landing/assets/videowall/chris_williamson.mp4";
-import matt_rife from "@/components/landing/assets/videowall/matt_rife.mp4";
-import imanGadzi from "@/components/landing/assets/videowall/iman_gadzi.mp4";
-import yc from "@/components/landing/assets/videowall/yc.mp4";
-import naruto from "@/components/landing/assets/videowall/naruto.mp4";
-import elon from "@/components/landing/assets/videowall/elon.mp4";
-
 
 import notification1 from "@/components/landing/assets/notification/image-1.png";
 import notification2 from "@/components/landing/assets/notification/image-2.png";
@@ -141,13 +132,5 @@ export {
   facebook,
   instagram,
   telegram,
-  twitter,
-  big_bang,
-  jake_paul,
-  chris_williamson,
-  matt_rife,
-  imanGadzi,
-  yc,
-  naruto,
-  elon
+  twitter
 };
