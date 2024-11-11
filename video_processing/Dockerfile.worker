@@ -8,7 +8,14 @@ RUN apt-get update && apt-get install -y \
     curl \
     ffmpeg \
     imagemagick \
-    tini
+    tini \
+    fontconfig \
+    fonts-liberation \
+    fonts-roboto \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create font cache directory and update font cache
+RUN fc-cache -f -v
 
 # Update ImageMagick policy to allow required operations
 RUN sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<!-- <policy domain="path" rights="none" pattern="@*" -->/g' /etc/ImageMagick-6/policy.xml && \

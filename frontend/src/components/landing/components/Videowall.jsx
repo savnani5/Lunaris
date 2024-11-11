@@ -3,18 +3,26 @@
 import React from 'react';
 import Heading from "./Heading";
 import Section from "./Section";
-import { big_bang, chris_williamson, jake_paul, matt_rife, dbz, imanGadzi, yc, naruto, elon } from "@/components/landing/assets";
+
+
+const chrisVideo = '/assets/caption_styles/chris.mp4';
+const elonVideo = '/assets/caption_styles/elon_wall.mp4';
+const imanVideo = '/assets/caption_styles/iman_gadzi.mp4';
+const sadiaVideo = '/assets/caption_styles/sadia.mp4';
+const jakeVideo = '/assets/caption_styles/jake.mp4';
+const mattVideo = '/assets/caption_styles/matt.mp4';
+const bigBangVideo = '/assets/caption_styles/big_bang.mp4';
+const ycVideo = '/assets/caption_styles/yc.mp4';
 
 const videos = [
-  { src: chris_williamson },
-  { src: big_bang },
-  // { src: dbz },
-  {src: elon},
-  { src: matt_rife },
-  { src: jake_paul },
-  { src: imanGadzi },
-  { src: yc },
-  { src: naruto }
+  { src: chrisVideo },
+  { src: elonVideo },
+  { src: imanVideo },
+  { src: sadiaVideo },
+  { src: mattVideo },
+  { src: jakeVideo },
+  { src: bigBangVideo },
+  { src: ycVideo },
 ];
 
 const VideoCard = ({ src }) => {

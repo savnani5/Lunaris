@@ -119,7 +119,7 @@ class Worker:
             data = json.loads(message['Body'])
             
             logger.info(f"Processing video: {data['video_title']}")
-            processed_clip_ids = self.video_processor.process_video(
+            self.video_processor.process_video(
                 video_link=data['video_link'],
                 video_path=data['video_path'],
                 project_id=data['project_id'],

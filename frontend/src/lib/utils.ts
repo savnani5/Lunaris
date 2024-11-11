@@ -10,16 +10,18 @@ export function cn(...inputs: ClassValue[]) {
 
 // ERROR HANDLER
 export const handleError = (error: unknown) => {
+  console.error('Original error:', error);
+
   if (error instanceof Error) {
-    // This is a native JavaScript error (e.g., TypeError, RangeError)
+    if (error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEOUT')) {
+      throw new Error('Database connection failed. Please try again later.');
+    }
     console.error(error.message);
     throw new Error(`Error: ${error.message}`);
   } else if (typeof error === "string") {
-    // This is a string error message
     console.error(error);
     throw new Error(`Error: ${error}`);
   } else {
-    // This is an unknown type of error
     console.error(error);
     throw new Error(`Unknown error: ${JSON.stringify(error)}`);
   }

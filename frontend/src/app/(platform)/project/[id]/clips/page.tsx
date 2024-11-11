@@ -44,12 +44,21 @@ export default function ProjectClipsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-n-1 p-4"> {/* Changed bg-n-8 to bg-black */}
-      <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto"> {/* Added max width and auto margins */}
+    <div className="min-h-screen bg-black text-n-1 p-4">
+      <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
         <h1 className="text-2xl font-bold">Project Clips</h1>
-        {clips.map((clip) => (
-          <ProcessedVideoCard key={clip._id} clip={clip} />
-        ))}
+        {clips.length > 0 ? (
+          clips.map((clip) => (
+            <ProcessedVideoCard key={clip._id} clip={clip} />
+          ))
+        ) : (
+          <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8 text-center space-y-4">
+            <h2 className="text-xl font-semibold">No clips found</h2>
+            <p className="text-n-3">
+              Try increasing the processing timeframe to generate more potential clips from your video.
+            </p>
+          </div>
+        )}
       </main>
     </div>
   );

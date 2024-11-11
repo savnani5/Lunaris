@@ -6,7 +6,7 @@ interface ProcessingBarProps {
 
 const ProcessingBar: React.FC<ProcessingBarProps> = ({ progress }) => {
   return (
-    <div className="w-full max-w-2xl bg-n-7 p-4 rounded-2xl mt-8">
+    <div className="w-full max-w-2xl bg-n-7/70 p-4 rounded-2xl mt-8">
       <h2 className="text-lg font-bold mb-2 text-n-1">Processing:</h2>
       <div className="w-full bg-n-6 rounded-full h-2.5">
         <div

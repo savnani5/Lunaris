@@ -3,8 +3,38 @@
 import { check } from "../assets";
 import { pricing } from "../constants";
 import Button from "./Button";
+import { useUser } from "@clerk/nextjs";
+import { useState, useEffect } from "react";
+import { getUserById } from '@/lib/actions/user.actions';
 
 const PricingList = ({ isAnnual }) => {
+  const { user } = useUser();
+  const [userPlanType, setUserPlanType] = useState(null);
+
+  useEffect(() => {
+    const fetchUserPlan = async () => {
+      if (user?.id) {
+        const userData = await getUserById(user.id);
+        setUserPlanType(userData?.planType || null);
+      }
+    };
+    fetchUserPlan();
+  }, [user]);
+
+  const handleSubscription = async (planType, link) => {
+    if (link === "mailto:sales@lunaris.media") {
+      window.location.href = link;
+      return;
+    }
+
+    if (userPlanType === planType) {
+      window.location.href = process.env.NEXT_PUBLIC_STRIPE_CUSTOMER_PORTAL_URL || '#';
+      return;
+    }
+
+    window.location.href = link;
+  };
+
   return (
     <div className="flex justify-center gap-[1.5rem] max-lg:flex-wrap">
       {pricing.map((item) => {
@@ -47,10 +77,10 @@ const PricingList = ({ isAnnual }) => {
 
             <Button
               className="w-full mb-6"
-              href={currentPlan?.link || "mailto:sales@lunaris.media"}
+              onClick={() => handleSubscription(currentPlan?.planType, currentPlan?.link)}
               white={!!currentPlan?.price}
             >
-              {item.buttonText}
+              {userPlanType === currentPlan?.planType ? 'Manage Subscription' : item.buttonText}
             </Button>
 
             <ul>
