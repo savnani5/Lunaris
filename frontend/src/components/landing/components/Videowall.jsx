@@ -16,12 +16,12 @@ const ycVideo = '/assets/caption_styles/yc.mp4';
 
 const videos = [
   { src: chrisVideo },
-  { src: elonVideo },
+  { src: bigBangVideo },
   { src: imanVideo },
   { src: sadiaVideo },
   { src: mattVideo },
   { src: jakeVideo },
-  { src: bigBangVideo },
+  { src: elonVideo },
   { src: ycVideo },
 ];
 
