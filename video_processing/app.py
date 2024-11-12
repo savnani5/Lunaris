@@ -227,7 +227,7 @@ class LunarisApp:
         app.run(host='0.0.0.0', port=5001)
 
     @classmethod
-    def update_project_status(cls, clerk_user_id, project_id, status, stage, progress, title, processing_timeframe):
+    def update_project_status(cls, clerk_user_id, project_id, status, stage, progress, title, processing_timeframe, remaining_estimate=None):
         try:
             data = {
                 'userId': clerk_user_id,
@@ -236,7 +236,8 @@ class LunarisApp:
                 'progress': progress,
                 'stage': stage,
                 'title': title,
-                'processing_timeframe': processing_timeframe
+                'processing_timeframe': processing_timeframe,
+                'remaining_estimate': remaining_estimate
             }
             app.logger.info(f"Sending project status update: {data}")
             response = requests.post(f"{cls.frontend_url}/api/project-status", json=data)

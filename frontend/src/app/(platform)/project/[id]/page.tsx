@@ -11,6 +11,7 @@ interface ProjectStatus {
   progress: number;
   title: string;
   processing_timeframe: string;
+  remaining_estimate?: number;
 }
 
 const stages = ['downloading', 'transcribing', 'analyzing', 'generating', 'uploading'];
@@ -94,11 +95,42 @@ export default function ProjectPage() {
 
   const statusMessage = getStatusMessage();
 
+  const formatEstimatedTime = (seconds: number) => {
+    if (!seconds) return '';
+    
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const remainingSeconds = Math.round(seconds % 60);
+    
+    const parts = [];
+    
+    if (hours > 0) {
+      parts.push(`${hours}h`);
+    }
+    
+    if (minutes > 0 || hours > 0) {
+      parts.push(`${minutes}m`);
+    }
+    
+    if (remainingSeconds > 0 || parts.length === 0) {
+      parts.push(`${remainingSeconds}s`);
+    }
+    
+    return `~${parts.join(' ')} remaining`;
+  };
+
   return (
     <div className="min-h-screen bg-black text-n-1 p-4">
       <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold">{statusMessage.title}</h1>
         <p className="text-n-3">{statusMessage.subtitle}</p>
+        
+        {projectStatus.remaining_estimate && projectStatus.status === 'processing' && (
+          <div className="text-n-3 text-lg">
+            {formatEstimatedTime(projectStatus.remaining_estimate)}
+          </div>
+        )}
+
         {projectStatus.title && (
           <div className="text-center">
             <p className="text-xl font-semibold">{projectStatus.title}</p>
@@ -107,6 +139,7 @@ export default function ProjectPage() {
             )}
           </div>
         )}
+        
         <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8">
           {stages.map((stage, index) => {
             const isCompleted = stages.indexOf(projectStatus.stage) > index;
@@ -119,7 +152,10 @@ export default function ProjectPage() {
             );
           })}
         </div>
-        <ProcessingBar progress={projectStatus.progress} />
+        
+        <ProcessingBar 
+          progress={projectStatus.progress} 
+        />
       </main>
     </div>
   );
