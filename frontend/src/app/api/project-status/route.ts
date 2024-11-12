@@ -27,7 +27,8 @@ export async function GET(request: Request) {
       progress: project.progress,
       stage: project.stage,
       title: project.title,
-      processing_timeframe: project.processing_timeframe
+      processing_timeframe: project.processing_timeframe,
+      remaining_estimate: project.remaining_estimate
     });
   } catch (error) {
     console.error('Error fetching project status:', error);
@@ -37,7 +38,16 @@ export async function GET(request: Request) {
 
 export const POST = async (request: Request) => {
   try {
-    const { userId, projectId, status, progress, stage, title, processing_timeframe } = await request.json();
+    const { 
+      userId, 
+      projectId, 
+      status, 
+      progress, 
+      stage, 
+      title, 
+      processing_timeframe,
+      remaining_estimate 
+    } = await request.json();
     console.log(`Updating project status: ${projectId}`);
 
     if (!userId || !projectId || !status) {
@@ -53,7 +63,14 @@ export const POST = async (request: Request) => {
 
     const result = await db.collection('project').updateOne(
       { _id: new ObjectId(projectId), clerk_user_id: userId },
-      { $set: { status, progress, stage, title, processing_timeframe } }
+      { $set: { 
+        status, 
+        progress, 
+        stage, 
+        title, 
+        processing_timeframe,
+        remaining_estimate 
+      }}
     );
 
     if (result.matchedCount === 0) {

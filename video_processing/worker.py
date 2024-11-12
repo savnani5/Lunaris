@@ -111,8 +111,17 @@ class Worker:
         self.executor.shutdown(wait=True)
         logger.info("Shutdown complete")
 
-    def update_project_status(self, clerk_user_id, project_id, status, stage, progress, title, processing_timeframe):
-        LunarisApp.update_project_status(clerk_user_id, project_id, status, stage, progress, title, processing_timeframe)
+    def update_project_status(self, clerk_user_id, project_id, status, stage, progress, title, processing_timeframe, remaining_estimate=None):
+        LunarisApp.update_project_status(
+            clerk_user_id, 
+            project_id, 
+            status, 
+            stage, 
+            progress, 
+            title, 
+            processing_timeframe,
+            remaining_estimate
+        )
 
     def process_message(self, message):
         try:

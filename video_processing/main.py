@@ -17,6 +17,7 @@ from deepgram import (
 import requests
 import threading
 import resend
+import time
 
 from caption_styles import CaptionStyleFactory
 from dotenv import find_dotenv, load_dotenv
@@ -47,6 +48,13 @@ class VideoProcessor:
             self.deepgram_client = DeepgramClient(DG_API_KEY)
 
         resend.api_key = os.environ.get('RESEND_API_KEY')
+        
+        # Simplified timing estimates (seconds per minute of video)
+        self.PROCESSING_ESTIMATE = {
+            'base_time': 90,  # Base processing time in seconds
+            'per_minute': 30   # Additional seconds per minute of video
+        }
+        self.process_start_time = None
     
     def download_video(self, source, path, quality, start_time, end_time):
         # Add directory check
@@ -175,7 +183,7 @@ class VideoProcessor:
         - Present segments in sequential order.
         - Each segment must be self-contained.
         - Include both high and moderate quality segments
-        - Return only the JSON object, no other text
+        - Strictly return only the JSON object, no other text
         """
 
         with self._anthropic_lock:
@@ -559,20 +567,25 @@ class VideoProcessor:
         if height > frame_height:
             height = frame_height
             width = height * target_aspect_ratio
+            
+        # Center the face horizontally
+        face_center_x = x + (w / 2)
+        new_x = face_center_x - (width / 2)
         
+        # Ensure the crop stays within frame bounds while maintaining centering
+        if new_x < 0:
+            new_x = 0
+        elif new_x + width > frame_width:
+            new_x = frame_width - width
+            
         # Calculate the y-position to place the face between 1/4 and 1/3 from the top
         face_position = max(min_face_position, min(max_face_position, h / height))
         new_y = max(0, y - (height * face_position - h) / 2)
         
-        # Center the face horizontally
-        new_x = max(0, x + w / 2 - width / 2)
-        
         # Adjust if exceeding frame boundaries
-        if new_x + width > frame_width:
-            new_x = frame_width - width
         if new_y + height > frame_height:
             new_y = frame_height - height
-        
+            
         # Ensure we don't go out of bounds
         new_x = max(0, int(new_x))
         new_y = max(0, int(new_y))
@@ -581,17 +594,42 @@ class VideoProcessor:
 
         return new_x, new_y, new_w, new_h
 
-    def is_significant_change(self, box1, box2, threshold=0.4):
+    def is_significant_change(self, box1, box2, threshold=0.2):  # Reduced threshold from 0.4
         x1, y1, w1, h1 = box1
         x2, y2, w2, h2 = box2
-        return (abs(x1 - x2) > threshold * w1 or
+        
+        # Calculate centers
+        center1_x = x1 + w1/2
+        center2_x = x2 + w2/2
+        
+        # Check horizontal center shift
+        center_shift = abs(center1_x - center2_x) / w1
+        
+        return (center_shift > threshold or
                 abs(y1 - y2) > threshold * h1 or
                 abs(w1 - w2) > threshold * w1 or
                 abs(h1 - h2) > threshold * h1)
 
     def smooth_bounding_box(self, old_box, new_box, smoothing_factor):
-        return tuple(int(old * smoothing_factor + new * (1 - smoothing_factor)) 
-                     for old, new in zip(old_box, new_box))
+        x1, y1, w1, h1 = old_box
+        x2, y2, w2, h2 = new_box
+        
+        # Calculate centers
+        old_center_x = x1 + w1/2
+        new_center_x = x2 + w2/2
+        
+        # Smooth the center position
+        smoothed_center_x = old_center_x * smoothing_factor + new_center_x * (1 - smoothing_factor)
+        
+        # Calculate new x position based on smoothed center
+        smoothed_w = int(w1 * smoothing_factor + w2 * (1 - smoothing_factor))
+        smoothed_x = int(smoothed_center_x - smoothed_w/2)
+        
+        # Smooth other dimensions
+        smoothed_y = int(y1 * smoothing_factor + y2 * (1 - smoothing_factor))
+        smoothed_h = int(h1 * smoothing_factor + h2 * (1 - smoothing_factor))
+        
+        return (smoothed_x, smoothed_y, smoothed_w, smoothed_h)
 
     def transcribe_audio(self, audio_path):
         print("Transcribing audio...")
@@ -657,19 +695,72 @@ class VideoProcessor:
 
         return frame
 
+    def calculate_total_estimate(self, video_duration, elapsed_time=0, progress=0):
+        """Calculate remaining time based on progress percentage and elapsed time"""
+        if progress <= 0:
+            # Initial estimate when progress hasn't started
+            return int(self.PROCESSING_ESTIMATE['base_time'] + 
+                      (self.PROCESSING_ESTIMATE['per_minute'] * (video_duration / 60)))
+        
+        # Calculate rate of progress (percentage per second)
+        rate_of_progress = progress / elapsed_time if elapsed_time > 0 else 0
+        
+        if rate_of_progress > 0:
+            # Estimate remaining time based on current rate
+            remaining_percentage = 100 - progress
+            remaining_estimate = remaining_percentage / rate_of_progress
+            
+            # Add a small buffer (10% of the estimate)
+            remaining_estimate *= 1.1
+            
+            return int(remaining_estimate)
+        
+        return 0
+
     def process_video(self, video_link, video_path=None, project_id=None, clerk_user_id=None, 
                      user_email=None, video_title=None, processing_timeframe=None, 
                      video_quality="720p", video_type="portrait", start_time=0, end_time=60, 
                      clip_length=None, keywords="", caption_style="elon", add_watermark=False,
                      update_status_callback=None, s3_client=None, s3_bucket=None):
         try:
+            self.process_start_time = time.time()
+            video_duration = end_time - start_time
+            
+            def update_status_with_estimate(stage, progress):
+                if not update_status_callback:
+                    return
+                    
+                elapsed_time = time.time() - self.process_start_time
+                remaining_estimate = self.calculate_total_estimate(
+                    video_duration, 
+                    elapsed_time,
+                    progress  # Pass the current progress percentage
+                )
+                
+                print(f"Stage: {stage}, Progress: {progress}%, Remaining: {remaining_estimate}s")
+                
+                update_status_callback(
+                    clerk_user_id, 
+                    project_id, 
+                    "processing",
+                    stage,
+                    progress,
+                    video_title,
+                    processing_timeframe,
+                    remaining_estimate
+                )
+
+            # Use update_status_with_estimate throughout the process
+            if update_status_callback:
+                update_status_with_estimate("downloading", 0)
+                
             # Create safe directories first
             os.makedirs('./downloads', exist_ok=True)
             os.makedirs('./subtitled_clips', exist_ok=True)
             
             
             if update_status_callback:
-                update_status_callback(clerk_user_id, project_id, "processing", "downloading", 0, video_title, processing_timeframe)
+                update_status_with_estimate("downloading", 0)
             
             try:
                 if video_link:
@@ -684,7 +775,7 @@ class VideoProcessor:
 
             try:
                 if update_status_callback:
-                    update_status_callback(clerk_user_id, project_id, "processing", "transcribing", 10, video_title, processing_timeframe)
+                    update_status_with_estimate("transcribing", 10)
                 
                 transcript, word_timings = self.transcribe_audio(downloaded_audio_path)
             except Exception as e:
@@ -693,7 +784,7 @@ class VideoProcessor:
 
             try:
                 if update_status_callback:
-                    update_status_callback(clerk_user_id, project_id, "processing", "analyzing", 20, video_title, processing_timeframe)
+                    update_status_with_estimate("analyzing", 20)
                 
                 interesting_data = self.get_interesting_segments(transcript, word_timings, clip_length, keywords)
                 
@@ -713,17 +804,16 @@ class VideoProcessor:
 
             try:
                 if update_status_callback:
-                    update_status_callback(clerk_user_id, project_id, "processing", "generating", 40, video_title, processing_timeframe)
+                    update_status_with_estimate("generating", 30)
                 
                 total_segments = len(interesting_data)
                 print(f"Processing {total_segments} segments")
 
                 def progress_callback(i):
                     if update_status_callback:
-                        progress = 40 + int((i / total_segments) * 50)
+                        progress = 30 + int((i / total_segments) * 50)
                         print(f"Processing segment {i}/{total_segments} - Progress: {progress}%")
-                        update_status_callback(clerk_user_id, project_id, "processing", "generating", 
-                                            progress, video_title, processing_timeframe)
+                        update_status_with_estimate("generating", progress)
 
                 self.crop_and_add_subtitles(
                     downloaded_video_path,
@@ -747,7 +837,7 @@ class VideoProcessor:
             # Cleanup and completion
             try:
                 if update_status_callback:
-                    update_status_callback(clerk_user_id, project_id, "processing", "uploading", 95, video_title, processing_timeframe)
+                    update_status_with_estimate("uploading", 95)
 
                 # Clean up downloaded files
                 self.cleanup_files(video_title)
@@ -820,11 +910,11 @@ if __name__ == "__main__":
     video_quality = "low"
    
 
-    # # Download video and extract audio
+    # Download video and extract audio
     downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
 
-    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/How secret societies work | Rick Spence and Lex Fridman/How secret societies work ｜ Rick Spence and Lex Fridman_cut.webm"
-    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/How secret societies work | Rick Spence and Lex Fridman/How secret societies work ｜ Rick Spence and Lex Fridman_cut.mp3"
+    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Elon Musk's approach to problem-solving | Lex Fridman Podcast/Elon Musk's approach to problem-solving ｜ Lex Fridman Podcast_cut.webm"
+    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Elon Musk's approach to problem-solving | Lex Fridman Podcast/Elon Musk's approach to problem-solving ｜ Lex Fridman Podcast_cut.mp3"
  
     # Transcribe audio
     transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
@@ -842,7 +932,7 @@ if __name__ == "__main__":
         interesting_data = json.load(f)
 
     output_video_type = "portrait" # 'landscape'
-    caption_style = "elon"
+    caption_style = "iman"
 
     # Crop video to portrait with faces
     # processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, s3_client=s3_client, s3_bucket=s3_bucket)
