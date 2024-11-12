@@ -43,27 +43,10 @@ export const navigation = [
     title: "Features",
     url: "#features",
   },
-  // {
-  //   id: "2",
-  //   title: "Collaboration",
-  //   url: "#collaboration",
-  // },
   {
     id: "3",
     title: "Pricing",
     url: "#pricing",
-  },
-  {
-    id: "4",
-    title: "Sign In",
-    url: "/sign-in",
-    onlyMobile: true,
-  },
-  {
-    id: "5",
-    title: "Sign Up",
-    url: "/sign-up",
-    onlyMobile: true,
   },
 ];
 

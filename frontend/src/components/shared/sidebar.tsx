@@ -10,7 +10,6 @@ import {
   CreditCard, 
   Settings, 
   User,
-  Menu,
   Calendar,
   HelpCircle
 } from 'lucide-react';
@@ -19,6 +18,9 @@ import CreditPurchasePopup from '@/components/platform/CreditPurchasePopup';
 import { getUserById } from '@/lib/actions/user.actions';
 import SubscriptionRequiredPopup from '@/components/platform/SubscriptionRequiredPopup';
 import SchedulePosts from '@/components/platform/SchedulePosts';
+import { Button } from '@/components/ui/button';
+import { HamburgerMenu } from '@/components/landing/components/design/Header';
+import MenuSvg from '@/components/landing/assets/svg/MenuSvg';
 
 
 const Sidebar = () => {
@@ -80,38 +82,69 @@ const Sidebar = () => {
     <>
       {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 h-20 bg-n-8/90 backdrop-blur-sm flex items-center justify-between px-5 z-50 border-b border-n-6">
-        <button onClick={toggleSidebar} className="flex items-center">
+        <Link href="/" className="flex items-center">
           <Image src="/assets/lunaris.svg" alt="Lunaris" width={45} height={45} />
           <span className="ml-2 text-white text-2xl font-bold">Lunaris</span>
-        </button>
+        </Link>
         <div className="flex items-center space-x-3">
           <UserButton afterSignOutUrl="/" appearance={{
             elements: {
               avatarBox: "w-8 h-8"
             }
           }} />
+          <Button
+            className="relative w-10 h-10 bg-n-2/10 rounded-full flex items-center justify-center"
+            onClick={toggleSidebar}
+          >
+            <MenuSvg openNavigation={isOpen} />
+            <div className="absolute inset-0 bg-gradient-to-b from-n-1/5 to-n-1/0 rounded-full opacity-0 transition-opacity hover:opacity-100" />
+          </Button>
         </div>
       </div>
 
-      {isOpen && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
-          onClick={toggleSidebar}
-        ></div>
-      )}
+      {/* Mobile Navigation */}
+      <nav
+        className={`${
+          isOpen ? "flex" : "hidden"
+        } md:hidden fixed top-[5rem] left-0 right-0 bottom-0 bg-n-8 z-50`}
+      >
+        <div className="relative z-2 flex flex-col items-center justify-center m-auto w-full">
+          {navItems.map((item) => (
+            <Link 
+              key={item.label}
+              href={item.href || '#'} 
+              passHref
+            >
+              <div 
+                className="block relative font-code text-2xl uppercase text-n-1 transition-colors hover:text-color-1 px-6 py-6 md:py-8 w-full text-center"
+                onClick={(e) => {
+                  if (item.onClick) {
+                    e.preventDefault();
+                    item.onClick();
+                  }
+                  setIsOpen(false);
+                }}
+              >
+                <span>{item.label}</span>
+              </div>
+            </Link>
+          ))}
+        </div>
 
-      <div className={`fixed top-0 left-0 h-screen bg-n-7/70 text-n-1 transition-all duration-300 shadow-xl
-                      md:w-64 ${isOpen ? 'w-4/5' : '-translate-x-full'} md:translate-x-0 z-50
-                      ${isOpen ? 'mt-20' : ''} md:mt-0`}>
+        <HamburgerMenu />
+      </nav>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden md:block fixed top-0 left-0 h-screen w-64 bg-n-7/70 text-n-1 z-50">
         <div className="flex flex-col h-full">
-          <div className="p-6 mb-8 hidden md:block">
+          <div className="p-6 mb-8">
             <Link href="/" className="flex items-center space-x-3">
               <img src="/assets/lunaris.svg" alt="Lunaris" className="w-10 h-10" />
-              <span className="font-bold text-2xl">Lunaris</span>
+                <span className="font-bold text-2xl">Lunaris</span>
             </Link>
           </div>
 
-          <nav className="flex-grow flex flex-col justify-center md:justify-start">
+          <nav className="flex-grow flex flex-col justify-start">
             {navItems.map((item) => (
               <Link 
                 key={item.label}
@@ -126,7 +159,6 @@ const Sidebar = () => {
                       e.preventDefault();
                       item.onClick();
                     }
-                    setIsOpen(false);
                   }}
                 >
                   <item.icon size={24} className="text-color-1" />
@@ -136,8 +168,8 @@ const Sidebar = () => {
             ))}
           </nav>
 
-          <div className="p-6 flex items-center justify-start space-x-3 md:block">
-            <div className="hidden md:flex md:items-center md:space-x-3">
+          <div className="p-6">
+            <div className="flex items-center space-x-3">
               <UserButton afterSignOutUrl="/" />
               {user && (
                 <span className="text-sm truncate">
@@ -149,6 +181,7 @@ const Sidebar = () => {
         </div>
       </div>
 
+      {/* Popups */}
       {showCreditPurchasePopup && (
         <CreditPurchasePopup
           onClose={() => setShowCreditPurchasePopup(false)}
