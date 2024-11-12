@@ -594,7 +594,7 @@ class VideoProcessor:
 
         return new_x, new_y, new_w, new_h
 
-    def is_significant_change(self, box1, box2, threshold=0.2):  # Reduced threshold from 0.4
+    def is_significant_change(self, box1, box2, threshold=0.3):
         x1, y1, w1, h1 = box1
         x2, y2, w2, h2 = box2
         
