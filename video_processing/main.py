@@ -140,8 +140,6 @@ class VideoProcessor:
             clip.write_videofile(f"{output_folder}/clip_{i+1}.mp4")
 
     def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords="", output_file='interesting_segments.json'):
-        # Generate prompt for Claude
-        print(f"Generating interesting segments for {transcript_text}")
         prompt = f"""You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content.
 
         Transcript:
@@ -198,6 +196,7 @@ class VideoProcessor:
             
             # Extract the text from the TextBlock and parse it as JSON
             json_str = response.content[0].text  # Get the text from first TextBlock
+            print(json_str)
             segments = json.loads(json_str)["segments"]
             
             # Build the combined segment data
@@ -457,8 +456,15 @@ class VideoProcessor:
             
             if last_valid_face is None:
                 last_valid_face = new_box
-            elif self.is_significant_change(last_valid_face, new_box):
-                # Apply smoothing
+            # Check if this is a new person (significant change)
+            elif self.is_significant_change(last_valid_face, new_box, threshold=0.3):  # Increased threshold
+                # Immediately center on new face without smoothing
+                last_valid_face = new_box
+            elif self.is_minor_movement(last_valid_face, new_box):
+                # Ignore small movements
+                pass
+            else:
+                # Apply smoothing only for moderate changes
                 last_valid_face = self.smooth_bounding_box(last_valid_face, new_box, smoothing_factor)
 
         if last_valid_face:
@@ -594,7 +600,7 @@ class VideoProcessor:
 
         return new_x, new_y, new_w, new_h
 
-    def is_significant_change(self, box1, box2, threshold=0.3):
+    def is_significant_change(self, box1, box2, threshold=0.3):  # Increased default threshold
         x1, y1, w1, h1 = box1
         x2, y2, w2, h2 = box2
         
@@ -604,11 +610,13 @@ class VideoProcessor:
         
         # Check horizontal center shift
         center_shift = abs(center1_x - center2_x) / w1
+        y_shift = abs(y1 - y2) / h1
+        size_change = abs(w1 - w2) / w1
         
+        # Return true if any change is significant
         return (center_shift > threshold or
-                abs(y1 - y2) > threshold * h1 or
-                abs(w1 - w2) > threshold * w1 or
-                abs(h1 - h2) > threshold * h1)
+                y_shift > threshold or
+                size_change > threshold)
 
     def smooth_bounding_box(self, old_box, new_box, smoothing_factor):
         x1, y1, w1, h1 = old_box
@@ -889,6 +897,24 @@ class VideoProcessor:
         except Exception as e:
             print(f"Cleanup warning: {str(e)}")
 
+    def is_minor_movement(self, box1, box2, minor_threshold=0.15):
+        """Check if the movement is too small to warrant adjustment"""
+        x1, y1, w1, h1 = box1
+        x2, y2, w2, h2 = box2
+        
+        # Calculate centers
+        center1_x = x1 + w1/2
+        center2_x = x2 + w2/2
+        
+        # Check if movement is minor
+        center_shift = abs(center1_x - center2_x) / w1
+        height_change = abs(h1 - h2) / h1
+        y_shift = abs(y1 - y2) / h1
+        
+        return (center_shift < minor_threshold and 
+                height_change < minor_threshold and 
+                y_shift < minor_threshold)
+
 
 if __name__ == "__main__":
    
@@ -903,28 +929,28 @@ if __name__ == "__main__":
     # # Initialize VideoProcessor
     processor = VideoProcessor()
 
-    # Ensure directories exist
-    os.makedirs(video_path, exist_ok=True)
+    # # Ensure directories exist
+    # os.makedirs(video_path, exist_ok=True)
 
-    youtube_url = input("Enter youtube video url: ")
-    video_quality = "low"
+    # youtube_url = input("Enter youtube video url: ")
+    # video_quality = "low"
    
 
     # Download video and extract audio
-    downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
+    # downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
 
-    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Elon Musk's approach to problem-solving | Lex Fridman Podcast/Elon Musk's approach to problem-solving ｜ Lex Fridman Podcast_cut.webm"
-    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Elon Musk's approach to problem-solving | Lex Fridman Podcast/Elon Musk's approach to problem-solving ｜ Lex Fridman Podcast_cut.mp3"
+    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Origin of the Nazi party | Rick Spence and Lex Fridman/Origin of the Nazi party ｜ Rick Spence and Lex Fridman_cut.webm"
+    downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Origin of the Nazi party | Rick Spence and Lex Fridman/Origin of the Nazi party ｜ Rick Spence and Lex Fridman_cut.mp3"
  
-    # Transcribe audio
-    transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
+    # # Transcribe audio
+    # transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
 
-    # Get interesting segments
-    clip_length = {"min": 0, "max": 60}
-    interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
+    # # Get interesting segments
+    # clip_length = {"min": 0, "max": 60}
+    # interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
 
-    with open('interesting_segments.json', 'w') as json_file:
-        json.dump(interesting_data, json_file, indent=4)
+    # with open('interesting_segments.json', 'w') as json_file:
+    #     json.dump(interesting_data, json_file, indent=4)
 
     
     # DEBUG: load from file
