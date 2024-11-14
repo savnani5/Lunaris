@@ -18,9 +18,6 @@ const Benefits = () => {
           {benefits.map((item) => (
             <div
               className="block relative p-0.5 bg-no-repeat bg-[length:100%_100%] md:max-w-[24rem]"
-              // style={{
-              //   backgroundImage: `url(${item.backgroundUrl})`,
-              // }}
               key={item.id}
             >
               <div className="relative z-2 flex flex-col min-h-[22rem] p-[2.4rem] pointer-events-none">
@@ -33,10 +30,11 @@ const Benefits = () => {
                     height={48}
                     alt={item.title}
                   />
-                  {/* <p className="ml-auto font-code text-xs font-bold text-n-1 uppercase tracking-wider">
-                    Explore more
-                  </p> */}
-                  {/* <Arrow /> */}
+                  {item.comingSoon && (
+                    <span className="ml-auto text-xs font-code font-bold px-3 py-1 rounded-full border border-n-1/10 text-n-3">
+                      COMING SOON
+                    </span>
+                  )}
                 </div>
               </div>
 

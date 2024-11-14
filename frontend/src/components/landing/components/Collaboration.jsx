@@ -1,6 +1,5 @@
 import { lunarisLogo, check } from "../assets";
 import { collabApps, collabContent, collabText } from "../constants";
-import Button from "./Button";
 import Section from "./Section";
 import { LeftCurve, RightCurve } from "./design/Collaboration";
 import { Gradient } from "./design/Roadmap";
@@ -11,7 +10,7 @@ const Collaboration = () => {
       <div className="container lg:flex">
         <div className="max-w-[30rem] mx-auto text-center lg:text-left lg:mx-0">
           <h2 className="h2 mb-4 md:mb-8">
-            Schedule your posts and publish automatically
+            Find the most engaging content for your audience
           </h2>
 
           <ul className="max-w-[22rem] mb-10 md:mb-14">

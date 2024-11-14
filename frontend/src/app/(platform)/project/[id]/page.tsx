@@ -83,7 +83,7 @@ export default function ProjectPage() {
       case 'processing':
         return {
           title: "Your video is processing",
-          subtitle: "We will email you once your video is done processing, please check back soon!"
+          subtitle: "Longer videos may take longer to process, we will email you once your video is done processing, please check back soon!"
         };
       default:
         return {

@@ -90,11 +90,11 @@ export const collabContent = [
   },
   {
     id: "1",
-    title: "Post Scheduler",
+    title: "Autogenerate title and transcript",
   },
   {
     id: "2",
-    title: "Autogenerate title and hashtags",
+    title: "Post Scheduler",
   },
 ];
 
@@ -227,6 +227,14 @@ export const pricing = [
 export const benefits = [
   {
     id: "0",
+    title: "Auto Repurpose",
+    text: "Automatically repurpose your long form content into short and medium form content.",
+    // backgroundUrl: "./src/components/landing/assets/benefits/card-5.svg",
+    iconUrl: benefitIcon4,
+    imageUrl: benefitImage2,
+  },
+  {
+    id: "1",
     title: "Automatic captions",
     text: "AI generated subtiltes with over 98% accuracy and custom templates.",
     // backgroundUrl: "./src/components/landing/assets/benefits/card-1.svg",
@@ -234,7 +242,7 @@ export const benefits = [
     imageUrl: benefitImage2,
   },
   {
-    id: "1",
+    id: "2",
     title: "Auto Reframe",
     text: "AI automatically reframes the video, detecting the speaker and moving objects for most engagement.",
     // backgroundUrl: "./src/components/landing/assets/benefits/card-2.svg",
@@ -243,7 +251,7 @@ export const benefits = [
     light: true,
   },
   {
-    id: "2",
+    id: "3",
     title: "Virality metrics",
     text: "Custom AI metrics that help you curate your content to latest social media trends.",
     // backgroundUrl: "./src/components/landing/assets/benefits/card-3.svg",
@@ -251,29 +259,23 @@ export const benefits = [
     imageUrl: benefitImage2,
   },
   {
-    id: "3",
+    id: "4",
     title: "Publish and Share",
     text: "Instantly publish and share your clips to YouTube, TikTok, Instagram, Facebook, and X.",
     // backgroundUrl: "./src/components/landing/assets/benefits/card-4.svg",
     iconUrl: benefitIcon4,
     imageUrl: benefitImage2,
     light: true,
-  },
-  {
-    id: "4",
-    title: "Video Editor",
-    text: "Edit your videos in real time using our advanced timeline based video editor.",
-    // backgroundUrl: "./src/components/landing/assets/benefits/card-5.svg",
-    iconUrl: benefitIcon1,
-    imageUrl: benefitImage2,
+    comingSoon: true,
   },
   {
     id: "5",
-    title: "AI voice narration and music",
-    text: "Make your content dynamic and engaging with AI voice narration and music.",
+    title: "Background music",
+    text: "Add background music to your content to make it more engaging.",
     // backgroundUrl: "./src/components/landing/assets/benefits/card-6.svg",
     iconUrl: benefitIcon2,
     imageUrl: benefitImage2,
+    comingSoon: true,
   },
 ];
 

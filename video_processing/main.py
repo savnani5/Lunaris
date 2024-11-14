@@ -951,18 +951,18 @@ if __name__ == "__main__":
     # # Initialize VideoProcessor
     processor = VideoProcessor()
 
-    # # Ensure directories exist
-    # os.makedirs(video_path, exist_ok=True)
+    # Ensure directories exist
+    os.makedirs(video_path, exist_ok=True)
 
-    # youtube_url = input("Enter youtube video url: ")
-    # video_quality = "low"
+    youtube_url = input("Enter youtube video url: ")
+    video_quality = "low"
    
 
     # Download video and extract audio
-    # downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
+    downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
 
-    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Anthropic CEO predicts $100 billion AI data center by 2027 | Dario Amodei and Lex Fridman/Anthropic CEO predicts $100 billion AI data center by 2027 ｜ Dario Amodei and Lex Fridman_cut.webm"
-    downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Anthropic CEO predicts $100 billion AI data center by 2027 | Dario Amodei and Lex Fridman/Anthropic CEO predicts $100 billion AI data center by 2027 ｜ Dario Amodei and Lex Fridman_cut.mp3"
+    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Anthropic CEO predicts $100 billion AI data center by 2027 | Dario Amodei and Lex Fridman/Anthropic CEO predicts $100 billion AI data center by 2027 ｜ Dario Amodei and Lex Fridman_cut.webm"
+    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Anthropic CEO predicts $100 billion AI data center by 2027 | Dario Amodei and Lex Fridman/Anthropic CEO predicts $100 billion AI data center by 2027 ｜ Dario Amodei and Lex Fridman_cut.mp3"
  
     # Transcribe audio
     transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
