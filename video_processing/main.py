@@ -19,6 +19,7 @@ import threading
 import resend
 import time
 
+
 from caption_styles import CaptionStyleFactory
 from dotenv import find_dotenv, load_dotenv
 
@@ -159,29 +160,14 @@ class VideoProcessor:
 
         3. If provided, prioritize (but don't limit to) segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
 
-        Return the analysis in this exact JSON format, with no additional text or explanation:
-        {{
-            "segments": [
-                {{
-                    "title": "Catchy, relevant title",
-                    "text": "Exact transcript without punctuation",
-                    "transcript": "Same text with proper punctuation and capitalization",
-                    "score": "Number between 60 and 100, based on engagement and quality",
-                    "hook": "Grade A, A+, A-, B, B+, or C+",
-                    "flow": "Grade A, A+, A-, B, B+, or C+",
-                    "engagement": "Grade A, A+, A-, B, B+, or C+",
-                    "trend": "Grade A, A+, A-, B, B+, or C+"
-                }}
-            ]
-        }}
-
         Important requirements:
         - Extract ALL viable segments that meet the length requirements
         - Minimal overlap between segments.
         - Present segments in sequential order.
         - Each segment must be self-contained.
         - Include both high and moderate quality segments
-        - Strictly return only the JSON object, no other text
+
+        Use the process_segments tool to return your analysis in the required format.
         """
 
         with self._anthropic_lock:
@@ -191,14 +177,44 @@ class VideoProcessor:
                 messages=[{
                     "role": "user",
                     "content": prompt
-                }]
+                }],
+                tools=[{
+                    "name": "process_segments",
+                    "description": "Process and return segments from transcript",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "segments": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object",
+                                    "properties": {
+                                        "title": {"type": "string", "description": "Catchy, relevant title"},
+                                        "text": {"type": "string", "description": "Exact transcript without punctuation"},
+                                        "transcript": {"type": "string", "description": "Same text with proper punctuation and capitalization"},
+                                        "score": {"type": "integer", "minimum": 60, "maximum": 100, "description": "Number between 60 and 100, based on engagement and quality"},
+                                        "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for hook quality"},
+                                        "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for flow quality"},
+                                        "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for engagement quality"},
+                                        "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for trend relevance"}
+                                    },
+                                    "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                                }
+                            }
+                        },
+                        "required": ["segments"]
+                    }
+                }],
+                tool_choice={"type": "tool", "name": "process_segments"}
             )
             
-            # Extract the text from the TextBlock and parse it as JSON
-            json_str = response.content[0].text  # Get the text from first TextBlock
-            print(json_str)
-            segments = json.loads(json_str)["segments"]
-            
+            # Extract the segments from the tool call response
+            tool_response = response.content[0].input  # This is already a dict
+            segments = tool_response.get("segments", [])
+            if not segments:
+                print("Warning: No segments returned by Claude")
+                return []
+
             # Build the combined segment data
             segment_data = []
             for segment in segments:
@@ -464,8 +480,9 @@ class VideoProcessor:
                 # Ignore small movements
                 pass
             else:
+                last_valid_face = new_box
                 # Apply smoothing only for moderate changes
-                last_valid_face = self.smooth_bounding_box(last_valid_face, new_box, smoothing_factor)
+                # last_valid_face = self.smooth_bounding_box(last_valid_face, new_box, smoothing_factor)
 
         if last_valid_face:
             x, y, w, h = last_valid_face
@@ -703,27 +720,31 @@ class VideoProcessor:
 
         return frame
 
-    def calculate_total_estimate(self, video_duration, elapsed_time=0, progress=0):
+    def calculate_total_estimate(self, video_duration, elapsed_time=0, progress=0, stage=""):
         """Calculate remaining time based on progress percentage and elapsed time"""
+        # Initial estimate when progress hasn't started
         if progress <= 0:
-            # Initial estimate when progress hasn't started
             return int(self.PROCESSING_ESTIMATE['base_time'] + 
                       (self.PROCESSING_ESTIMATE['per_minute'] * (video_duration / 60)))
         
-        # Calculate rate of progress (percentage per second)
-        rate_of_progress = progress / elapsed_time if elapsed_time > 0 else 0
-        
-        if rate_of_progress > 0:
-            # Estimate remaining time based on current rate
-            remaining_percentage = 100 - progress
-            remaining_estimate = remaining_percentage / rate_of_progress
+        # Only update estimates during generating stage between 30-90%
+        if stage == "generating" and 30 <= progress <= 90:
+            # Calculate rate of progress (percentage per second)
+            rate_of_progress = progress / elapsed_time if elapsed_time > 0 else 0
             
-            # Add a small buffer (10% of the estimate)
-            remaining_estimate *= 1.1
-            
-            return int(remaining_estimate)
+            if rate_of_progress > 0:
+                # Estimate remaining time based on current rate
+                remaining_percentage = 100 - progress
+                remaining_estimate = remaining_percentage / rate_of_progress
+                
+                # Add a small buffer (10% of the estimate)
+                remaining_estimate *= 1.1
+                
+                return int(remaining_estimate)
         
-        return 0
+        # Return the initial estimate for other stages/progress
+        return int(self.PROCESSING_ESTIMATE['base_time'] + 
+                  (self.PROCESSING_ESTIMATE['per_minute'] * (video_duration / 60)))
 
     def process_video(self, video_link, video_path=None, project_id=None, clerk_user_id=None, 
                      user_email=None, video_title=None, processing_timeframe=None, 
@@ -742,7 +763,8 @@ class VideoProcessor:
                 remaining_estimate = self.calculate_total_estimate(
                     video_duration, 
                     elapsed_time,
-                    progress  # Pass the current progress percentage
+                    progress,
+                    stage    
                 )
                 
                 print(f"Stage: {stage}, Progress: {progress}%, Remaining: {remaining_estimate}s")
@@ -897,7 +919,7 @@ class VideoProcessor:
         except Exception as e:
             print(f"Cleanup warning: {str(e)}")
 
-    def is_minor_movement(self, box1, box2, minor_threshold=0.15):
+    def is_minor_movement(self, box1, box2, minor_threshold=0.30):
         """Check if the movement is too small to warrant adjustment"""
         x1, y1, w1, h1 = box1
         x2, y2, w2, h2 = box2
@@ -939,18 +961,18 @@ if __name__ == "__main__":
     # Download video and extract audio
     # downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
 
-    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Origin of the Nazi party | Rick Spence and Lex Fridman/Origin of the Nazi party ｜ Rick Spence and Lex Fridman_cut.webm"
-    downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Origin of the Nazi party | Rick Spence and Lex Fridman/Origin of the Nazi party ｜ Rick Spence and Lex Fridman_cut.mp3"
+    downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Anthropic CEO predicts $100 billion AI data center by 2027 | Dario Amodei and Lex Fridman/Anthropic CEO predicts $100 billion AI data center by 2027 ｜ Dario Amodei and Lex Fridman_cut.webm"
+    downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Anthropic CEO predicts $100 billion AI data center by 2027 | Dario Amodei and Lex Fridman/Anthropic CEO predicts $100 billion AI data center by 2027 ｜ Dario Amodei and Lex Fridman_cut.mp3"
  
-    # # Transcribe audio
-    # transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
+    # Transcribe audio
+    transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
 
-    # # Get interesting segments
-    # clip_length = {"min": 0, "max": 60}
-    # interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
+    # Get interesting segments
+    clip_length = {"min": 0, "max": 60}
+    interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
 
-    # with open('interesting_segments.json', 'w') as json_file:
-    #     json.dump(interesting_data, json_file, indent=4)
+    with open('interesting_segments.json', 'w') as json_file:
+        json.dump(interesting_data, json_file, indent=4)
 
     
     # DEBUG: load from file
