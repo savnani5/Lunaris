@@ -4,7 +4,7 @@ import os
 import shutil
 import glob
 import subprocess
-import json
+
 from anthropic import Anthropic
 import cv2
 import boto3
@@ -22,6 +22,7 @@ import time
 
 from caption_styles import CaptionStyleFactory
 from dotenv import find_dotenv, load_dotenv
+from proxy_manager import ProxyManager
 
 load_dotenv(find_dotenv())
 
@@ -34,6 +35,9 @@ class VideoProcessor:
         self._face_detection_lock = threading.Lock()
         self._anthropic_lock = threading.Lock()
         self._deepgram_lock = threading.Lock()
+        
+        # Initialize proxy manager with its own lock
+        self.proxy_manager = ProxyManager()
         
         # Initialize clients in a thread-safe way
         with self._face_detection_lock:
@@ -58,44 +62,70 @@ class VideoProcessor:
         self.process_start_time = None
     
     def download_video(self, source, path, quality, start_time, end_time):
-        # Add directory check
         if not os.path.exists(path):
             os.makedirs(path)
 
         quality = quality.replace('p', '')
         
         if isinstance(source, str):  # It's a URL
-            video_title = subprocess.check_output(["yt-dlp", source, "--get-title", "--username", "oauth", "--password", "", "--cache-dir", "/efs/ytdl_cache"], universal_newlines=True).strip()
-            # video_title = subprocess.check_output(["yt-dlp", source, "--get-title"], universal_newlines=True).strip()
-            path = os.path.join(path, video_title)
-            if not os.path.exists(path):
-                os.mkdir(path)
-            else:
-                # Delete the contents of the folder
-                for file in os.listdir(path):
-                    file_path = os.path.join(path, file)
-                    if os.path.isfile(file_path):
-                        os.remove(file_path)
+            success = False
+            max_retries = 3
+            retry_count = 0
             
-            # Update yt-dlp command to use EFS cache
-            subprocess.run([
-                "yt-dlp", 
-                source, 
-                "-P", 
-                path,
-                "-S", 
-                f"res:{quality}",
-                "--output",
-                "%(title)s.%(ext)s",
-                "--username",
-                "oauth",
-                "--password",
-                "",
-                "--cache-dir",
-                "/efs/ytdl_cache"
-            ])
-            # subprocess.run(["yt-dlp", source, "-P", path, "-S", f"res:{quality}", "--output", "%(title)s.%(ext)s"])
-            print("Video downloaded successfully!")
+            while retry_count < max_retries and not success:
+                try:
+                    proxy_url = self.proxy_manager.get_proxy_url()
+                    print(f"Attempting download with proxy: {proxy_url}")
+                    
+                    # Base command for getting title
+                    yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
+                    
+                    # Get video title
+                    video_title = subprocess.check_output(
+                        yt_dlp_cmd, 
+                        universal_newlines=True,
+                        timeout=30
+                    ).strip()
+                    
+                    path = os.path.join(path, video_title)
+                    if not os.path.exists(path):
+                        os.makedirs(path)
+                    else:
+                        # Delete the contents of the folder
+                        for file in os.listdir(path):
+                            file_path = os.path.join(path, file)
+                            if os.path.isfile(file_path):
+                                os.remove(file_path)
+                    
+                    # Download command
+                    download_cmd = [
+                        "yt-dlp",
+                        source,
+                        "-P",
+                        path,
+                        "-S",
+                        f"res:{quality}",
+                        "--output",
+                        "%(title)s.%(ext)s",
+                        "--proxy",
+                        proxy_url
+                    ]
+                    
+                    # Download video
+                    subprocess.run(download_cmd, check=True, timeout=1000)
+                    success = True
+                    print("Video downloaded successfully!")
+                    
+                except Exception as e:
+                    print(f"Download attempt {retry_count + 1} failed: {str(e)}")
+                    self.proxy_manager.mark_failure(proxy_url)
+                    retry_count += 1
+                    if retry_count < max_retries:
+                        time.sleep(3)
+                
+            if not success:
+                raise Exception("Failed to download video after maximum retries")
+                
             video_path = glob.glob(os.path.join(path, "*.*"))[0]
         else:  # It's a local file path
             video_title = os.path.splitext(os.path.basename(source))[0]
@@ -822,7 +852,7 @@ class VideoProcessor:
                 if not interesting_data:
                     print("No interesting segments found in the video")
                     if update_status_callback:
-                        update_status_callback(clerk_user_id, project_id, "failed", "No interesting segments found", 0,
+                        update_status_callback(clerk_user_id, project_id, "completed", "No interesting segments found", 0,
                                             video_title, processing_timeframe)
                     return []
                 
@@ -961,27 +991,27 @@ if __name__ == "__main__":
     # Download video and extract audio
     downloaded_video_path, downloaded_audio_path, _ = processor.download_video(youtube_url, video_path, video_quality, 0, 1000)
 
-    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Anthropic CEO predicts $100 billion AI data center by 2027 | Dario Amodei and Lex Fridman/Anthropic CEO predicts $100 billion AI data center by 2027 ｜ Dario Amodei and Lex Fridman_cut.webm"
-    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/Anthropic CEO predicts $100 billion AI data center by 2027 | Dario Amodei and Lex Fridman/Anthropic CEO predicts $100 billion AI data center by 2027 ｜ Dario Amodei and Lex Fridman_cut.mp3"
+    # downloaded_video_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/The Hidden Art Of Reinventing Yourself - Matthew McConaughey (4K)/The Hidden Art Of Reinventing Yourself - Matthew McConaughey (4K)_cut.webm"
+    # downloaded_audio_path = "/Users/parassavnani/Desktop/dev/Lunaris/video_processing/downloads/The Hidden Art Of Reinventing Yourself - Matthew McConaughey (4K)/The Hidden Art Of Reinventing Yourself - Matthew McConaughey (4K)_cut.mp3"
  
     # Transcribe audio
-    transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
+    # transcript, word_timings = processor.transcribe_audio(downloaded_audio_path)
 
-    # Get interesting segments
-    clip_length = {"min": 0, "max": 60}
-    interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
+    # # Get interesting segments
+    # clip_length = {"min": 0, "max": 60}
+    # interesting_data = processor.get_interesting_segments(transcript, word_timings, clip_length)
 
-    with open('interesting_segments.json', 'w') as json_file:
-        json.dump(interesting_data, json_file, indent=4)
+    # with open('interesting_segments.json', 'w') as json_file:
+    #     json.dump(interesting_data, json_file, indent=4)
 
     
-    # DEBUG: load from file
-    with open("interesting_segments.json", 'r') as f:
-        interesting_data = json.load(f)
+    # # DEBUG: load from file
+    # with open("interesting_segments.json", 'r') as f:
+    #     interesting_data = json.load(f)
 
-    output_video_type = "portrait" # 'landscape'
+    # output_video_type = "portrait" # 'landscape'
     caption_style = "iman"
 
-    # Crop video to portrait with faces
-    # processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, s3_client=s3_client, s3_bucket=s3_bucket)
-    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, caption_style=caption_style, debug=True) 
+    # # Crop video to portrait with faces
+    # # processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, s3_client=s3_client, s3_bucket=s3_bucket)
+    # processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, caption_style=caption_style, debug=True) 

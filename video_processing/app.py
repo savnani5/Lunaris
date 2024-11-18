@@ -23,7 +23,17 @@ CORS(app, resources={r"/api/*": {"origins": "*"}},
             supports_credentials=True)
 
 
-logging.basicConfig(level=logging.DEBUG)
+# Configure logging
+logging.basicConfig(
+    level=os.getenv('LOGGING_LEVEL', 'INFO'),
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
+# Reduce boto3 logging noise
+logging.getLogger('boto3').setLevel(os.getenv('BOTO_LOG_LEVEL', 'WARNING'))
+logging.getLogger('botocore').setLevel(os.getenv('BOTO_LOG_LEVEL', 'WARNING'))
+logging.getLogger('urllib3').setLevel(os.getenv('BOTO_LOG_LEVEL', 'WARNING'))
+
 logger = logging.getLogger(__name__)
 
 logger.info("Starting app.py")

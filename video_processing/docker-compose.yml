@@ -13,6 +13,9 @@ services:
     environment:
       - WORKERS=4
       - TIMEOUT=300
+      - PYTHONUNBUFFERED=1
+      - LOGGING_LEVEL=INFO
+      - BOTO_LOG_LEVEL=WARNING
     deploy:
       resources:
         limits:
@@ -45,6 +48,10 @@ services:
           memory: 8G
     networks:
       - app-network
+    environment:
+      - PYTHONUNBUFFERED=1
+      - LOGGING_LEVEL=INFO
+      - BOTO_LOG_LEVEL=WARNING
 
 networks:
   app-network:
