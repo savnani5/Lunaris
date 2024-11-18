@@ -3,29 +3,32 @@ FROM --platform=linux/amd64 python:3.11-slim
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
-    libglib2.0-0 \
     curl \
-    ffmpeg \
-    imagemagick \
     tini \
+    libglib2.0-0 \
+    libgl1-mesa-glx \
     fontconfig \
     fonts-liberation \
     fonts-roboto \
+    ffmpeg \
+    imagemagick \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Create font cache directory and update font cache
-RUN fc-cache -f -v
+# Configure ImageMagick policy to allow text operations and file operations
+RUN sed -i 's/rights="none" pattern="@\*"/rights="read|write" pattern="@*"/' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/rights="none" pattern="PDF"/rights="read|write" pattern="PDF"/' /etc/ImageMagick-6/policy.xml && \
+    sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<policy domain="path" rights="read|write" pattern="@*"/g' /etc/ImageMagick-6/policy.xml
 
-# Update ImageMagick policy to allow required operations
-RUN sed -i 's/<policy domain="path" rights="none" pattern="@\*"/<!-- <policy domain="path" rights="none" pattern="@*" -->/g' /etc/ImageMagick-6/policy.xml && \
-sed -i 's/<policy domain="coder" rights="none" pattern="PDF"/<!-- <policy domain="coder" rights="none" pattern="PDF" -->/g' /etc/ImageMagick-6/policy.xml
+# Create required directories with proper permissions
+RUN mkdir -p /tmp/worker /efs/ytdl_cache && \
+    chmod -R 777 /tmp/worker /efs/ytdl_cache
 
 # Set working directory
 WORKDIR /app
 
 # Create ytdl cache directory
-RUN mkdir -p /efs/ytdl_cache
+RUN mkdir -p /efs/ytdl_cach
 
 # Copy requirements and install dependencies
 COPY requirements.txt .

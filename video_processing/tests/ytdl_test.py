@@ -1,5 +1,4 @@
 import subprocess
-import os
 
 # Create cache directory if it doesn't exist
 cache_dir = "/efs/ytdl_cache"
@@ -7,13 +6,22 @@ cache_dir = "/efs/ytdl_cache"
 
 subprocess.run([
     "yt-dlp",
-    "https://www.youtube.com/watch?v=nmubtItkCrQ",
+    "https://www.youtube.com/watch?v=PRE9nDs5r6U",
     "-P",
     "tmp",
-    "--username",
-    "oauth",
-    "--password",
-    "",
-    "--cache-dir",
-    cache_dir
+    "--proxy",
+    ""
 ])
+
+# subprocess.run([
+#     "yt-dlp",
+#     "https://www.youtube.com/watch?v=PRE9nDs5r6U",
+#     "-P",
+#     "tmp",
+#     "--username",
+#     "oauth",
+#     "--password",
+#     "",
+#     "--cache-dir",
+#     cache_dir
+# ])

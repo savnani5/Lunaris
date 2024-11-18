@@ -369,7 +369,7 @@ class SadiaStyle(CaptionStyle):
             chunks.append(current_chunk)
 
         txt_clips = []
-        y_position = processed_clip.h * 0.75
+        y_position = processed_clip.h * (0.85 if output_video_type == 'landscape' else 0.75)
 
         for chunk in chunks:
             # Create the full text for this line
