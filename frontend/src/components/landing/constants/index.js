@@ -261,7 +261,7 @@ export const benefits = [
   {
     id: "4",
     title: "Publish and Share",
-    text: "Instantly publish and share your clips to YouTube, TikTok, Instagram, Facebook, and X.",
+    text: "Instantly publish and share your clips to YouTube, TikTok, Instagram, Facebook, and X from one place.",
     // backgroundUrl: "./src/components/landing/assets/benefits/card-4.svg",
     iconUrl: benefitIcon4,
     imageUrl: benefitImage2,
