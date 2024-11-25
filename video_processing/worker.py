@@ -126,30 +126,33 @@ class Worker:
     def process_message(self, message):
         try:
             data = json.loads(message['Body'])
+            project_type = data.get('project_type', 'auto')
             
             logger.info(f"Processing video: {data['video_title']}")
             self.video_processor.process_video(
-                video_link=data['video_link'],
-                video_path=data['video_path'],
-                project_id=data['project_id'],
-                clerk_user_id=data['clerk_user_id'],
-                user_email=data['user_email'],
-                video_title=data['video_title'],
-                processing_timeframe=data['processing_timeframe'],
-                video_quality=data['video_quality'],
-                video_type=data['video_type'],
-                start_time=data['start_time'],
-                end_time=data['end_time'],
-                clip_length=data['clip_length'],
-                keywords=data['keywords'],
-                caption_style=data['caption_style'],
-                add_watermark=data['add_watermark'],
+                video_link=data.get('video_link'),
+                video_path=data.get('video_path'),
+                project_id=data.get('project_id'),
+                clerk_user_id=data.get('clerk_user_id'),
+                user_email=data.get('user_email'),
+                video_title=data.get('video_title'),
+                processing_timeframe=data.get('processing_timeframe'),
+                video_quality=data.get('video_quality'),
+                video_type=data.get('video_type'),
+                start_time=data.get('start_time'),
+                end_time=data.get('end_time'), 
+                clip_length=data.get('clip_length'),  # None for manual
+                keywords=data.get('keywords', ''),    # None for manual
+                caption_style=data.get('caption_style'), 
+                add_watermark=data.get('add_watermark'),
                 update_status_callback=self.update_project_status,
-                s3_client=self.s3,  # Pass S3 client
-                s3_bucket=self.s3_bucket  # Pass S3 bucket
+                s3_client=self.s3,
+                s3_bucket=self.s3_bucket,
+                project_type=project_type,
+                clips=data.get('clips')  # Will be None for auto projects
             )
-
-            # Delete the message from the queue after successful processing
+            
+            # Delete the message after successful processing
             self.sqs.delete_message(
                 QueueUrl=self.sqs_queue_url,
                 ReceiptHandle=message['ReceiptHandle']

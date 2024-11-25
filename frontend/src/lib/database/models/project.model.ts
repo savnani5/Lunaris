@@ -15,7 +15,8 @@ export interface Project {
   required_credits: number;
   progress?: number;
   stage: string;
-  videoDuration?: number; 
+  videoDuration?: number;
+  project_type: 'auto' | 'manual';
 }
 
 export class ProjectModel implements Project {
@@ -34,7 +35,8 @@ export class ProjectModel implements Project {
     public required_credits: number,
     public progress: number = 0,
     public stage: string = 'created',
-    public videoDuration?: number
+    public videoDuration?: number,
+    public project_type: 'auto' | 'manual' = 'auto'
   ) {}
 
   static fromObject(obj: any): ProjectModel {
@@ -53,7 +55,8 @@ export class ProjectModel implements Project {
       obj.required_credits,
       obj.progress || 0,
       obj.stage || 'created',
-      obj.videoDuration
+      obj.videoDuration,
+      obj.project_type || 'auto'
     );
   }
 
@@ -73,7 +76,8 @@ export class ProjectModel implements Project {
       required_credits: this.required_credits,
       progress: this.progress,
       stage: this.stage,
-      videoDuration: this.videoDuration
+      videoDuration: this.videoDuration,
+      project_type: this.project_type
     };
   }
 

@@ -170,28 +170,38 @@ class LunarisApp:
                 video_path = None
 
             # Extract request data
+            # Common data extraction
+            project_type = request.form.get('project_type')
             message = {
                 'video_link': video_link,
                 'video_path': video_path,
+                'project_type': project_type,
                 'project_id': request.form.get('projectId'),
                 'clerk_user_id': request.form.get('userId'),
                 'user_email': request.form.get('email'),
                 'video_title': request.form.get('videoTitle'),
-                'processing_timeframe': request.form.get('processing_timeframe'),
                 'video_quality': request.form.get('videoQuality'),
                 'video_type': request.form.get('videoType').lower(),
-                'start_time': float(request.form.get('startTime')),
-                'end_time': float(request.form.get('endTime')),
-                'clip_length': {
-                    'min': float(request.form.get('clipLengthMin')),
-                    'max': float(request.form.get('clipLengthMax'))
-                },
-                'keywords': request.form.get('keywords'),
                 'caption_style': request.form.get('captionStyle', 'elon'),
-                'add_watermark': request.form.get('addWatermark', False)
             }
 
-            # Send to SQS in a thread-safe way
+            # Type-specific data extraction
+            if project_type == 'auto':
+                message.update({
+                    'processing_timeframe': request.form.get('processing_timeframe'),
+                    'start_time': float(request.form.get('startTime')),
+                    'end_time': float(request.form.get('endTime')),
+                    'clip_length': {
+                        'min': float(request.form.get('clipLengthMin')),
+                        'max': float(request.form.get('clipLengthMax'))
+                    },
+                    'keywords': request.form.get('keywords'),
+                    'add_watermark': request.form.get('addWatermark', False)
+                })
+            else:  # manual
+                message['clips'] = json.loads(request.form.get('clips'))
+
+            # Send to SQS
             with self._sqs_lock:
                 try:
                     response = self.sqs.send_message(

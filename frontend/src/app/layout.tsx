@@ -9,8 +9,8 @@ export default function RootLayout({
 }) {
   return (
     <ClerkProvider 
-      afterSignInUrl="/home"
-      afterSignUpUrl="/home"
+      afterSignInUrl="/auto"
+      afterSignUpUrl="/auto"
       afterSignOutUrl="/"
       appearance={{ variables: { colorPrimary: '#8B5CF6' }, baseTheme: dark }}
     >

@@ -4,6 +4,7 @@ import os
 import shutil
 import glob
 import subprocess
+import json
 
 from anthropic import Anthropic
 import cv2
@@ -61,7 +62,7 @@ class VideoProcessor:
         }
         self.process_start_time = None
     
-    def download_video(self, source, path, quality, start_time, end_time):
+    def download_video(self, source, path, quality, start_time, end_time, project_type="auto", clips=None):
         if not os.path.exists(path):
             os.makedirs(path)
 
@@ -77,10 +78,8 @@ class VideoProcessor:
                     proxy_url = self.proxy_manager.get_proxy_url()
                     print(f"Attempting download with proxy: {proxy_url}")
                     
-                    # Base command for getting title
-                    yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
-                    
                     # Get video title
+                    yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
                     video_title = subprocess.check_output(
                         yt_dlp_cmd, 
                         universal_newlines=True,
@@ -111,7 +110,6 @@ class VideoProcessor:
                         proxy_url
                     ]
                     
-                    # Download video
                     subprocess.run(download_cmd, check=True, timeout=1000)
                     success = True
                     print("Video downloaded successfully!")
@@ -136,21 +134,48 @@ class VideoProcessor:
             shutil.copy(source, video_path)
             print("Video copied successfully!")
 
+        # Process video based on project type
+        if project_type == "auto":
+            cut_video_path = self.cut_video(video_path, start_time, end_time, project_type)
+            return video_path, cut_video_path, video_title
+        else:  # manual
+            cut_video_paths = []
+            for clip in clips:
+                start = clip.get('start', clip.get('startTime'))
+                end = clip.get('end', clip.get('endTime'))
+                cut_path = self.cut_video(video_path, start, end, project_type)
+                cut_video_paths.append(cut_path)
+            return video_path, cut_video_paths, video_title
+
+    def cut_video(self, video_path, start_time, end_time, project_type):
         video_extension = os.path.splitext(video_path)[1]
         
-        # Cut video
-        cut_video_path = video_path.replace(video_extension, f"_cut{video_extension}")
-        subprocess.run(["ffmpeg", "-i", video_path, "-ss", str(start_time), "-to", str(end_time), "-c", "copy", cut_video_path])
-        
-        # Extract and cut audio
-        cut_audio_path = cut_video_path.replace(video_extension, ".mp3")
-        subprocess.run(["ffmpeg", "-i", cut_video_path, "-q:a", "0", "-map", "a", cut_audio_path])
-        
-        # Remove original files
-        os.remove(video_path)
-        
-        print("Video cut and audio extracted successfully!")
-        return cut_video_path, cut_audio_path, video_title
+        if project_type == "auto":
+            # Cut video
+            cut_video_path = video_path.replace(video_extension, f"_cut{video_extension}")
+            subprocess.run(["ffmpeg", "-i", video_path, "-ss", str(start_time), "-to", str(end_time), "-c", "copy", cut_video_path])
+            
+            # Extract and cut audio
+            cut_audio_path = cut_video_path.replace(video_extension, ".mp3")
+            subprocess.run(["ffmpeg", "-i", cut_video_path, "-q:a", "0", "-map", "a", cut_audio_path])
+            
+            # Remove original file only for auto type
+            os.remove(video_path)
+            
+            print("Video cut and audio extracted successfully!")
+            return cut_video_path
+        else:
+            # For manual clips, create unique names
+            clip_id = f"clip_{start_time:.2f}_{end_time:.2f}"
+            cut_video_path = video_path.replace(video_extension, f"_{clip_id}{video_extension}")
+            subprocess.run(["ffmpeg", "-i", video_path, "-ss", str(start_time), "-to", str(end_time), "-c", "copy", cut_video_path])
+            
+            # Extract and cut audio
+            cut_audio_path = cut_video_path.replace(video_extension, ".mp3")
+            subprocess.run(["ffmpeg", "-i", cut_video_path, "-q:a", "0", "-map", "a", cut_audio_path])
+            
+            print(f"Clip {clip_id} cut and audio extracted successfully!")
+            return cut_video_path
 
     def extract_audio(self, video_path):
         audio_path = os.path.splitext(video_path)[0] + ".mp3"
@@ -171,32 +196,62 @@ class VideoProcessor:
             clip.write_videofile(f"{output_folder}/clip_{i+1}.mp4")
 
     def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords="", output_file='interesting_segments.json'):
+        # Calculate video duration and adjust expectations
+        total_duration = word_timings[-1]['end'] - word_timings[0]['start']
+        is_short_video = total_duration < 240  # Less than 4 minutes
+        
         prompt = f"""You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content.
 
         Transcript:
         {transcript_text}
 
+        Video Duration: {total_duration:.1f} seconds {'(SHORT VIDEO)' if is_short_video else ''}
+
         Task:
-        1. Extract ALL potential segments that meet the following criteria:
-           - MUST be between {clip_length['min']} and {clip_length['max']} seconds in length (strict requirement)
-           - Should be self-contained and coherent
+        1. Extract engaging segments that meet these criteria:
+           {'- For this short video, MUST find at least 2 usable segments' if is_short_video else ''}
+           - Target length: {clip_length['min']} to {clip_length['max']} seconds
+           - For shorter videos: Can be flexible with length if needed to capture complete thoughts
+           - Must be self-contained and coherent
+           - Must have clear hooks and conclusions
            - Can have varying levels of engagement (will be reflected in scoring)
         
-        2. For each segment:
-           - Score highly engaging content (85-100)
-           - Score moderately engaging content (70-85)
-           - Score usable but less engaging content (60-70)
-           - Segments below 60 should be discarded
+        2. Prioritize segments that:
+           - Have attention-grabbing openings
+           - Tell complete, emotionally resonant stories
+           - Contain unique insights or perspectives
+           - Include personal experiences or transformative moments
+           - Discuss universal themes (success, growth, relationships, etc.)
 
-        3. If provided, prioritize (but don't limit to) segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
+        3. Score each segment (60-100) based on:
+           {'Adjusted scoring for short video:' if is_short_video else 'Standard scoring:'}
+           - Viral potential (80% weight)
+               * Hook strength
+               * Emotional impact
+               * Relatability
+               * Share-worthy insight
+           - Technical aspects (20% weight)
+               * Story completeness
+               {'* Length optimization (relaxed for short videos)' if is_short_video else '* Length optimization'}
 
-        Important requirements:
-        - Extract ALL viable segments that meet the length requirements
-        - Minimal overlap between segments.
-        - Present segments in sequential order.
-        - Each segment must be self-contained.
-        - Include both high and moderate quality segments
+        4. Segment Requirements:
+           {'For this short video:' if is_short_video else 'Standard requirements:'}
+           - Must find at least {1 if is_short_video else 3} viable segment(s)
+           - Can be more flexible with length constraints
+           - Focus on most impactful moments
+           - Ensure complete thoughts are captured
+           {'- Prefer slightly longer, complete segments over strict length adherence' if is_short_video else ''}
 
+        5. If provided, prioritize (but don't limit to) segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
+
+        Important Notes:
+        {'''- This is a SHORT VIDEO - must extract at least one good segment
+        - Be more flexible with length requirements
+        - Focus on finding complete, impactful moments
+        - Better to have one longer, complete segment than fragments''' if is_short_video else '''- Quality over quantity
+        - Prefer ideal length but can be flexible for exceptional content
+        - Each segment must work as standalone content'''}
+        
         Use the process_segments tool to return your analysis in the required format.
         """
 
@@ -252,11 +307,6 @@ class VideoProcessor:
                 title = segment['title']
                 text = segment['text']
                 transcript = segment['transcript']
-                score = segment['score']
-                hook = segment['hook']
-                flow = segment['flow']
-                engagement = segment['engagement']
-                trend = segment['trend']
                 word_timings_in_segment = []
 
                 # Find the start and end times for the combined text
@@ -291,11 +341,11 @@ class VideoProcessor:
                     'text': text,
                     'transcript': transcript,
                     'word_timings': word_timings_in_segment,
-                    'score': score,
-                    'hook': hook,
-                    'flow': flow,
-                    'engagement': engagement,
-                    'trend': trend
+                    'score': segment['score'],
+                    'hook': segment['hook'],
+                    'flow': segment['flow'],
+                    'engagement': segment['engagement'],
+                    'trend': segment['trend']
                 })
 
             print(f"Interesting segments extracted! Found {len(segment_data)} segments")
@@ -322,45 +372,56 @@ class VideoProcessor:
             
             return face_bboxes #pose_detected
 
-    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, user_id=None, project_id=None, debug=False, progress_callback=None, add_watermark=False):
-        # Add directory check
+    def crop_and_add_subtitles(self, video_path, segments, output_video_type='portrait', caption_style='elon', 
+                          output_folder='./subtitled_clips', s3_client=None, s3_bucket=None, 
+                          user_id=None, project_id=None, debug=False, progress_callback=None, 
+                          add_watermark=False, project_type=None):
         if not os.path.exists(output_folder):
             os.makedirs(output_folder)
         
         video = mp_edit.VideoFileClip(video_path)
-        video_duration = video.duration
         
         for i, segment in enumerate(segments):
-            clip = self.process_segment(video, segment, video_duration)
+            # For manual clips, skip subclipping since the video is already cut
+            
+            clip = self.process_segment(video, segment, video.duration)
             if clip is None:
                 continue
             
             processed_clip = self.process_clip(clip, output_video_type, add_watermark)
             
-            if caption_style != "no_caption":
+            if caption_style != "no_captions":
                 caption_styler = CaptionStyleFactory.get_style(caption_style)
-                subtitled_clip = caption_styler.add_subtitles(processed_clip, segment['word_timings'], segment['start'], output_video_type)
+                subtitled_clip = caption_styler.add_subtitles(
+                    processed_clip, 
+                    segment['word_timings'], 
+                    0 if project_type == "manual" else segment['start'],  # Start from 0 for manual clips
+                    output_video_type
+                )
             else:
                 subtitled_clip = processed_clip
-                
-            _, clip_url = self.save_or_upload_clip(subtitled_clip, segment['title'], output_video_type, output_folder, s3_client, s3_bucket, user_id, project_id, debug)
+            
+            _, clip_url = self.save_or_upload_clip(subtitled_clip, segment['title'], 
+                                                 output_video_type, output_folder, 
+                                                 s3_client, s3_bucket, user_id, 
+                                                 project_id, debug)
+            
             clip_data = {
                 'project_id': project_id,
                 'title': segment['title'],
                 'transcript': segment['transcript'],
                 's3_uri': clip_url,
-                'score': segment['score'],
-                'hook': segment['hook'],
-                'flow': segment['flow'],
-                'engagement': segment['engagement'],
-                'trend': segment['trend']
+                'score': segment.get('score'),
+                'hook': segment.get('hook'),
+                'flow': segment.get('flow'),
+                'engagement': segment.get('engagement'),
+                'trend': segment.get('trend')
             }
-            # Important uncomment this to send clip data to backend
+            
             self.send_clip_data(clip_data)
-
+            
             if progress_callback:
                 progress_callback(i + 1)
-
 
     def process_segment(self, video, segment, video_duration):
         start = segment['start']
@@ -376,6 +437,7 @@ class VideoProcessor:
     # Smooth transitions b/w modes required for the video
     def process_clip(self, clip, output_video_type, add_watermark=False):
         if output_video_type != 'portrait':
+            clip = clip.set_fps(clip.fps)
             return clip.resize((1920, 1080))
 
         # Constants
@@ -384,6 +446,7 @@ class VideoProcessor:
         SMOOTHING_FACTOR = 0.8
         JITTER_THRESHOLD = 60
 
+        clip = clip.set_fps(clip.fps)
         frame_count = int(clip.duration * clip.fps)
         
         # First pass: Decide mode for each frame
@@ -574,13 +637,13 @@ class VideoProcessor:
                 s3_key = f"{user_id}/{project_id}/{filename}"
                 s3_client.upload_file(local_path, s3_bucket, s3_key)
                 
-                # Generate presigned URL (expires in 7 days)
+                # Generate presigned URL (expires in 30 days)
                 presigned_url = s3_client.generate_presigned_url('get_object',
                     Params={
                         'Bucket': s3_bucket,
                         'Key': s3_key
                     },
-                    ExpiresIn=604800  # 7 days in seconds
+                    ExpiresIn= 3600 * 24 *30  # 30 days in seconds
                 )
                 print(f"Presigned URL: {presigned_url}")
                 # Clean up local file
@@ -752,12 +815,22 @@ class VideoProcessor:
 
     def calculate_total_estimate(self, video_duration, elapsed_time=0, progress=0, stage=""):
         """Calculate remaining time based on progress percentage and elapsed time"""
-        # Initial estimate when progress hasn't started
-        if progress <= 0:
-            return int(self.PROCESSING_ESTIMATE['base_time'] + 
-                      (self.PROCESSING_ESTIMATE['per_minute'] * (video_duration / 60)))
+        # Calculate initial total estimate
+        initial_estimate = int(self.PROCESSING_ESTIMATE['base_time'] + 
+                             (self.PROCESSING_ESTIMATE['per_minute'] * (video_duration / 60)))
         
-        # Only update estimates during generating stage between 30-90%
+        # If progress hasn't started, return initial estimate
+        if progress <= 0:
+            return initial_estimate
+            
+        # Handle early stages (0-30%)
+        if progress < 30:
+            # Reduce estimate proportionally based on progress
+            reduction_factor = progress / 30  # Will be between 0 and 1
+            time_to_reduce = initial_estimate * 0.25  # Reduce up to 25% of initial estimate
+            return int(initial_estimate - (time_to_reduce * reduction_factor))
+        
+        # Handle generating stage (30-90%)
         if stage == "generating" and 30 <= progress <= 90:
             # Calculate rate of progress (percentage per second)
             rate_of_progress = progress / elapsed_time if elapsed_time > 0 else 0
@@ -773,100 +846,116 @@ class VideoProcessor:
                 return int(remaining_estimate)
         
         # Return the initial estimate for other stages/progress
-        return int(self.PROCESSING_ESTIMATE['base_time'] + 
-                  (self.PROCESSING_ESTIMATE['per_minute'] * (video_duration / 60)))
+        return initial_estimate
 
     def process_video(self, video_link, video_path=None, project_id=None, clerk_user_id=None, 
                      user_email=None, video_title=None, processing_timeframe=None, 
-                     video_quality="720p", video_type="portrait", start_time=0, end_time=60, 
+                     video_quality="720p", video_type="portrait", start_time=None, end_time=None, 
                      clip_length=None, keywords="", caption_style="elon", add_watermark=False,
-                     update_status_callback=None, s3_client=None, s3_bucket=None):
+                     update_status_callback=None, s3_client=None, s3_bucket=None, project_type="auto", clips=None):
         try:
+            # Standardize clip format at the beginning of processing
+            if clips and isinstance(clips, str):
+                clips = json.loads(clips)
+            
             self.process_start_time = time.time()
-            video_duration = end_time - start_time
             
             def update_status_with_estimate(stage, progress):
-                if not update_status_callback:
-                    return
+                if update_status_callback:
+                    # Calculate video duration based on standardized clip format
+                    video_duration = (end_time - start_time if project_type == "auto" 
+                                    else sum(clip.get('duration', clip.get('end', 0) - clip.get('start', 0)) 
+                                          for clip in clips))
                     
-                elapsed_time = time.time() - self.process_start_time
-                remaining_estimate = self.calculate_total_estimate(
-                    video_duration, 
-                    elapsed_time,
-                    progress,
-                    stage    
-                )
-                
-                print(f"Stage: {stage}, Progress: {progress}%, Remaining: {remaining_estimate}s")
-                
-                update_status_callback(
-                    clerk_user_id, 
-                    project_id, 
-                    "processing",
-                    stage,
-                    progress,
-                    video_title,
-                    processing_timeframe,
-                    remaining_estimate
-                )
+                    elapsed_time = time.time() - self.process_start_time
+                    remaining_estimate = self.calculate_total_estimate(video_duration, elapsed_time, progress, stage)
+                    
+                    print(f"Stage: {stage}, Progress: {progress}%, Remaining: {remaining_estimate}s")
+                    update_status_callback(
+                        clerk_user_id, project_id, "processing", stage, progress,
+                        video_title, processing_timeframe, remaining_estimate
+                    )
 
-            # Use update_status_with_estimate throughout the process
-            if update_status_callback:
-                update_status_with_estimate("downloading", 0)
-                
-            # Create safe directories first
+            # Create safe directories
             os.makedirs('./downloads', exist_ok=True)
             os.makedirs('./subtitled_clips', exist_ok=True)
-            
-            
+
             if update_status_callback:
                 update_status_with_estimate("downloading", 0)
-            
-            try:
-                if video_link:
-                    downloaded_video_path, downloaded_audio_path, video_title = self.download_video(
-                        video_link, "./downloads", video_quality, start_time, end_time)
-                else:
-                    downloaded_video_path = video_path
-                    downloaded_audio_path = self.extract_audio(video_path)
-            except Exception as e:
-                print(f"Download/extraction failed: {str(e)}")
-                raise
 
             try:
-                if update_status_callback:
-                    update_status_with_estimate("transcribing", 10)
-                
-                transcript, word_timings = self.transcribe_audio(downloaded_audio_path)
-            except Exception as e:
-                print(f"Transcription failed: {str(e)}")
-                raise
-
-            try:
-                if update_status_callback:
-                    update_status_with_estimate("analyzing", 20)
-                
-                interesting_data = self.get_interesting_segments(transcript, word_timings, clip_length, keywords)
-                
-                # Add validation check
-                if not interesting_data:
-                    print("No interesting segments found in the video")
+                # Download and process video based on project type
+                if project_type == "auto":
+                    # Auto clip processing
+                    og_video_path, downloaded_video_path, video_title = self.download_video(
+                        video_link or video_path, "./downloads", video_quality, 
+                        start_time, end_time, project_type
+                    )
+                    downloaded_audio_path = self.extract_audio(downloaded_video_path)
+                    
                     if update_status_callback:
-                        update_status_callback(clerk_user_id, project_id, "completed", "No interesting segments found", 0,
-                                            video_title, processing_timeframe)
-                    return []
-                
-                print(f"Found {len(interesting_data)} interesting segments")
-                
-            except Exception as e:
-                print(f"Segment analysis failed: {str(e)}")
-                raise
+                        update_status_with_estimate("transcribing", 10)
+                    
+                    transcript, word_timings = self.transcribe_audio(downloaded_audio_path)
+                    
+                    if update_status_callback:
+                        update_status_with_estimate("analyzing", 20)
+                    
+                    interesting_data = self.get_interesting_segments(transcript, word_timings, clip_length, keywords)
+                    if not interesting_data:
+                        print("No interesting segments found in the video")
+                        if update_status_callback:
+                            update_status_callback(clerk_user_id, project_id, "completed", 
+                                                "No interesting segments found", 0,
+                                                video_title, processing_timeframe)
+                        return []
+                    
+                    segments_to_process = interesting_data
+                    
+                else:  # manual clip processing
+                    downloaded_video_path, downloaded_video_paths, video_title = self.download_video(
+                        video_link or video_path, "./downloads", video_quality, 
+                        None, None, project_type, clips
+                    )
+                    
+                    if update_status_callback:
+                        update_status_with_estimate("transcribing", 10)
+                    
+                    # Process each clip separately
+                    segments_to_process = []
+                    for i, (clip_path, clip_data) in enumerate(zip(downloaded_video_paths, clips)):
+                        clip_start = clip_data.get('start', clip_data.get('startTime', 0))
+                        clip_end = clip_data.get('end', clip_data.get('endTime', 0))
+                        
+                        audio_path = self.extract_audio(clip_path)
+                        transcript, word_timings = self.transcribe_audio(audio_path)
+                        
+                        segments_to_process.append({
+                            'start': clip_start,
+                            'end': clip_end,
+                            'video_path': clip_path,
+                            'word_timings': word_timings
+                        })
+                        
+                        if update_status_callback:
+                            progress = 10 + int((i + 1) / len(clips) * 10)
+                            update_status_with_estimate("transcribing", progress)
+                        
+                        segments_to_process = self.process_manual_clips(
+                            clips, 
+                            downloaded_video_paths, 
+                            update_status_callback,
+                            clerk_user_id,
+                            project_id,
+                            video_title,
+                            processing_timeframe
+                        )
 
-            try:
+                # Process segments
                 if update_status_callback:
                     update_status_with_estimate("generating", 30)
                 
-                total_segments = len(interesting_data)
+                total_segments = len(segments_to_process)
                 print(f"Processing {total_segments} segments")
 
                 def progress_callback(i):
@@ -875,9 +964,11 @@ class VideoProcessor:
                         print(f"Processing segment {i}/{total_segments} - Progress: {progress}%")
                         update_status_with_estimate("generating", progress)
 
+              
+                # Process all segments from the original video at once
                 self.crop_and_add_subtitles(
                     downloaded_video_path,
-                    interesting_data,
+                    segments_to_process,
                     output_video_type=video_type,
                     caption_style=caption_style,
                     output_folder='./subtitled_clips',
@@ -887,46 +978,23 @@ class VideoProcessor:
                     project_id=project_id,
                     debug=False,
                     progress_callback=progress_callback,
-                    add_watermark=add_watermark
+                    add_watermark=add_watermark,
+                    project_type=project_type
                 )
 
-            except Exception as e:
-                print(f"Video processing failed: {str(e)}")
-                raise
-
-            # Cleanup and completion
-            try:
+                # Cleanup and completion
                 if update_status_callback:
                     update_status_with_estimate("uploading", 95)
 
-                # Clean up downloaded files
                 self.cleanup_files(video_title)
-
-                # Send email notification
-                try:
-                    print(f"Sending completion email to {user_email}")
-                    email_params: resend.Emails.SendParams = {
-                        "from": "Lunaris Clips <output@lunaris.media>",
-                        "to": [user_email],
-                        "subject": "Your clips are ready 🎬!",
-                        "html": f"""
-                        <p>Hey there 👋</p>
-                        <p>The clips for your video "<b>{video_title}</b>" are ready!</p> 
-                        <p>You can view your clips <a href="{os.environ.get('FRONTEND_URL')}/project/{project_id}/clips">here</a>.</p>
-                        """
-                    }
-                    resend.Emails.send(email_params)
-                    print("Email sent successfully")
-                except Exception as e:
-                    print(f"Email notification failed: {str(e)}")
+                self.send_completion_email(user_email, video_title, project_id)
 
                 if update_status_callback:
                     update_status_callback(clerk_user_id, project_id, "completed", "completed", 100,
                                         video_title, processing_timeframe)
 
-
             except Exception as e:
-                print(f"Cleanup/completion failed: {str(e)}")
+                print(f"Processing failed: {str(e)}")
                 raise
 
         except Exception as e:
@@ -967,6 +1035,114 @@ class VideoProcessor:
                 height_change < minor_threshold and 
                 y_shift < minor_threshold)
 
+    def send_completion_email(self, user_email, video_title, project_id):
+        # Send email notification
+        try:
+            print(f"Sending completion email to {user_email}")
+            email_params: resend.Emails.SendParams = {
+                "from": "Lunaris Clips <output@lunaris.media>",
+                "to": [user_email],
+                "subject": "Your clips are ready 🎬!",
+                "html": f"""
+                <p>Hey there 👋</p>
+                <p>The clips for your video "<b>{video_title}</b>" are ready!</p> 
+                <p>You can view your clips <a href="{os.environ.get('FRONTEND_URL')}/project/{project_id}/clips">here</a>.</p>
+                """
+            }
+            resend.Emails.send(email_params)
+            print("Email sent successfully")
+        except Exception as e:
+            print(f"Email notification failed: {str(e)}")
+            
+    def get_metrics(self, transcript_text):
+        """Get engagement metrics for a clip using Claude"""
+        prompt = """You are an expert content creator. Analyze this transcript and provide metrics.
+        
+        Transcript:
+        {transcript_text}
+        
+        Task:
+        Create engaging metrics for this clip including:
+        - A catchy, relevant title
+        - The transcript with proper punctuation and capitalization
+        - Score (60-100) based on engagement and quality
+        - Hook grade (A+, A, A-, B+, B)
+        - Flow grade (A+, A, A-, B+, B)
+        - Engagement grade (A+, A, A-, B+, B)
+        - Trend relevance grade (A+, A, A-, B+, B)
+        
+        Use the process_metrics tool to return your analysis.
+        """
+
+        with self._anthropic_lock:
+            response = self.anthropic_client.messages.create(
+                model="claude-3-sonnet-20240229",
+                max_tokens=1000,
+                messages=[{"role": "user", "content": prompt}],
+                tools=[{
+                    "name": "process_metrics",
+                    "description": "Process and return metrics for the clip",
+                    "input_schema": {
+                        "type": "object",
+                        "properties": {
+                            "title": {"type": "string", "description": "Catchy, relevant title"},
+                            "transcript": {"type": "string", "description": "Transcript with proper punctuation and capitalization"},
+                            "score": {"type": "integer", "minimum": 60, "maximum": 100},
+                            "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                            "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                            "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                            "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]}
+                        },
+                        "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                    }
+                }],
+                tool_choice={"type": "tool", "name": "process_metrics"}
+            )
+            
+            return response.content[0].input
+
+    def process_manual_clips(self, clips, downloaded_video_paths, update_status_callback=None, clerk_user_id=None, project_id=None, video_title=None, processing_timeframe=None):
+        segments_to_process = []
+        
+        for i, (clip_path, clip_data) in enumerate(zip(downloaded_video_paths, clips)):
+            # Get audio and transcript
+            audio_path = self.extract_audio(clip_path)
+            transcript, word_timings = self.transcribe_audio(audio_path)
+            
+            # Get metrics from Claude
+            metrics = self.get_metrics(transcript)
+            
+            # Create segment data matching auto format
+            segment = {
+                'title': metrics['title'],
+                'start': clip_data['start'],
+                'end': clip_data['end'],
+                'text': metrics['transcript'].lower(),
+                'transcript': metrics['transcript'],    
+                'video_path': clip_path,
+                'word_timings': word_timings,
+                'score': metrics['score'],
+                'hook': metrics['hook'],
+                'flow': metrics['flow'],
+                'engagement': metrics['engagement'],
+                'trend': metrics['trend']
+            }
+            
+            segments_to_process.append(segment)
+            
+            if update_status_callback:
+                progress = 10 + int((i + 1) / len(clips) * 10)
+                update_status_callback(
+                    clerk_user_id=clerk_user_id,
+                    project_id=project_id,
+                    status="processing",
+                    stage="transcribing",
+                    progress=progress,
+                    title=video_title,
+                    processing_timeframe=processing_timeframe
+                )
+        
+        return segments_to_process
 
 if __name__ == "__main__":
    

@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         line_items: [{ price: priceID, quantity: 1 }],
         metadata: { planType, billingCycle, planCredits, userId },
         mode: "subscription",
-        success_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/home`,
+        success_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/auto`,
         cancel_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/cancel`,
         allow_promotion_codes: true,
       });
@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         }],
         metadata: { userId, credits, type: 'credit_purchase' },
         mode: "payment",
-        success_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/home`,
+        success_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/auto`,
         cancel_url: `${process.env.NEXT_PUBLIC_SERVER_URL}/cancel`,
       });
     }

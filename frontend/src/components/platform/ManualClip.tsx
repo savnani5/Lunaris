@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
 import debounce from 'lodash/debounce';
-import { Slider } from '@mui/material';
 import { Spinner } from '@/components/platform/Spinner';
 import Tooltip from '@mui/material/Tooltip';
 
@@ -20,6 +19,7 @@ import { backend_url } from '@/lib/constants';
 import CreditPurchasePopup from '@/components/platform/CreditPurchasePopup';
 import CreditWarningPopup from '@/components/platform/CreditWarningPopup';
 import SubscriptionRequiredPopup from '@/components/platform/SubscriptionRequiredPopup';
+import { VideoClipEditor } from '@/components/platform/VideoClipEditor';
 
 
 const noCaptionVideo = '/assets/caption_styles/no_captions.mp4';
@@ -35,34 +35,32 @@ const mattVideo = '/assets/caption_styles/matt.mp4';
 // Add these styles near the top of the file with other constants
 const aspectRatioOptions = [
   {
-    id: 'portrait',
-    label: 'Portrait (9:16)',
-    ratio: '9:16',
-    icon: (selected: boolean) => (
-      <div className={`w-6 h-10 border-2 ${selected ? 'border-color-1 bg-color-1/20' : 'border-n-3'} rounded-sm`} />
-    )
-  },
-  {
     id: 'landscape',
     label: 'Landscape (16:9)',
     ratio: '16:9',
     icon: (selected: boolean) => (
       <div className={`w-10 h-6 border-2 ${selected ? 'border-color-1 bg-color-1/20' : 'border-n-3'} rounded-sm`} />
     )
+  },
+  {
+    id: 'portrait',
+    label: 'Portrait (9:16)',
+    ratio: '9:16',
+    icon: (selected: boolean) => (
+      <div className={`w-6 h-10 border-2 ${selected ? 'border-color-1 bg-color-1/20' : 'border-n-3'} rounded-sm`} />
+    )
   }
 ];
 
 
-export function Create() {
+export function ManualClip() {
   const router = useRouter(); 
   const [videoLink, setVideoLink] = useState("");
   const [videoThumbnail, setVideoThumbnail] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [clipLength, setClipLength] = useState("Auto (0m~1m)");
   const [genre, setGenre] = useState("Auto");
-  const [videoQuality, setVideoQuality] = useState("Auto");
-  const [videoType, setVideoType] = useState("portrait");
-  const [keywords, setKeywords] = useState("");
+  const [videoQuality, setVideoQuality] = useState("720p");
+  const [videoType, setVideoType] = useState("landscape");
   const { user: clerkUser } = useUser();
   const [user, setUser] = useState<UserModel | null>(null);
   const [userCredits, setUserCredits] = useState(0);
@@ -73,7 +71,6 @@ export function Create() {
   const [startTimePercentage, setStartTimePercentage] = useState(0);
   const [endTimePercentage, setEndTimePercentage] = useState(100);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [clipLengthRange, setClipLengthRange] = useState({ min: 0, max: 180 });
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedVideo, setUploadedVideo] = useState<File | null>(null);
@@ -86,6 +83,8 @@ export function Create() {
   const [currentPlan, setCurrentPlan] = useState("Basic");
   const [showCreditPurchasePopup, setShowCreditPurchasePopup] = useState(false);
   const [showSubscriptionRequiredPopup, setShowSubscriptionRequiredPopup] = useState(false);
+  const [clips, setClips] = useState<{ id: string; startTime: number; endTime: number; }[]>([]);
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
 
   const captionStyles = [
     { id: "no_captions", name: "No Captions", videoSrc: noCaptionVideo },
@@ -150,59 +149,102 @@ export function Create() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    // Revoke previous URL if exists
+    if (uploadedVideoUrl) {
+      URL.revokeObjectURL(uploadedVideoUrl);
+    }
+
     setIsUploading(true);
     setUploadedVideo(file);
     setVideoTitle(file.name);
     setIsValidInput(true);
+    setVideoLink(""); // Clear any existing YouTube link
 
-    // Create a temporary URL for the video file
-    const videoURL = URL.createObjectURL(file);
+    try {
+      // Create URL for the uploaded file
+      const url = URL.createObjectURL(file);
+      
+      // Create a video element to get metadata
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = () => {
+          setVideoDuration(video.duration);
+          resolve(null);
+        };
+        video.onerror = reject;
+        video.src = url;
+      });
 
-    const video = document.createElement('video');
-    video.preload = 'metadata';
+      // Set the URL only after metadata is loaded
+      setUploadedVideoUrl(url);
+      
+      // Generate thumbnail
+      video.currentTime = 1;
+      await new Promise(resolve => {
+        video.onseeked = resolve;
+      });
 
-    video.onloadedmetadata = () => {
-      setVideoDuration(video.duration);
-    };
-
-    video.onloadeddata = () => {
-      console.log("Video data loaded, waiting to generate thumbnail...");
-      // Wait a short moment to ensure the video is ready
-      setTimeout(() => {
-        video.currentTime = 1; // Set to 1 second to avoid potential black frames at the start
-      }, 1000);
-    };
-
-    video.onseeked = () => {
-      console.log("Video seeked, generating thumbnail...");
       const canvas = document.createElement('canvas');
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const thumbnailUrl = canvas.toDataURL('image/jpeg');
-      console.log("Thumbnail generated:", thumbnailUrl.substring(0, 100) + "...");
-      setVideoThumbnail(thumbnailUrl);
-      URL.revokeObjectURL(videoURL);
-    };
-
-    video.src = videoURL;
-    video.load();
-
-    // Simulating upload progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-        setIsUploading(false);
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const thumbnailUrl = canvas.toDataURL('image/jpeg');
+        setVideoThumbnail(thumbnailUrl);
       }
-    }, 500);
+
+      // Cleanup
+      video.remove();
+      setIsUploading(false);
+      
+      // Simulate upload progress
+      let progress = 0;
+      const interval = setInterval(() => {
+        progress += 10;
+        setUploadProgress(progress);
+        if (progress >= 100) {
+          clearInterval(interval);
+        }
+      }, 200);
+
+    } catch (error) {
+      console.error('Error processing video:', error);
+      setIsUploading(false);
+      if (uploadedVideoUrl) {
+        URL.revokeObjectURL(uploadedVideoUrl);
+        setUploadedVideoUrl(null);
+      }
+    }
+  };
+
+  // Add cleanup effect
+  useEffect(() => {
+    return () => {
+      if (uploadedVideoUrl) {
+        URL.revokeObjectURL(uploadedVideoUrl);
+      }
+    };
+  }, []);
+
+  const handleClipsChange = (newClips: { id: string; startTime: number; endTime: number; }[]) => {
+    setClips(newClips);
   };
 
   const handleProcessClick = async () => {
-    const processingDuration = endTime - startTime;
-    const requiredCredits = Math.ceil(processingDuration / 60);
+    if (clips.length === 0) {
+      // Show error or warning that at least one clip is required
+      return;
+    }
+
+    // Calculate total processing duration from all clips
+    const totalDuration = clips.reduce((total, clip) => {
+      return total + (clip.endTime - clip.startTime);
+    }, 0);
+    
+    const requiredCredits = Math.ceil(totalDuration / 60);
 
     if (userCredits < requiredCredits) {
       setShowCreditWarning(true);
@@ -213,8 +255,6 @@ export function Create() {
     
     const userId = clerkUser?.id ?? '';
     const email = clerkUser?.primaryEmailAddress?.emailAddress ?? '';
-
-    const processing_timeframe = `${formatTime(startTime)} - ${formatTime(endTime)}`;
     
     try {
       const updatedUser = await updateUserCredits(userId, -requiredCredits);
@@ -227,31 +267,37 @@ export function Create() {
         youtube_video_url: videoLink,
         title: videoTitle || 'Untitled Project',
         thumbnail: videoThumbnail,
-        processing_timeframe: processing_timeframe,
         video_quality: videoQuality,
         required_credits: requiredCredits,
         videoDuration: videoDuration,
         status: 'processing',
         progress: 0,
-        stage: 'initializing'
+        stage: 'initializing',
+        project_type: 'manual'
       } as Omit<ProjectModel, '_id' | 'created_at' | 'clip_ids' | 'transcript'>);
 
       if (newProject) {
-        // Send data to Flask backend for processing
         const formData = new FormData();
         formData.append('userId', userId);
         formData.append('email', email);
         formData.append('projectId', newProject._id);
         formData.append('videoTitle', videoTitle);
-        formData.append('processing_timeframe', processing_timeframe);
         formData.append('genre', genre);
         formData.append('videoQuality', videoQuality);
         formData.append('videoType', videoType);
-        formData.append('startTime', startTime.toString());
-        formData.append('endTime', endTime.toString());
-        formData.append('clipLengthMin', clipLengthRange.min.toString());
-        formData.append('clipLengthMax', clipLengthRange.max.toString());
-        formData.append('keywords', keywords);
+        formData.append('project_type', 'manual');
+        
+        // Format clips data for backend processing
+        const clipsForProcessing = clips.map((clip, index) => ({
+          id: clip.id,
+          index: index + 1,
+          start: clip.startTime,
+          end: clip.endTime,
+          duration: clip.endTime - clip.startTime
+        }));
+        
+        console.log('Sending clips for processing:', clipsForProcessing);
+        formData.append('clips', JSON.stringify(clipsForProcessing));
         formData.append('captionStyle', selectedCaptionStyle);
 
         if (uploadedVideo) {
@@ -260,6 +306,7 @@ export function Create() {
           formData.append('videoLink', videoLink);
         }
 
+        // Send data to Flask backend for processing
         const response = await fetch(`${backend_url}/api/process-video`, {
           method: "POST",
           body: formData,
@@ -269,7 +316,6 @@ export function Create() {
         });
 
         if (response.ok) {
-          // Deduct credits after project creation
           console.log("Project created, starting polling");
           setIsPolling(true);
           pollProjectStatus(userId, newProject._id);
@@ -326,37 +372,6 @@ export function Create() {
     }, 5000);
   };
 
-  const handleClipLengthClick = (length: string) => {
-    setClipLength(length);
-    let min = 0;
-    let max = 180;
-
-    switch (length) {
-      case "Auto (0m~1m)":
-        min = 0;
-        max = 60;
-        break;
-      case "<30s":
-        min = 0;
-        max = 30;
-        break;
-      case "30s~60s":
-        min = 30;
-        max = 60;
-        break;
-      case "60s~90s":
-        min = 60;
-        max = 90;
-        break;
-      case "90s~3m":
-        min = 90;
-        max = 180;
-        break;
-    }
-
-    setClipLengthRange({ min, max });
-  };
-
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
@@ -380,15 +395,6 @@ export function Create() {
 
   const [timeRange, setTimeRange] = useState<number[]>([0, 100]);
 
-  const handleTimeRangeChange = (event: Event, newValue: number | number[]) => {
-    setTimeRange(newValue as number[]);
-    if (videoDuration && Array.isArray(newValue)) {
-      const newStartTime = Math.floor(videoDuration * (newValue[0] / 100));
-      const newEndTime = Math.floor(videoDuration * (newValue[1] / 100));
-      setStartTime(newStartTime);
-      setEndTime(newEndTime);
-    }
-  };
 
   useEffect(() => {
     if (clerkUser?.id) {
@@ -446,17 +452,6 @@ export function Create() {
     } else {
       // Navigate to the processing page for projects still in progress
       router.push(`/project/${project._id}`);
-    }
-  };
-
-  const handleRemoveVideo = () => {
-    setUploadedVideo(null);
-    setVideoThumbnail("");
-    setVideoTitle("");
-    setVideoDuration(null);
-    setIsValidInput(false);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = "";
     }
   };
 
@@ -530,7 +525,7 @@ export function Create() {
   return (
     <div className="min-h-screen bg-black text-n-1 p-4 sm:p-8">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-6 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4 sm:mb-0">Create Viral Clips</h1>
+        <h1 className="text-3xl font-bold mb-4 sm:mb-0">Choose Your Clips</h1>
         <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
           <Tooltip
             title={
@@ -560,9 +555,9 @@ export function Create() {
           </Button>
         </div>
       </header>
-      <main className="mt-6 space-y-6 max-w-4xl mx-auto"> {/* Reduced top margin and vertical spacing */}
-        <div className="bg-n-7/70 rounded-2xl p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
-          <h2 className="text-2xl font-semibold mb-2">Video Source</h2> {/* Added bottom margin */}
+      <main className="mt-6 space-y-6 max-w-4xl mx-auto">
+        <div className="bg-n-7/70 rounded-2xl p-6 space-y-4">
+          <h2 className="text-2xl font-semibold mb-2">Video Source</h2>
           <div className="flex items-center w-full space-x-4">
             <Input
               placeholder="Drop a YouTube link"
@@ -591,50 +586,21 @@ export function Create() {
               <Spinner className="w-8 h-8 text-color-1" />
             </div>
           ) : (
-            (videoThumbnail || videoTitle) && (
-              <div className="w-full flex flex-col items-center space-y-2 relative">
-                {videoThumbnail && (
-                  <div className="flex flex-col items-center w-full relative">
-                    <div className="relative">
-                      <img 
-                        src={videoThumbnail} 
-                        alt="Video thumbnail" 
-                        width={280} 
-                        height={158} 
-                        className="mx-auto"
-                        onError={() => console.error("Error loading thumbnail")}
-                        onLoad={() => console.log("Thumbnail loaded successfully")}
-                      />
-                      {uploadedVideo && (
-                        <Button
-                          className="absolute -top-3 -right-3 bg-transparent hover:bg-gray-800 text-white rounded-full p-1 transition-colors duration-200"
-                          onClick={handleRemoveVideo}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <circle cx="12" cy="12" r="10" />
-                            <line x1="15" y1="9" x2="9" y2="15" />
-                            <line x1="9" y1="9" x2="15" y2="15" />
-                          </svg>
-                        </Button>
-                      )}
-                    </div>
-                    {videoTitle && (
-                      <p className="text-center font-semibold mt-2 truncate w-full" style={{ maxWidth: '280px' }}>
-                        {videoTitle}
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
+            (videoLink || uploadedVideoUrl) && (
+              <VideoClipEditor
+                videoUrl={uploadedVideoUrl || videoLink}
+                onClipsChange={handleClipsChange}
+                isYouTube={!uploadedVideoUrl}
+              />
             )
           )}
         </div>
 
-        <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
-          <h2 className="text-2xl font-semibold mb-2">Clip Settings</h2> {/* Added bottom margin */}
-          <div className="space-y-3"> {/* Added a wrapper with reduced vertical spacing */}
+        <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4">
+          <h2 className="text-2xl font-semibold mb-2">Clip Settings</h2>
+          <div className="space-y-3">
             <div>
-              <div className="flex items-center mb-1"> {/* Reduced bottom margin */}
+              <div className="flex items-center mb-1">
                 <h3 className="text-lg font-bold mr-2">Genre of Video</h3>
               </div>
               <select 
@@ -644,12 +610,11 @@ export function Create() {
               >
                 <option>Auto</option>
                 <option>Podcast</option>
-                {/* <option>Anime</option> */}
                 <option>TV shows</option>
               </select>
             </div>
             <div>
-              <h3 className="text-lg font-bold mb-1">Video Quality</h3> {/* Added bottom margin */}
+              <h3 className="text-lg font-bold mb-1">Video Quality</h3>
               <select 
                 className="w-full bg-n-6 text-n-1 rounded-md p-2"
                 value={videoQuality}
@@ -661,98 +626,6 @@ export function Create() {
                 <option>360p</option>
               </select>
             </div>
-            <div className="flex items-center mb-2">
-              <h3 className="text-lg font-bold mr-2">Processing Timeframe</h3>
-              <div className="bg-gray-700 bg-opacity-50 text-white text-xs font px-2 py-2 rounded flex items-center">
-                required credits
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 ml-2"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path
-                    fillRule="evenodd"
-                    d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-                <span className="ml-1">{requiredCredits}</span>
-              </div>
-            </div>
-            <div className="w-full mb-4 relative">
-              <Slider
-                value={timeRange}
-                onChange={handleTimeRangeChange}
-                valueLabelDisplay="auto"
-                aria-labelledby="time-range-slider"
-                getAriaValueText={(value) => `${formatTime((videoDuration ?? 0) * value / 100)}`}
-                valueLabelFormat={(value) => formatTime((videoDuration ?? 0) * value / 100)}
-                sx={{
-                  color: '#8B5CF6', // Purple color
-                  '& .MuiSlider-thumb': {
-                    backgroundColor: '#8B5CF6',
-                  },
-                  '& .MuiSlider-rail': {
-                    backgroundColor: '#4B5563',
-                  },
-                  '& .MuiSlider-track': {
-                    backgroundColor: '#8B5CF6',
-                  },
-                  '& .MuiSlider-valueLabel': {
-                    backgroundColor: '#8B5CF6',
-                  },
-                }}
-              />
-              {videoDuration && (
-                <>
-                  <div className="flex justify-between mt-2">
-                    <span>{formatTime(startTime)}</span>
-                    <span>{formatTime(endTime)}</span>
-                  </div>
-                  {/* Removed the credits display below the slider */}
-                </>
-              )}
-            </div>
-            <h3 className="text-lg font-bold">Preferred Clip Length</h3>
-            <div className="flex flex-wrap gap-2 mb-4">
-              <button
-                className={`rounded-md px-2 py-1 ${clipLength === "Auto (0m~1m)" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-                onClick={() => handleClipLengthClick("Auto (0m~1m)")}>
-                Auto (0m~1m)
-              </button>
-              <button
-                className={`rounded-md px-2 py-1 ${clipLength === "<30s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-                onClick={() => handleClipLengthClick("<30s")}>
-                &lt;30s
-              </button>
-              <button
-                className={`rounded-md px-2 py-1 ${clipLength === "30s~60s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-                onClick={() => handleClipLengthClick("30s~60s")}
-              >
-                30s~60s
-              </button> 
-              <button
-                className={`rounded-md px-2 py-1 ${clipLength === "60s~90s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-                onClick={() => handleClipLengthClick("60s~90s")}
-              >
-                60s~90s
-              </button>
-              <button
-                className={`rounded-md px-2 py-1 ${clipLength === "90s~3m" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-                onClick={() => handleClipLengthClick("90s~3m")}
-              >
-                90s~3m
-              </button>
-            </div>
-            <h3 className="text-lg font-bold">Topic filter by keywords (optional)</h3>
-            <input 
-              type="text" 
-              className="w-full bg-n-6 text-n-1 rounded-md p-2 mb-4" 
-              placeholder="Add keywords, comma-separated"
-              value={keywords}
-              onChange={(e) => setKeywords(e.target.value)}
-            />
           </div>
         </div>
 
@@ -787,9 +660,9 @@ export function Create() {
         <Button 
           className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
           onClick={handleProcessClick} 
-          disabled={processing || isUploading || !isValidInput}
+          disabled={processing || isUploading || !isValidInput || clips.length === 0}
         >
-          {processing ? "Processing..." : "Get viral clips"}
+          {processing ? "Processing..." : `Process ${clips.length} clip${clips.length !== 1 ? 's' : ''}`}
         </Button>
 
         {projects.length > 0 && (
@@ -803,7 +676,7 @@ export function Create() {
         <div className="max-w-[1920px] mx-auto px-4 mt-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {projects
-              .filter(project => project.status !== 'failed')
+              .filter(project => project.status !== 'failed' && project.project_type === 'manual')
               .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
               .map((project) => (
                 <ProjectCard

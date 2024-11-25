@@ -73,7 +73,7 @@ const Header = () => {
             <div className="lg:hidden">
               {isSignedIn ? (
                 <Link
-                  href="/home"
+                  href="/auto"
                   onClick={handleClick}
                   className="block relative font-code text-2xl uppercase text-n-1 transition-colors hover:text-color-1 px-6 py-6 md:py-8"
                 >
@@ -105,7 +105,7 @@ const Header = () => {
 
         <div className="flex items-center">
           {isSignedIn ? (
-            <Link href="/home" className="hidden lg:block mr-4 text-n-1/50 hover:text-n-1 transition-colors text-base">
+            <Link href="/auto" className="hidden lg:block mr-4 text-n-1/50 hover:text-n-1 transition-colors text-base">
               My Dashboard
             </Link>
           ) : (
