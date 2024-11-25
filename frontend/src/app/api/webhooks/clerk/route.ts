@@ -58,19 +58,27 @@ export async function POST(req: Request) {
 
   // CREATE
   if (eventType === "user.created") {
-    const { id, email_addresses, first_name, last_name } = evt.data;
+    try {
+      const { id, email_addresses, first_name, last_name } = evt.data;
 
-    const userData = {
-      clerk_id: id,
-      email: email_addresses[0].email_address,
-      firstName: first_name ?? '',
-      lastName: last_name ?? '',
-    };
+      const userData = {
+        clerk_id: id,
+        email: email_addresses[0].email_address,
+        firstName: first_name ?? '',
+        lastName: last_name ?? '',
+      };
 
     const newUser = await createUser(userData);
 
-    // Set public metadata
-    if (newUser) {
+      if (!newUser) {
+        console.error('Failed to create user in database');
+        return NextResponse.json({ 
+          message: "Failed to create user", 
+          success: false 
+        }, { status: 500 });
+      }
+
+      // Set public metadata
       try {
         await clerkClient().users.updateUserMetadata(id, {
           publicMetadata: {
@@ -81,9 +89,19 @@ export async function POST(req: Request) {
         console.error("Error updating Clerk user metadata:", error);
         // Continue execution even if Clerk update fails
       }
-    }
 
-    return NextResponse.json({ message: "OK", user: newUser });
+      return NextResponse.json({ 
+        message: "User created successfully", 
+        user: newUser,
+        success: true 
+      });
+    } catch (error) {
+      console.error('Error in user.created webhook:', error);
+      return NextResponse.json({ 
+        message: "Internal server error", 
+        success: false 
+      }, { status: 500 });
+    }
   }
 
   // UPDATE

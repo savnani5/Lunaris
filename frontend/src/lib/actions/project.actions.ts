@@ -27,7 +27,8 @@ export async function createProject(projectData: Omit<ProjectModel, '_id' | 'cre
       projectData.required_credits,
       0,
       '',
-      projectData.videoDuration
+      projectData.videoDuration,
+      projectData.project_type
     );
 
     const result = await db.collection('project').insertOne({

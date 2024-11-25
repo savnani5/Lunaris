@@ -46,9 +46,10 @@ const Sidebar = () => {
   }, []);
 
   const navItems = useMemo(() => [
-    { href: '/home', label: 'Generate', icon: Home },
+    { href: '/auto', label: 'Auto Clip', icon: Home },
+    { href: '/manual', label: 'Manual Clip', icon: Video },
     { href: '/manage-subscription', label: 'Subscription', icon: Settings },
-    { href: '/buy-credits', label: 'Add Credits', icon: CreditCard, onClick: handleBuyCreditsClick },
+    // { href: '/buy-credits', label: 'Add Credits', icon: CreditCard, onClick: handleBuyCreditsClick },
     { label: 'Schedule Posts', icon: Calendar, onClick: handleSchedulePostsClick },
     { href: 'mailto:support@lunaris.media', label: 'Support', icon: HelpCircle },
   ], [handleBuyCreditsClick, handleSchedulePostsClick]);

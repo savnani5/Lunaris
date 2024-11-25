@@ -6,9 +6,11 @@ import Button from "./Button";
 import { useUser } from "@clerk/nextjs";
 import { useState, useEffect } from "react";
 import { getUserById } from '@/lib/actions/user.actions';
+import { useRouter } from 'next/navigation';
 
 const PricingList = ({ isAnnual }) => {
   const { user } = useUser();
+  const router = useRouter();
   const [userPlanType, setUserPlanType] = useState(null);
 
   useEffect(() => {
@@ -22,6 +24,11 @@ const PricingList = ({ isAnnual }) => {
   }, [user]);
 
   const handleSubscription = async (planType, link) => {
+    if (!user) {
+      router.push('/manage-subscription');
+      return;
+    }
+
     if (link === "mailto:sales@lunaris.media") {
       window.location.href = link;
       return;

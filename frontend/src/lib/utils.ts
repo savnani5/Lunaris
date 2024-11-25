@@ -14,16 +14,17 @@ export const handleError = (error: unknown) => {
 
   if (error instanceof Error) {
     if (error.message.includes('ECONNREFUSED') || error.message.includes('ETIMEOUT')) {
-      throw new Error('Database connection failed. Please try again later.');
+      console.error('Database connection failed:', error.message);
+      return null;
     }
-    console.error(error.message);
-    throw new Error(`Error: ${error.message}`);
+    console.error('Error:', error.message);
+    return null;
   } else if (typeof error === "string") {
-    console.error(error);
-    throw new Error(`Error: ${error}`);
+    console.error('Error:', error);
+    return null;
   } else {
-    console.error(error);
-    throw new Error(`Unknown error: ${JSON.stringify(error)}`);
+    console.error('Unknown error:', error);
+    return null;
   }
 };
 

@@ -3,7 +3,7 @@ import Image from 'next/image'
 
 export default function Page() {
   return (
-    <div className="min-h-screen bg-n-8 text-n-1">
+    <div className="min-h-screen bg-black text-n-1">
       <div className="flex items-center px-5 lg:px-7.5 xl:px-10 py-4">
         <a className="flex items-center w-[10rem] xl:mr-8" href="/">
           <Image src="/assets/lunaris.svg" width={45} height={45} alt="Lunaris" />
@@ -14,7 +14,7 @@ export default function Page() {
         <SignUp
           appearance={{
             elements: {
-              rootBox: "bg-n-8",
+              rootBox: "bg-black",
               card: "bg-n-7 border-n-6",
               headerTitle: "text-n-1",
               headerSubtitle: "text-n-3",

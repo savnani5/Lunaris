@@ -10,3 +10,104 @@ body {
 html {
   background-color: black;
 }
+
+/* Add these styles */
+.timeline-handle {
+  width: 4px;
+  background: white;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  cursor: ew-resize;
+  transition: all 0.2s ease;
+  z-index: 30;
+  opacity: 0.8;
+}
+
+.timeline-handle:hover {
+  background: #8B5CF6;
+  width: 6px;
+  opacity: 1;
+}
+
+.timeline-clip {
+  position: absolute;
+  height: 100%;
+  background: rgba(139, 92, 246, 0.15);
+  border: 2px solid rgba(139, 92, 246, 0.9);
+  transition: all 0.2s ease;
+  z-index: 15;
+}
+
+.timeline-clip:hover {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.timeline-clip:nth-child(3n+1) {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.9);
+}
+
+.timeline-clip:nth-child(3n+1):hover {
+  background: rgba(239, 68, 68, 0.25);
+}
+
+.timeline-clip:nth-child(3n+2) {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.9);
+}
+
+.timeline-clip:nth-child(3n+2):hover {
+  background: rgba(16, 185, 129, 0.25);
+}
+
+/* Add smooth transitions */
+.timeline-clip, .timeline-handle {
+  transition: all 0.2s ease;
+}
+
+/* Add these styles */
+.timeline-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.3);
+  pointer-events: none;
+}
+
+/* Add these styles for video interaction */
+.video-container {
+  position: relative;
+  cursor: pointer;
+}
+
+.video-container:hover .play-overlay {
+  opacity: 1;
+}
+
+.play-overlay {
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+/* Prevent text selection when double-clicking video */
+.video-container, 
+.video-controls {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Style for play button overlay */
+.play-button-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.play-button-overlay:hover {
+  opacity: 1;
+}
