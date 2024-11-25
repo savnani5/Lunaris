@@ -44,7 +44,7 @@ const ManageSubscription: React.FC = () => {
     if (userPlanType === planType) {
       window.location.href = process.env.NEXT_PUBLIC_STRIPE_CUSTOMER_PORTAL_URL || '#';
       return;
-    }
+    } 
 
     try {
       const response = await fetch('/api/stripe-checkout', {

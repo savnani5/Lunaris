@@ -2,14 +2,15 @@
 
 import { revalidatePath } from "next/cache";
 import { ClipModel } from '@/lib/database/models/clip.model';
-import { connectToDatabase } from '@/lib/database/mongodb';
+import { getDbConnection, releaseConnection } from '@/lib/database/db.utils';
 import { ObjectId } from 'mongodb';
 import { handleError } from "@/lib/utils";
 
 // CREATE
 export async function createClip(clipData: Omit<ClipModel, '_id' | 'created_at'>) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const newClip = new ClipModel(
       new ObjectId().toString(),
@@ -42,13 +43,16 @@ export async function createClip(clipData: Omit<ClipModel, '_id' | 'created_at'>
     return JSON.parse(JSON.stringify(newClip));
   } catch (error) {
     handleError(error);
+  } finally {
+    await releaseConnection(connection);
   }
 }
 
 // READ
 export async function getClipById(clipId: string) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const clip = await db.collection('clip').findOne({ _id: new ObjectId(clipId) });
 
@@ -61,8 +65,9 @@ export async function getClipById(clipId: string) {
 }
 
 export async function getClipsByProjectId(projectId: string) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const clips = await db.collection('clip')
       .find({ project_id: projectId })
@@ -76,8 +81,9 @@ export async function getClipsByProjectId(projectId: string) {
 
 // UPDATE
 export async function updateClip(clipId: string, clipData: Partial<ClipModel>) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const updatedClip = await db.collection('clip').findOneAndUpdate(
       { _id: new ObjectId(clipId) },
@@ -95,8 +101,9 @@ export async function updateClip(clipId: string, clipData: Partial<ClipModel>) {
 
 // DELETE
 export async function deleteClip(clipId: string) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const deletedClip = await db.collection('clip').findOneAndDelete({ _id: new ObjectId(clipId) });
 

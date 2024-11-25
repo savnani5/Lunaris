@@ -3,6 +3,16 @@ import { connectToDatabase } from '@/lib/database/mongodb';
 import { ObjectId } from 'mongodb';
 import { updateUserCredits } from '@/lib/actions/user.actions';
 
+// Create a connection promise outside the handler
+let dbConnection: Promise<{ db: any }>;
+
+async function getDbConnection() {
+  if (!dbConnection) {
+    dbConnection = connectToDatabase();
+  }
+  return dbConnection;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get('userId');
@@ -13,7 +23,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { db } = await connectToDatabase();
+    const { db } = await getDbConnection();
   
     // Use db directly, not client.db()
     const project = await db.collection('project').findOne({ _id: new ObjectId(projectId), clerk_user_id: userId });
@@ -54,7 +64,7 @@ export const POST = async (request: Request) => {
       return NextResponse.json({ error: 'User ID, Project ID, and status are required' }, { status: 400 });
     }
 
-    const { db } = await connectToDatabase();
+    const { db } = await getDbConnection();
     const project = await db.collection('project').findOne({ _id: new ObjectId(projectId), clerk_user_id: userId });
 
     if (!project) {

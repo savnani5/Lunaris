@@ -2,6 +2,16 @@ import { NextResponse } from 'next/server';
 import { connectToDatabase } from '@/lib/database/mongodb';
 import { createClip } from '@/lib/actions/clip.action';
 
+// Create a connection promise outside the handler
+let dbConnection: Promise<{ db: any }>;
+
+async function getDbConnection() {
+  if (!dbConnection) {
+    dbConnection = connectToDatabase();
+  }
+  return dbConnection;
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const projectId = searchParams.get('projectId');
@@ -11,7 +21,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { db } = await connectToDatabase();
+    const { db } = await getDbConnection();
     const clips = await db.collection('clip').find({ project_id: projectId }).toArray();
 
     return NextResponse.json(clips);

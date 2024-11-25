@@ -15,7 +15,6 @@ import { createProject, getProjectsByUserId, updateProjectStatus } from '@/lib/a
 import { getUserById, updateUserCredits } from '@/lib/actions/user.actions';
 import { ProjectModel, Project } from '@/lib/database/models/project.model';
 import { UserModel } from '@/lib/database/models/user.model';
-import { backend_url } from '@/lib/constants';
 import CreditPurchasePopup from '@/components/platform/CreditPurchasePopup';
 import CreditWarningPopup from '@/components/platform/CreditWarningPopup';
 import SubscriptionRequiredPopup from '@/components/platform/SubscriptionRequiredPopup';
@@ -307,7 +306,7 @@ export function ManualClip() {
         }
 
         // Send data to Flask backend for processing
-        const response = await fetch(`${backend_url}/api/process-video`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/process-video`, {
           method: "POST",
           body: formData,
           headers: {

@@ -2,9 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { UserModel } from '@/lib/database/models/user.model';
-import { connectToDatabase } from '@/lib/database/mongodb';
-import { INITIAL_CREDITS } from '../constants';
 import { handleError } from "@/lib/utils";
+import { getDbConnection, releaseConnection } from '@/lib/database/db.utils';
 
 // CREATE
 export async function createUser(userData: {
@@ -13,8 +12,9 @@ export async function createUser(userData: {
   firstName: string;
   lastName: string;
 }) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     console.log('Checking for existing user:', userData.clerk_id);
 
@@ -34,7 +34,7 @@ export async function createUser(userData: {
       userData.email,
       userData.firstName,
       userData.lastName,
-      INITIAL_CREDITS,
+      Number(process.env.INITIAL_CREDITS),
       [],
       new Date(),
     );
@@ -48,13 +48,16 @@ export async function createUser(userData: {
     return JSON.parse(JSON.stringify(newUser));
   } catch (error) {
     handleError(error);
+  } finally {
+    await releaseConnection(connection);
   }
 }
 
 // READ
 export async function getUserById(userId: string) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const user = await db.collection('user').findOne({ clerk_id: userId });
 
@@ -63,13 +66,16 @@ export async function getUserById(userId: string) {
     return JSON.parse(JSON.stringify(UserModel.fromObject(user)));
   } catch (error) {
     handleError(error);
+  } finally {
+    await releaseConnection(connection);
   }
 }
 
 // UPDATE
 export async function updateUser(userId: string, userData: Partial<UserModel>) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     // First, check if the user exists
     const existingUser = await db.collection('user').findOne({ clerk_id: userId });
@@ -82,7 +88,7 @@ export async function updateUser(userId: string, userData: Partial<UserModel>) {
         userData.email || '',
         userData.firstName || '',
         userData.lastName || '',
-        INITIAL_CREDITS,
+        Number(process.env.INITIAL_CREDITS),
         [],
         new Date()
       );
@@ -106,13 +112,16 @@ export async function updateUser(userId: string, userData: Partial<UserModel>) {
   } catch (error) {
     console.error("Error in updateUser:", error);
     return null; // Return null instead of throwing an error
+  } finally {
+    await releaseConnection(connection);
   }
 }
 
 // DELETE
 export async function deleteUser(userId: string) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const deletedUser = await db.collection('user').findOneAndDelete({ clerk_id: userId });
 
@@ -127,14 +136,17 @@ export async function deleteUser(userId: string) {
   } catch (error) {
     console.error("Error in deleteUser:", error);
     return null; // Return null in case of any other errors
+  } finally {
+    await releaseConnection(connection);
   }
 }
 
 // UPDATE PROJECTS
 export async function updateUserProjects(userId: string, projectId: string, action: 'add' | 'remove') {
   console.log(`Attempting to update projects for user: ${userId}, project: ${projectId}, action: ${action}`);
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     // First, check if the user exists
     const existingUser = await db.collection('user').findOne({ clerk_id: userId });
@@ -163,6 +175,8 @@ export async function updateUserProjects(userId: string, projectId: string, acti
   } catch (error) {
     console.error("Error in updateUserProjects:", error);
     return null;
+  } finally {
+    await releaseConnection(connection);
   }
 }
 
@@ -176,8 +190,9 @@ export async function updateUserPlanFields(userId: string, planData: {
   nextRenewalDate: Date | null;
   subscriptionId: string | null;
 }) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const updateOperation = {
           $set: {
@@ -202,13 +217,16 @@ export async function updateUserPlanFields(userId: string, planData: {
   } catch (error) {
     console.error("Error in updateUserPlanFields:", error);
     return null;
+  } finally {
+    await releaseConnection(connection);
   }
 }
 
 // UPDATE USER CREDITS FROM PLAN
 export async function updateUserCredits(userId: string, planCredits: number) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     console.log(`Attempting to update credits for user ${userId} by ${planCredits}`);
 
@@ -228,5 +246,7 @@ export async function updateUserCredits(userId: string, planCredits: number) {
   } catch (error) {
     console.error(`Error in updateUserCreditsFromPlan for user ${userId}:`, error);
     return null;
+  } finally {
+    await releaseConnection(connection);
   }
 }

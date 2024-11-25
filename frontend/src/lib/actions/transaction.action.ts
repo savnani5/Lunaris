@@ -1,6 +1,6 @@
 "use server";
 
-import { connectToDatabase } from '../database/mongodb';
+import { getDbConnection } from '../database/db.utils';
 import { TransactionModel } from '../database/models/transaction.model';
 import { ObjectId } from 'mongodb';
 
@@ -18,8 +18,9 @@ declare type CreateTransactionParams = {
 
 
 export async function createTransaction(transaction: CreateTransactionParams) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const newTransaction = new TransactionModel(
       new ObjectId().toString(),

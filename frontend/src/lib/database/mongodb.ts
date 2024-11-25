@@ -1,34 +1,49 @@
 import { MongoClient } from 'mongodb';
-import { DB_NAME } from '../constants';
 
 const MONGODB_URI = process.env.MONGODB_URI as string;
 const options = {
-  maxPoolSize: 10,
-  serverSelectionTimeoutMS: 5000,
+  maxPoolSize: 50,
+  minPoolSize: 10,
+  maxIdleTimeMS: 60000,
+  connectTimeoutMS: 5000,
   socketTimeoutMS: 45000,
-  family: 4  // Force IPv4
+  waitQueueTimeoutMS: 10000,
+  family: 4,
+  retryWrites: true,
+  retryReads: true
 };
 
 if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
 
-let cachedClient: MongoClient | null = null;
-let cachedDb: any = null;
+declare global {
+  var mongoClient: MongoClient | undefined;
+}
 
 export async function connectToDatabase() {
-  if (cachedClient && cachedDb) {
-    return { client: cachedClient, db: cachedDb };
+  if (global.mongoClient) {
+    return {
+      client: global.mongoClient,
+      db: global.mongoClient.db(process.env.DB_NAME)
+    };
   }
 
   try {
     const client = await MongoClient.connect(MONGODB_URI, options);
-    const db = client.db(DB_NAME);
+    global.mongoClient = client;
 
-    cachedClient = client;
-    cachedDb = db;
+    ['SIGINT', 'SIGTERM'].forEach((signal) => {
+      process.on(signal, async () => {
+        await client.close();
+        process.exit(0);
+      });
+    });
 
-    return { client, db };
+    return {
+      client,
+      db: client.db(process.env.DB_NAME)
+    };
   } catch (error) {
     console.error('MongoDB connection error:', error);
     throw error;

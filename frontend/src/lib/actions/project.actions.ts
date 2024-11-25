@@ -2,15 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { ProjectModel } from '@/lib/database/models/project.model';
-import { connectToDatabase } from '@/lib/database/mongodb';
+import { getDbConnection } from '@/lib/database/db.utils';
 import { ObjectId } from 'mongodb';
 import { handleError } from "@/lib/utils";
 import { updateUserCredits } from './user.actions';
 
 // CREATE
 export async function createProject(projectData: Omit<ProjectModel, '_id' | 'created_at' | 'clip_ids' | 'transcript' | 'status' | 'progress'>) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const newProject = new ProjectModel(
       new ObjectId().toString(),
@@ -54,8 +55,9 @@ export async function createProject(projectData: Omit<ProjectModel, '_id' | 'cre
 
 // READ
 export async function getProjectById(projectId: string) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const project = await db.collection('project').findOne({ _id: new ObjectId(projectId) });
 
@@ -68,8 +70,9 @@ export async function getProjectById(projectId: string) {
 }
 
 export async function getProjectsByUserId(userId: string) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const projects = await db.collection('project')
       .find({ clerk_user_id: userId })
@@ -83,8 +86,9 @@ export async function getProjectsByUserId(userId: string) {
 
 // UPDATE
 export async function updateProject(projectId: string, projectData: Partial<ProjectModel>) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const updatedProject = await db.collection('project').findOneAndUpdate(
       { _id: new ObjectId(projectId) },
@@ -102,8 +106,9 @@ export async function updateProject(projectId: string, projectData: Partial<Proj
 
 // DELETE
 export async function deleteProject(projectId: string) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const deletedProject = await db.collection('project').findOneAndDelete({ _id: new ObjectId(projectId) });
 
@@ -127,8 +132,9 @@ export async function deleteProject(projectId: string) {
 
 // Update PROJECT STATUS
 export async function updateProjectStatus(projectId: string, status: string, stage: string, progress: number | null) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const updateData: { status: string; stage: string; progress?: number } = { status, stage };
     if (progress !== null) {
@@ -163,8 +169,9 @@ export async function updateProjectStatus(projectId: string, status: string, sta
 
 // UPDATE PROJECT CLIPS
 export async function updateProjectClips(projectId: string, clipId: string, action: 'add' | 'remove') {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const updateOperation = action === 'add'
       ? { $addToSet: { clip_ids: clipId } }
@@ -186,8 +193,9 @@ export async function updateProjectClips(projectId: string, clipId: string, acti
 
 // New function to update project progress
 export async function updateProjectProgress(projectId: string, progress: number) {
+  const connection = await getDbConnection();
   try {
-    const { db } = await connectToDatabase();
+    const { db } = connection;
 
     const updatedProject = await db.collection('project').findOneAndUpdate(
       { _id: new ObjectId(projectId) },
