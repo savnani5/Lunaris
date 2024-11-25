@@ -671,7 +671,7 @@ export function ManualClip() {
           </div>
         )}
       </main>
-      <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-4 mt-8">Your Projects</h2>
+      <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-4 mt-8">Manual Clip Projects</h2>
       {projects.length > 0 ? (
         <div className="max-w-[1920px] mx-auto px-4 mt-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
