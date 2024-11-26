@@ -84,6 +84,7 @@ export function ManualClip() {
   const [showSubscriptionRequiredPopup, setShowSubscriptionRequiredPopup] = useState(false);
   const [clips, setClips] = useState<{ id: string; startTime: number; endTime: number; }[]>([]);
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
+  const [activeXHR, setActiveXHR] = useState<XMLHttpRequest | null>(null);
 
   const captionStyles = [
     { id: "no_captions", name: "No Captions", videoSrc: noCaptionVideo },
@@ -148,19 +149,60 @@ export function ManualClip() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Revoke previous URL if exists
-    if (uploadedVideoUrl) {
-      URL.revokeObjectURL(uploadedVideoUrl);
-    }
-
-    setIsUploading(true);
-    setUploadedVideo(file);
+    // Create local URL immediately for preview
+    const localUrl = URL.createObjectURL(file);
+    setUploadedVideoUrl(localUrl);
     setVideoTitle(file.name);
     setIsValidInput(true);
-    setVideoLink(""); // Clear any existing YouTube link
+    setVideoLink("");
+    setUploadedVideo(file);
 
+    // Start upload in background
+    setIsUploading(true);
     try {
-      // Create URL for the uploaded file
+      const presignedUrlResponse = await fetch('/api/get-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type
+        })
+      });
+
+      if (!presignedUrlResponse.ok) {
+        throw new Error('Failed to get upload URL');
+      }
+
+      const { uploadUrl, fileKey, bucket } = await presignedUrlResponse.json();
+
+      // Upload to S3 with progress tracking
+      const uploadResponse = await fetchWithProgress(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+        onUploadProgress: (progressEvent: any) => {
+          if (progressEvent.lengthComputable) {
+            const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+            setUploadProgress(progress);
+          }
+        }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Upload failed');
+      }
+
+      // Update uploadedVideo with S3 information
+      setUploadedVideo(prev => ({
+        ...prev,
+        s3Uri: `s3://${bucket}/${fileKey}`,
+        bucket,
+        key: fileKey
+      } as any));
+
+      // Create URL for video preview
       const url = URL.createObjectURL(file);
       
       // Create a video element to get metadata
@@ -176,7 +218,6 @@ export function ManualClip() {
         video.src = url;
       });
 
-      // Set the URL only after metadata is loaded
       setUploadedVideoUrl(url);
       
       // Generate thumbnail
@@ -195,43 +236,58 @@ export function ManualClip() {
         setVideoThumbnail(thumbnailUrl);
       }
 
-      // Cleanup
       video.remove();
-      setIsUploading(false);
-      
-      // Simulate upload progress
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        setUploadProgress(progress);
-        if (progress >= 100) {
-          clearInterval(interval);
-        }
-      }, 200);
 
     } catch (error) {
       console.error('Error processing video:', error);
+      // Handle error but don't reset video preview
+    } finally {
       setIsUploading(false);
-      if (uploadedVideoUrl) {
-        URL.revokeObjectURL(uploadedVideoUrl);
-        setUploadedVideoUrl(null);
-      }
     }
   };
 
-  // Add cleanup effect
-  useEffect(() => {
-    return () => {
-      if (uploadedVideoUrl) {
-        URL.revokeObjectURL(uploadedVideoUrl);
+  // Helper function to track upload progress with fetch
+  const fetchWithProgress = (url: string, options: RequestInit & { onUploadProgress?: (event: ProgressEvent) => void }): Promise<Response> => {
+    const { onUploadProgress, ...fetchOptions } = options;
+    
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      setActiveXHR(xhr); // Store the XHR instance
+      
+      xhr.open(options.method || 'GET', url);
+      
+      // Set headers
+      if (options.headers) {
+        Object.entries(options.headers).forEach(([key, value]) => {
+          xhr.setRequestHeader(key, value as string);
+        });
       }
-    };
-  }, []);
 
-  const handleClipsChange = (newClips: { id: string; startTime: number; endTime: number; }[]) => {
-    setClips(newClips);
+      // Handle progress
+      if (onUploadProgress) {
+        xhr.upload.onprogress = onUploadProgress;
+      }
+
+      // Handle response
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(new Response(xhr.response, {
+            status: xhr.status,
+            statusText: xhr.statusText,
+          }));
+        } else {
+          reject(new Error(`HTTP ${xhr.status} - ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      
+      // Send the request
+      xhr.send(options.body as XMLHttpRequestBodyInit);
+    });
   };
-
+  
+  
   const handleProcessClick = async () => {
     if (clips.length === 0) {
       // Show error or warning that at least one clip is required
@@ -300,12 +356,11 @@ export function ManualClip() {
         formData.append('captionStyle', selectedCaptionStyle);
 
         if (uploadedVideo) {
-          formData.append('video', uploadedVideo);
+          formData.append('videoLink', (uploadedVideo as any).s3Uri);
         } else {
           formData.append('videoLink', videoLink);
         }
 
-        // Send data to Flask backend for processing
         const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/process-video`, {
           method: "POST",
           body: formData,
@@ -314,16 +369,23 @@ export function ManualClip() {
           },
         });
 
-        if (response.ok) {
-          console.log("Project created, starting polling");
-          setIsPolling(true);
-          pollProjectStatus(userId, newProject._id);
-        } else {
-          console.error('Failed to start video processing');
-          await updateProjectStatus(userId, newProject._id, 'failed', 0);
-          // Refund credits if project processing fails
-          await updateUserCredits(userId, requiredCredits);
-          setUserCredits(prevCredits => prevCredits + requiredCredits);
+        if (!response.ok) {
+          // Clean up S3 file if upload exists
+          if (uploadedVideo && (uploadedVideo as any).bucket && (uploadedVideo as any).key) {
+            try {
+              await fetch('/api/cleanup-s3', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  bucket: (uploadedVideo as any).bucket,
+                  key: (uploadedVideo as any).key
+                })
+              });
+            } catch (cleanupError) {
+              console.error('Error cleaning up S3:', cleanupError);
+            }
+          }
+          throw new Error('Failed to start video processing');
         }
 
         setProjects(prevProjects => [
@@ -521,6 +583,50 @@ export function ManualClip() {
   // Calculate required credits based on start and end times
   const requiredCredits = Math.floor((endTime - startTime) / 60);
 
+  // Add cleanup function for removing video
+  const handleRemoveVideo = () => {
+    // Cancel ongoing upload if exists
+    if (activeXHR) {
+      activeXHR.abort();
+      setActiveXHR(null);
+    }
+
+    if (uploadedVideo && (uploadedVideo as any).bucket && (uploadedVideo as any).key) {
+      try {
+        fetch('/api/cleanup-s3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bucket: (uploadedVideo as any).bucket,
+            key: (uploadedVideo as any).key
+          })
+        });
+      } catch (error) {
+        console.error('Error cleaning up S3:', error);
+      }
+    }
+
+    // Reset states
+    setUploadedVideo(null);
+    setVideoThumbnail("");
+    setVideoTitle("");
+    setVideoDuration(null);
+    setIsValidInput(false);
+    setIsUploading(false);
+    setUploadProgress(0);
+    if (uploadedVideoUrl) {
+      URL.revokeObjectURL(uploadedVideoUrl);
+      setUploadedVideoUrl(null);
+    }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+
+  const handleClipsChange = (newClips: { id: string; startTime: number; endTime: number; }[]) => {
+    setClips(newClips);
+  };
+
   return (
     <div className="min-h-screen bg-black text-n-1 p-4 sm:p-8">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-6 max-w-4xl mx-auto">
@@ -589,7 +695,8 @@ export function ManualClip() {
               <VideoClipEditor
                 videoUrl={uploadedVideoUrl || videoLink}
                 onClipsChange={handleClipsChange}
-                isYouTube={!uploadedVideoUrl}
+                isYouTube={!uploadedVideo}
+                onRemoveVideo={handleRemoveVideo}
               />
             )
           )}

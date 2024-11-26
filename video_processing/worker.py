@@ -129,9 +129,13 @@ class Worker:
             project_type = data.get('project_type', 'auto')
             
             logger.info(f"Processing video: {data['video_title']}")
+            
+            # Check if it's an S3 source
+            if data.get('video_link', '').startswith('s3://'):
+                logger.info(f"Processing S3 video: {data['video_link']}")
+
             self.video_processor.process_video(
                 video_link=data.get('video_link'),
-                video_path=data.get('video_path'),
                 project_id=data.get('project_id'),
                 clerk_user_id=data.get('clerk_user_id'),
                 user_email=data.get('user_email'),

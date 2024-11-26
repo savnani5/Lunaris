@@ -85,6 +85,7 @@ export function AutoClip() {
   const [currentPlan, setCurrentPlan] = useState("Basic");
   const [showCreditPurchasePopup, setShowCreditPurchasePopup] = useState(false);
   const [showSubscriptionRequiredPopup, setShowSubscriptionRequiredPopup] = useState(false);
+  const [activeXHR, setActiveXHR] = useState<XMLHttpRequest | null>(null);
 
   const captionStyles = [
     { id: "no_captions", name: "No Captions", videoSrc: noCaptionVideo },
@@ -152,11 +153,10 @@ export function AutoClip() {
     setIsUploading(true);
     setUploadedVideo(file);
     setVideoTitle(file.name);
-    setIsValidInput(true);
+    setIsValidInput(false);
 
-    // Create a temporary URL for the video file
+    // Create a temporary URL for the video file and handle thumbnail/metadata
     const videoURL = URL.createObjectURL(file);
-
     const video = document.createElement('video');
     video.preload = 'metadata';
 
@@ -166,9 +166,8 @@ export function AutoClip() {
 
     video.onloadeddata = () => {
       console.log("Video data loaded, waiting to generate thumbnail...");
-      // Wait a short moment to ensure the video is ready
       setTimeout(() => {
-        video.currentTime = 1; // Set to 1 second to avoid potential black frames at the start
+        video.currentTime = 1; // Set to 1 second to avoid black frames
       }, 1000);
     };
 
@@ -179,24 +178,113 @@ export function AutoClip() {
       canvas.height = video.videoHeight;
       canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
       const thumbnailUrl = canvas.toDataURL('image/jpeg');
-      console.log("Thumbnail generated:", thumbnailUrl.substring(0, 100) + "...");
       setVideoThumbnail(thumbnailUrl);
-      URL.revokeObjectURL(videoURL);
     };
 
     video.src = videoURL;
     video.load();
 
-    // Simulating upload progress
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += 10;
-      setUploadProgress(progress);
-      if (progress >= 100) {
-        clearInterval(interval);
-        setIsUploading(false);
+    try {
+      // Get presigned URL
+      const presignedUrlResponse = await fetch('/api/get-upload-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileName: file.name,
+          fileType: file.type
+        })
+      });
+
+      if (!presignedUrlResponse.ok) {
+        throw new Error('Failed to get upload URL');
       }
-    }, 500);
+
+      const { uploadUrl, fileKey, bucket } = await presignedUrlResponse.json();
+
+      // Create FormData and append file
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Use fetch instead of XMLHttpRequest for better error handling
+      const uploadResponse = await fetchWithProgress(uploadUrl, {
+        method: 'PUT',
+        body: file,
+        headers: {
+          'Content-Type': file.type,
+        },
+        // Track upload progress
+        onUploadProgress: (progressEvent: any) => {
+          if (progressEvent.lengthComputable) {
+            const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
+            setUploadProgress(progress);
+          }
+        }
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Upload failed');
+      }
+
+      // Update uploadedVideo with S3 information
+      setUploadedVideo(prev => ({
+        ...prev,
+        s3Uri: `s3://${bucket}/${fileKey}`,
+        bucket,
+        key: fileKey
+      } as any));
+
+      setIsValidInput(true);
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      // Clean up on error
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    } finally {
+      setIsUploading(false);
+      URL.revokeObjectURL(videoURL);
+    }
+  };
+
+  // Helper function to track upload progress with fetch
+  const fetchWithProgress = (url: string, options: RequestInit & { onUploadProgress?: (event: ProgressEvent) => void }): Promise<Response> => {
+    const { onUploadProgress, ...fetchOptions } = options;
+    
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      setActiveXHR(xhr); // Store the XHR instance
+      
+      xhr.open(options.method || 'GET', url);
+      
+      // Set headers
+      if (options.headers) {
+        Object.entries(options.headers).forEach(([key, value]) => {
+          xhr.setRequestHeader(key, value as string);
+        });
+      }
+
+      // Handle progress
+      if (onUploadProgress) {
+        xhr.upload.onprogress = onUploadProgress;
+      }
+
+      // Handle response
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(new Response(xhr.response, {
+            status: xhr.status,
+            statusText: xhr.statusText,
+          }));
+        } else {
+          reject(new Error(`HTTP ${xhr.status} - ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      
+      // Send the request
+      xhr.send(options.body as XMLHttpRequestBodyInit);
+    });
   };
 
   const handleProcessClick = async () => {
@@ -256,30 +344,50 @@ export function AutoClip() {
         formData.append('project_type', 'auto');
 
         if (uploadedVideo) {
-          formData.append('video', uploadedVideo);
+          formData.append('videoLink', (uploadedVideo as any).s3Uri);
         } else {
           formData.append('videoLink', videoLink);
         }
 
-        const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/process-video`, {
-          method: "POST",
-          body: formData,
-          headers: {
-            'Accept': 'application/json',
-          },
-        });
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_BACKEND_URL}/api/process-video`, {
+            method: "POST",
+            body: formData,
+            headers: {
+              'Accept': 'application/json',
+            },
+          });
 
-        if (response.ok) {
+          if (!response.ok) {
+            // If Flask server fails to receive the request, clean up S3
+            if (uploadedVideo && (uploadedVideo as any).bucket && (uploadedVideo as any).key) {
+              try {
+                await fetch('/api/cleanup-s3', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    bucket: (uploadedVideo as any).bucket,
+                    key: (uploadedVideo as any).key
+                  })
+                });
+              } catch (cleanupError) {
+                console.error('Error cleaning up S3:', cleanupError);
+              }
+            }
+            throw new Error('Failed to start video processing');
+          }
+
           // Deduct credits after project creation
           console.log("Project created, starting polling");
           setIsPolling(true);
           pollProjectStatus(userId, newProject._id);
-        } else {
-          console.error('Failed to start video processing');
+        } catch (error) {
+          console.error('Error in video processing:', error);
           await updateProjectStatus(userId, newProject._id, 'failed', 0);
-          // Refund credits if project processing fails
+          // Refund credits
           await updateUserCredits(userId, requiredCredits);
           setUserCredits(prevCredits => prevCredits + requiredCredits);
+          throw error;
         }
 
         setProjects(prevProjects => [
@@ -293,8 +401,7 @@ export function AutoClip() {
         ]);
       }
     } catch (error) {
-      console.error('Error processing video:', error);
-      // No need to refund credits here as they haven't been deducted yet
+      console.error('Error in project creation:', error);
     } finally {
       setProcessing(false);
     }
@@ -451,11 +558,35 @@ export function AutoClip() {
   };
 
   const handleRemoveVideo = () => {
+    // Cancel ongoing upload if exists
+    if (activeXHR) {
+      activeXHR.abort();
+      setActiveXHR(null);
+    }
+
+    if (uploadedVideo && (uploadedVideo as any).bucket && (uploadedVideo as any).key) {
+      try {
+        fetch('/api/cleanup-s3', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            bucket: (uploadedVideo as any).bucket,
+            key: (uploadedVideo as any).key
+          })
+        });
+      } catch (error) {
+        console.error('Error cleaning up S3:', error);
+      }
+    }
+    
+    // Reset states
     setUploadedVideo(null);
     setVideoThumbnail("");
     setVideoTitle("");
     setVideoDuration(null);
     setIsValidInput(false);
+    setIsUploading(false);
+    setUploadProgress(0);
     if (fileInputRef.current) {
       fileInputRef.current.value = "";
     }

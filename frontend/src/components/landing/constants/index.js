@@ -151,8 +151,8 @@ export const pricing = [
     buttonText: "Get started",
     price_plans: [
        {
-         "link": process.env.NODE_ENV === 'development' ? "https://buy.stripe.com/test_5kAbJu3218Pf0XmeV0" : "",
-         "priceID": process.env.NODE_ENV === 'development' ? "price_1Q8ptJ06DvcoKeSzonbKvnTk" : "",
+         "link": process.env.STRIPE_MONTHLY_LINK,
+         "priceID": process.env.STRIPE_MONTHLY_PRICE_ID,
          "price": "15/month", 
          "credits": "100",
          "planType": "Starter",
@@ -166,8 +166,8 @@ export const pricing = [
         ],
        },
        {
-         "link": process.env.NODE_ENV === 'development' ? "https://buy.stripe.com/test_cN24h20TT3uVgWkcMT" : "",
-         "priceID": process.env.NODE_ENV === 'development' ? "price_1Q8ptl06DvcoKeSzJOSPvKd3" : "",
+         "link": process.env.STRIPE_YEARLY_LINK,
+         "priceID": process.env.STRIPE_YEARLY_PRICE_ID,
          "og_price": "180/year",
          "price": "149/year",
          "credits": "1200",

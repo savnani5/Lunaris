@@ -154,27 +154,13 @@ class LunarisApp:
         app.logger.info("Received request to process video")
         
         try:
-            # Process file upload or video link synchronously
-            if 'video' in request.files:
-                file = request.files['video']
-                if file.filename == '':
-                    return jsonify({'error': 'No selected file'}), 400
-                if file:
-                    filename = secure_filename(file.filename)
-                    with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(filename)[1]) as temp_file:
-                        file.save(temp_file.name)
-                        video_path = temp_file.name
-                    video_link = None
-            else:
-                video_link = request.form.get('videoLink')
-                video_path = None
+            video_link = request.form.get('videoLink')
 
             # Extract request data
             # Common data extraction
             project_type = request.form.get('project_type')
             message = {
                 'video_link': video_link,
-                'video_path': video_path,
                 'project_type': project_type,
                 'project_id': request.form.get('projectId'),
                 'clerk_user_id': request.form.get('userId'),
@@ -209,10 +195,6 @@ class LunarisApp:
                         MessageBody=json.dumps(message)
                     )
                     
-                    # Clean up temporary file asynchronously if it exists
-                    if video_path:
-                        self._executor.submit(self._cleanup_temp_file, video_path)
-                    
                     return jsonify({
                         'message': 'Video processing queued successfully',
                         'task_id': response['MessageId']
@@ -220,8 +202,6 @@ class LunarisApp:
                     
                 except Exception as e:
                     app.logger.error(f"Failed to queue video processing: {str(e)}")
-                    if video_path:
-                        self._executor.submit(self._cleanup_temp_file, video_path)
                     return jsonify({
                         'error': 'Failed to queue video processing'
                     }), 500
