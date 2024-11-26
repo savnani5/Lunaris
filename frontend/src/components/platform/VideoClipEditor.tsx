@@ -9,6 +9,7 @@ interface VideoClipEditorProps {
   videoUrl: string;
   onClipsChange: (clips: ClipTimeframe[]) => void;
   isYouTube?: boolean;
+  onRemoveVideo?: () => void;
 }
 
 interface ClipTimeframe {
@@ -48,7 +49,7 @@ const secondsToTime = (totalSeconds: number): TimeInput => {
   };
 };
 
-export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false }: VideoClipEditorProps) {
+export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, onRemoveVideo }: VideoClipEditorProps) {
   const playerRef = useRef<ReactPlayer>(null);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
@@ -431,11 +432,33 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false }: 
   return (
     <div className="space-y-6">
       <div className="space-y-4">
-        {/* Add onClick and cursor pointer to video container */}
         <div 
           className="relative aspect-video bg-black rounded-lg overflow-hidden cursor-pointer" 
           onClick={handleVideoClick}
         >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemoveVideo?.();
+            }}
+            className="absolute top-4 right-4 z-[60] bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors duration-200"
+          >
+            <svg 
+              xmlns="http://www.w3.org/2000/svg" 
+              className="h-6 w-6 text-white" 
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M6 18L18 6M6 6l12 12" 
+              />
+            </svg>
+          </button>
+
           {(isLoading || !isVideoReady) && (
             <div className="absolute inset-0 flex items-center justify-center bg-black z-50">
               <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-color-1"></div>

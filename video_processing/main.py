@@ -1,7 +1,6 @@
 import moviepy.editor as mp_edit
 import mediapipe as mp
 import os
-import shutil
 import glob
 import subprocess
 import json
@@ -40,6 +39,13 @@ class VideoProcessor:
         # Initialize proxy manager with its own lock
         self.proxy_manager = ProxyManager()
         
+        # Initialize S3 client
+        self.s3_client = boto3.client('s3',
+            aws_access_key_id=os.environ.get('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.environ.get('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.environ.get('AWS_REGION')
+        )
+        
         # Initialize clients in a thread-safe way
         with self._face_detection_lock:
             self.face_detection = mp.solutions.face_detection.FaceDetection(
@@ -68,72 +74,95 @@ class VideoProcessor:
 
         quality = quality.replace('p', '')
         
-        if isinstance(source, str):  # It's a URL
-            success = False
-            max_retries = 3
-            retry_count = 0
-            
-            while retry_count < max_retries and not success:
+        if isinstance(source, str):
+            if source.startswith('s3://'):
+                # Handle S3 source
+                bucket = source.split('/')[2]
+                print(f"Bucket: {bucket}")
+                key = '/'.join(source.split('/')[3:])
+                print(f"Key: {key}")
+                video_title = os.path.splitext(os.path.basename(key))[0]
+                print(f"Video title: {video_title}")
+                local_path = os.path.join(path, video_title)
+                print(f"Local path: {local_path}")
+                os.makedirs(local_path, exist_ok=True)
+                video_path = os.path.join(local_path, os.path.basename(key))
+                print(f"Video path: {video_path}")
                 try:
-                    proxy_url = self.proxy_manager.get_proxy_url()
-                    print(f"Attempting download with proxy: {proxy_url}")
+                    print(f"Downloading from S3: {bucket}/{key}")
+                    self.s3_client.download_file(bucket, key, video_path)
                     
-                    # Get video title
-                    yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
-                    video_title = subprocess.check_output(
-                        yt_dlp_cmd, 
-                        universal_newlines=True,
-                        timeout=30
-                    ).strip()
+                    # Clean up S3 temp file after download
+                    print(f"Cleaning up S3 temp file: {bucket}/{key}")
+                    self.s3_client.delete_object(Bucket=bucket, Key=key)
                     
-                    path = os.path.join(path, video_title)
-                    if not os.path.exists(path):
-                        os.makedirs(path)
-                    else:
-                        # Delete the contents of the folder
-                        for file in os.listdir(path):
-                            file_path = os.path.join(path, file)
-                            if os.path.isfile(file_path):
-                                os.remove(file_path)
-                    
-                    # Download command
-                    download_cmd = [
-                        "yt-dlp",
-                        source,
-                        "-P",
-                        path,
-                        "-S",
-                        f"res:{quality}",
-                        "--output",
-                        "%(title)s.%(ext)s",
-                        "--proxy",
-                        proxy_url
-                    ]
-                    
-                    subprocess.run(download_cmd, check=True, timeout=1000)
-                    success = True
-                    print("Video downloaded successfully!")
-                    
+                    # Notify frontend about cleanup
+                    cleanup_url = f"{os.environ.get('FRONTEND_URL')}/api/cleanup-s3"
+                    requests.post(cleanup_url, json={
+                        'bucket': bucket,
+                        'key': key
+                    })
                 except Exception as e:
-                    print(f"Download attempt {retry_count + 1} failed: {str(e)}")
-                    self.proxy_manager.mark_failure(proxy_url)
-                    retry_count += 1
-                    if retry_count < max_retries:
-                        time.sleep(3)
+                    raise Exception(f"Failed to download from S3: {str(e)}")
                 
-            if not success:
-                raise Exception("Failed to download video after maximum retries")
+            elif source.startswith(('http://', 'https://')):
+                success = False
+                max_retries = 3
+                retry_count = 0
                 
-            video_path = glob.glob(os.path.join(path, "*.*"))[0]
-        else:  # It's a local file path
-            video_title = os.path.splitext(os.path.basename(source))[0]
-            path = os.path.join(path, video_title)
-            if not os.path.exists(path):
-                os.mkdir(path)
-            video_path = os.path.join(path, os.path.basename(source))
-            shutil.copy(source, video_path)
-            print("Video copied successfully!")
-
+                while retry_count < max_retries and not success:
+                    try:
+                        proxy_url = self.proxy_manager.get_proxy_url()
+                        print(f"Attempting download with proxy: {proxy_url}")
+                        
+                        # Get video title
+                        yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
+                        video_title = subprocess.check_output(
+                            yt_dlp_cmd, 
+                            universal_newlines=True,
+                            timeout=30
+                        ).strip()
+                        
+                        path = os.path.join(path, video_title)
+                        if not os.path.exists(path):
+                            os.makedirs(path)
+                        else:
+                            # Delete the contents of the folder
+                            for file in os.listdir(path):
+                                file_path = os.path.join(path, file)
+                                if os.path.isfile(file_path):
+                                    os.remove(file_path)
+                        
+                        # Download command
+                        download_cmd = [
+                            "yt-dlp",
+                            source,
+                            "-P",
+                            path,
+                            "-S",
+                            f"res:{quality}",
+                            "--output",
+                            "%(title)s.%(ext)s",
+                            "--proxy",
+                            proxy_url
+                        ]
+                        
+                        subprocess.run(download_cmd, check=True, timeout=1000)
+                        success = True
+                        print("Video downloaded successfully!")
+                        
+                    except Exception as e:
+                        print(f"Download attempt {retry_count + 1} failed: {str(e)}")
+                        self.proxy_manager.mark_failure(proxy_url)
+                        retry_count += 1
+                        if retry_count < max_retries:
+                            time.sleep(3)
+                    
+                if not success:
+                    raise Exception("Failed to download video after maximum retries")
+                    
+                video_path = glob.glob(os.path.join(path, "*.*"))[0]
+        
         # Process video based on project type
         if project_type == "auto":
             cut_video_path = self.cut_video(video_path, start_time, end_time, project_type)
@@ -848,7 +877,7 @@ class VideoProcessor:
         # Return the initial estimate for other stages/progress
         return initial_estimate
 
-    def process_video(self, video_link, video_path=None, project_id=None, clerk_user_id=None, 
+    def process_video(self, video_link, project_id=None, clerk_user_id=None, 
                      user_email=None, video_title=None, processing_timeframe=None, 
                      video_quality="720p", video_type="portrait", start_time=None, end_time=None, 
                      clip_length=None, keywords="", caption_style="elon", add_watermark=False,
@@ -888,7 +917,7 @@ class VideoProcessor:
                 if project_type == "auto":
                     # Auto clip processing
                     og_video_path, downloaded_video_path, video_title = self.download_video(
-                        video_link or video_path, "./downloads", video_quality, 
+                        video_link, "./downloads", video_quality, 
                         start_time, end_time, project_type
                     )
                     downloaded_audio_path = self.extract_audio(downloaded_video_path)
@@ -914,7 +943,7 @@ class VideoProcessor:
                     
                 else:  # manual clip processing
                     downloaded_video_path, downloaded_video_paths, video_title = self.download_video(
-                        video_link or video_path, "./downloads", video_quality, 
+                        video_link, "./downloads", video_quality, 
                         None, None, project_type, clips
                     )
                     
@@ -1056,7 +1085,7 @@ class VideoProcessor:
             
     def get_metrics(self, transcript_text):
         """Get engagement metrics for a clip using Claude"""
-        prompt = """You are an expert content creator. Analyze this transcript and provide metrics.
+        prompt = f"""You are an expert content creator. Analyze this transcript and provide metrics.
         
         Transcript:
         {transcript_text}
