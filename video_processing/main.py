@@ -303,13 +303,13 @@ class VideoProcessor:
                                             "type": "object",
                                             "properties": {
                                                 "title": {"type": "string", "description": "Catchy, relevant title"},
-                                                "text": {"type": "string", "description": "Exact transcript without punctuation"},
-                                                "transcript": {"type": "string", "description": "Same text with proper punctuation, capitalization and periods."},
-                                                "score": {"type": "integer", "minimum": 60, "maximum": 100, "description": "Number between 60 and 100, based on engagement and quality"},
-                                                "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for hook quality"},
-                                                "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for flow quality"},
-                                                "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for engagement quality"},
-                                                "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for trend relevance"}
+                                                "text": {"type": "string", "description": "Exact transcript text for matching"},
+                                                "transcript": {"type": "string", "description": "Properly formatted transcript with punctuation and capitalization"},
+                                                "score": {"type": "integer", "minimum": 60, "maximum": 100},
+                                                "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                                "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                                "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                                "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]}
                                             },
                                             "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
                                         }
