@@ -635,7 +635,9 @@ export function ManualClip() {
           <Tooltip
             title={
               <div className="bg-n-6/70 text-n-1 p-3 rounded-lg shadow-lg">
-                <p className="font-semibold mb-1">{currentPlan} Plan</p>
+                <p className="font-semibold mb-1">
+                  {user?.isSubscribed ? `${currentPlan} Plan` : "Promotional Credits"}
+                </p>
                 <p className="text-sm text-n-3">1 credit = 1 minute of video processing</p>
               </div>
             }
