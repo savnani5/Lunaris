@@ -229,156 +229,169 @@ class VideoProcessor:
         total_duration = word_timings[-1]['end'] - word_timings[0]['start']
         is_short_video = total_duration < 240  # Less than 4 minutes
         
-        prompt = f"""You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content.
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                min_segments = 1 if is_short_video else 3
+                prompt = f"""You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content.
 
-        Transcript:
-        {transcript_text}
+                Transcript:
+                {transcript_text}
 
-        Video Duration: {total_duration:.1f} seconds {'(SHORT VIDEO)' if is_short_video else ''}
+                Video Duration: {total_duration:.1f} seconds {'(SHORT VIDEO)' if is_short_video else ''}
 
-        Task:
-        1. Extract engaging segments that meet these criteria:
-           {'- For this short video, MUST find at least 2 usable segments' if is_short_video else ''}
-           - Target length: {clip_length['min']} to {clip_length['max']} seconds
-           - For shorter videos: Can be flexible with length if needed to capture complete thoughts
-           - Must be self-contained and coherent
-           - Must have clear hooks and conclusions
-           - Can have varying levels of engagement (will be reflected in scoring)
-        
-        2. Prioritize segments that:
-           - Have attention-grabbing openings
-           - Tell complete, emotionally resonant stories
-           - Contain unique insights or perspectives
-           - Include personal experiences or transformative moments
-           - Discuss universal themes (success, growth, relationships, etc.)
-
-        3. Score each segment (60-100) based on:
-           {'Adjusted scoring for short video:' if is_short_video else 'Standard scoring:'}
-           - Viral potential (80% weight)
-               * Hook strength
-               * Emotional impact
-               * Relatability
-               * Share-worthy insight
-           - Technical aspects (20% weight)
-               * Story completeness
-               {'* Length optimization (relaxed for short videos)' if is_short_video else '* Length optimization'}
-
-        4. Segment Requirements:
-           {'For this short video:' if is_short_video else 'Standard requirements:'}
-           - Must find at least {1 if is_short_video else 3} viable segment(s)
-           - Can be more flexible with length constraints
-           - Focus on most impactful moments
-           - Ensure complete thoughts are captured
-           {'- Prefer slightly longer, complete segments over strict length adherence' if is_short_video else ''}
-
-        5. If provided, prioritize (but don't limit to) segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
-
-        Important Notes:
-        {'''- This is a SHORT VIDEO - must extract at least one good segment
-        - Be more flexible with length requirements
-        - Focus on finding complete, impactful moments
-        - Better to have one longer, complete segment than fragments''' if is_short_video else '''- Quality over quantity
-        - Prefer ideal length but can be flexible for exceptional content
-        - Each segment must work as standalone content'''}
-        
-        Use the process_segments tool to return your analysis in the required format.
-        """
-
-        with self._anthropic_lock:
-            response = self.anthropic_client.messages.create(
-                model="claude-3-sonnet-20240229",
-                max_tokens=4096,
-                messages=[{
-                    "role": "user",
-                    "content": prompt
-                }],
-                tools=[{
-                    "name": "process_segments",
-                    "description": "Process and return segments from transcript",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {
-                            "segments": {
-                                "type": "array",
-                                "items": {
-                                    "type": "object",
-                                    "properties": {
-                                        "title": {"type": "string", "description": "Catchy, relevant title"},
-                                        "text": {"type": "string", "description": "Exact transcript without punctuation"},
-                                        "transcript": {"type": "string", "description": "Same text with proper punctuation and capitalization"},
-                                        "score": {"type": "integer", "minimum": 60, "maximum": 100, "description": "Number between 60 and 100, based on engagement and quality"},
-                                        "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for hook quality"},
-                                        "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for flow quality"},
-                                        "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for engagement quality"},
-                                        "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for trend relevance"}
-                                    },
-                                    "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
-                                }
-                            }
-                        },
-                        "required": ["segments"]
-                    }
-                }],
-                tool_choice={"type": "tool", "name": "process_segments"}
-            )
-            
-            # Extract the segments from the tool call response
-            tool_response = response.content[0].input  # This is already a dict
-            segments = tool_response.get("segments", [])
-            if not segments:
-                print("Warning: No segments returned by Claude")
-                return []
-
-            # Build the combined segment data
-            segment_data = []
-            for segment in segments:
-                # Access dictionary values
-                title = segment['title']
-                text = segment['text']
-                transcript = segment['transcript']
-                word_timings_in_segment = []
-
-                # Find the start and end times for the combined text
-                words = text.lower().split()
-                start_time = None
-                end_time = None
-                start = False
-
-                for i in range(len(word_timings)):
-                    if start:
-                        word_timings_in_segment.append(word_timings[i])
-
-                    # Check if the first 10 words match
-                    if [wt['word'] for wt in word_timings[i:i+10]] == words[:10]:
-                        start_time = word_timings[i]['start']
-                        start = True
-                        word_timings_in_segment.append(word_timings[i])
-
-                    # Check if the last 10 words match
-                    if [wt['word'] for wt in word_timings[i:i+10]] == words[-10:]:
-                        end_time = word_timings[i+9]['end']
-                        word_timings_in_segment.extend(word_timings[i+1:i+10])
-                        break
+                Task:
+                1. Extract engaging segments that meet these criteria:
+                   - For this {'short' if is_short_video else 'long'} video:
+                     * MUST find at least {min_segments} usable segment{'s' if min_segments > 1 else ''}
+                     * {'Be flexible with length to capture complete thoughts' if is_short_video else 'Try to stay within target length when possible'}
+                   - Target length: {clip_length['min']} to {clip_length['max']} seconds
+                   - Must be self-contained and coherent
+                   - Must have clear hooks and conclusions
                 
-                if start_time is None or end_time is None:
+                2. Prioritize segments that:
+                   - Have attention-grabbing openings
+                   - Tell complete, emotionally resonant stories
+                   - Contain unique insights or perspectives
+                   - Include personal experiences or transformative moments
+                   - Discuss universal themes (success, growth, relationships, etc.)
+
+                3. Score each segment (60-100) based on:
+                   - Viral potential (80% weight)
+                       * Hook strength
+                       * Emotional impact
+                       * Relatability
+                       * Share-worthy insight
+                   - Technical aspects (20% weight)
+                       * Story completeness
+                       * Length optimization
+
+                4. CRITICAL REQUIREMENTS:
+                   - You MUST return exactly the transcript text that matches your chosen segments
+                   - The text must exist in the transcript exactly as provided
+                   - For this {'short' if is_short_video else 'long'} video, you MUST find at least {min_segments} segment{'s' if min_segments > 1 else ''}
+                   - Each segment must be a complete thought/story
+
+                5. If provided, prioritize (but don't limit to) segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
+
+                Important:
+                - This is {'a SHORT video requiring 1 good segment' if is_short_video else 'a LONG video requiring at least 3 segments'}
+                - Focus on finding complete, impactful moments
+                - Return EXACT transcript text for each segment
+                - Better to have {'one perfect segment' if is_short_video else 'three solid segments'} than fragments
+                
+                Use the process_segments tool to return your analysis in the required format.
+                """
+
+                with self._anthropic_lock:
+                    response = self.anthropic_client.messages.create(
+                        model="claude-3-sonnet-20240229",
+                        max_tokens=4096,
+                        messages=[{
+                            "role": "user",
+                            "content": prompt
+                        }],
+                        tools=[{
+                            "name": "process_segments",
+                            "description": "Process and return segments from transcript",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "segments": {
+                                        "type": "array",
+                                        "items": {
+                                            "type": "object",
+                                            "properties": {
+                                                "title": {"type": "string", "description": "Catchy, relevant title"},
+                                                "text": {"type": "string", "description": "Exact transcript without punctuation"},
+                                                "transcript": {"type": "string", "description": "Same text with proper punctuation, capitalization and periods."},
+                                                "score": {"type": "integer", "minimum": 60, "maximum": 100, "description": "Number between 60 and 100, based on engagement and quality"},
+                                                "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for hook quality"},
+                                                "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for flow quality"},
+                                                "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for engagement quality"},
+                                                "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"], "description": "Grade for trend relevance"}
+                                            },
+                                            "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                                        }
+                                    }
+                                },
+                                "required": ["segments"]
+                            }
+                        }],
+                        tool_choice={"type": "tool", "name": "process_segments"}
+                    )
+                    
+                    tool_response = response.content[0].input
+                    segments = tool_response.get("segments", [])
+                    
+                    if not segments:
+                        raise ValueError("No segments returned by Claude")
+
+                    # Add validation for minimum segments
+                    if len(segments) < min_segments:
+                        raise ValueError(f"Claude returned {len(segments)} segments, but minimum {min_segments} required")
+
+                    # Build the combined segment data
+                    segment_data = []
+                    for segment in segments:
+                        # Access dictionary values
+                        title = segment['title']
+                        text = segment['text']
+                        transcript = segment['transcript']
+                        word_timings_in_segment = []
+
+                        # Find the start and end times for the combined text
+                        words = text.lower().split()
+                        start_time = None
+                        end_time = None
+                        start = False
+
+                        for i in range(len(word_timings)):
+                            if start:
+                                word_timings_in_segment.append(word_timings[i])
+
+                            # Check if the first 10 words match
+                            if [wt['word'] for wt in word_timings[i:i+10]] == words[:10]:
+                                start_time = word_timings[i]['start']
+                                start = True
+                                word_timings_in_segment.append(word_timings[i])
+
+                            # Check if the last 10 words match
+                            if [wt['word'] for wt in word_timings[i:i+10]] == words[-10:]:
+                                end_time = word_timings[i+9]['end']
+                                word_timings_in_segment.extend(word_timings[i+1:i+10])
+                                break
+                        
+                        if start_time is None or end_time is None:
+                            continue
+
+                        segment_data.append({
+                            'title': title,
+                            'start': start_time,
+                            'end': end_time,
+                            'text': text,
+                            'transcript': transcript,
+                            'word_timings': word_timings_in_segment,
+                            'score': segment['score'],
+                            'hook': segment['hook'],
+                            'flow': segment['flow'],
+                            'engagement': segment['engagement'],
+                            'trend': segment['trend']
+                        })
+
+                   
+                    print(f"Found {len(segment_data)} interesting segments!")
+                    return segment_data
+                    
+            except Exception as e:
+                if attempt < max_retries - 1:  # If we have retries left
+                    print(f"Attempt {attempt + 1} failed: {str(e)}")
+                    print(f"Retrying... ({attempt + 1}/{max_retries})")
+                    time.sleep(1)  # Add a small delay between retries
                     continue
-
-                segment_data.append({
-                    'title': title,
-                    'start': start_time,
-                    'end': end_time,
-                    'text': text,
-                    'transcript': transcript,
-                    'word_timings': word_timings_in_segment,
-                    'score': segment['score'],
-                    'hook': segment['hook'],
-                    'flow': segment['flow'],
-                    'engagement': segment['engagement'],
-                    'trend': segment['trend']
-                })
-
-            print(f"Interesting segments extracted! Found {len(segment_data)} segments")
-            return segment_data
+                else:
+                    print(f"All {max_retries} attempts failed. Last error: {str(e)}")
+                    raise  # Re-raise the last exception if all retries failed
 
     def detect_faces_and_pose(self, frame):
         with self._face_detection_lock:
@@ -1085,50 +1098,69 @@ class VideoProcessor:
             
     def get_metrics(self, transcript_text):
         """Get engagement metrics for a clip using Claude"""
-        prompt = f"""You are an expert content creator. Analyze this transcript and provide metrics.
-        
-        Transcript:
-        {transcript_text}
-        
-        Task:
-        Create engaging metrics for this clip including:
-        - A catchy, relevant title
-        - The transcript with proper punctuation and capitalization
-        - Score (60-100) based on engagement and quality
-        - Hook grade (A+, A, A-, B+, B)
-        - Flow grade (A+, A, A-, B+, B)
-        - Engagement grade (A+, A, A-, B+, B)
-        - Trend relevance grade (A+, A, A-, B+, B)
-        
-        Use the process_metrics tool to return your analysis.
-        """
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                prompt = f"""You are an expert content creator. Analyze this transcript and provide metrics.
+                
+                Transcript:
+                {transcript_text}
+                
+                Task:
+                Create engaging metrics for this clip including:
+                - A catchy, relevant title
+                - The transcript with proper punctuation and capitalization
+                - Score (60-100) based on engagement and quality
+                - Hook grade (A+, A, A-, B+, B)
+                - Flow grade (A+, A, A-, B+, B)
+                - Engagement grade (A+, A, A-, B+, B)
+                - Trend relevance grade (A+, A, A-, B+, B)
+                
+                Use the process_metrics tool to return your analysis.
+                """
 
-        with self._anthropic_lock:
-            response = self.anthropic_client.messages.create(
-                model="claude-3-sonnet-20240229",
-                max_tokens=1000,
-                messages=[{"role": "user", "content": prompt}],
-                tools=[{
-                    "name": "process_metrics",
-                    "description": "Process and return metrics for the clip",
-                    "input_schema": {
-                        "type": "object",
-                        "properties": {
-                            "title": {"type": "string", "description": "Catchy, relevant title"},
-                            "transcript": {"type": "string", "description": "Transcript with proper punctuation and capitalization"},
-                            "score": {"type": "integer", "minimum": 60, "maximum": 100},
-                            "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
-                            "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
-                            "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
-                            "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]}
-                        },
-                        "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
-                    }
-                }],
-                tool_choice={"type": "tool", "name": "process_metrics"}
-            )
-            
-            return response.content[0].input
+                with self._anthropic_lock:
+                    response = self.anthropic_client.messages.create(
+                        model="claude-3-sonnet-20240229",
+                        max_tokens=1000,
+                        messages=[{"role": "user", "content": prompt}],
+                        tools=[{
+                            "name": "process_metrics",
+                            "description": "Process and return metrics for the clip",
+                            "input_schema": {
+                                "type": "object",
+                                "properties": {
+                                    "title": {"type": "string", "description": "Catchy, relevant title"},
+                                    "transcript": {"type": "string", "description": "Transcript with proper punctuation, capitalization and periods."},
+                                    "score": {"type": "integer", "minimum": 60, "maximum": 100},
+                                    "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                    "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                    "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                    "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]}
+                                },
+                                "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                            }
+                        }],
+                        tool_choice={"type": "tool", "name": "process_metrics"}
+                    )
+                    
+                    result = response.content[0].input
+                    # Validate the required fields are present
+                    required_fields = ["title", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                    if not all(field in result for field in required_fields):
+                        raise ValueError("Missing required fields in Claude response")
+                    
+                    return result
+                    
+            except Exception as e:
+                if attempt < max_retries - 1:  # If we have retries left
+                    print(f"Metrics attempt {attempt + 1} failed: {str(e)}")
+                    print(f"Retrying metrics... ({attempt + 1}/{max_retries})")
+                    time.sleep(2)  # Add a small delay between retries
+                    continue
+                else:
+                    print(f"All {max_retries} metrics attempts failed. Last error: {str(e)}")
+                    raise  # Re-raise the last exception if all retries failed
 
     def process_manual_clips(self, clips, downloaded_video_paths, update_status_callback=None, clerk_user_id=None, project_id=None, video_title=None, processing_timeframe=None):
         segments_to_process = []
