@@ -12,7 +12,9 @@
             ],
             "AllowedOrigins": [
                 "http://localhost:3000",
-                "https://lunaris-six.vercel.app/"
+                "https://lunaris-six.vercel.app/",
+                "https://api.lunaris.media",
+                "https://lunaris.media"
             ],
             "ExposeHeaders": [
                 "ETag"
