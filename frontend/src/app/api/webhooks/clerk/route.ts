@@ -7,13 +7,16 @@ import { Webhook } from "svix";
 import { createUser, deleteUser, updateUser } from "@/lib/actions/user.actions";
 
 export async function POST(req: Request) {
-  // You can find this in the Clerk Dashboard -> Webhooks -> choose the webhook
+  // Add debug logging
+  console.log('Webhook received');
+  
   const WEBHOOK_SECRET = process.env.WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
-    throw new Error(
-      "Please add WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local"
-    );
+    console.error('Missing WEBHOOK_SECRET');
+    return new Response("Missing WEBHOOK_SECRET", {
+      status: 500,
+    });
   }
 
   // Get the headers
@@ -22,9 +25,17 @@ export async function POST(req: Request) {
   const svix_timestamp = headerPayload.get("svix-timestamp");
   const svix_signature = headerPayload.get("svix-signature");
 
+  // Debug log headers
+  console.log('Webhook headers:', {
+    'svix-id': svix_id,
+    'svix-timestamp': svix_timestamp,
+    'svix-signature': svix_signature,
+  });
+
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response("Error occured -- no svix headers", {
+    console.error('Missing svix headers');
+    return new Response("Error occurred -- no svix headers", {
       status: 400,
     });
   }
@@ -32,6 +43,9 @@ export async function POST(req: Request) {
   // Get the body
   const payload = await req.json();
   const body = JSON.stringify(payload);
+  
+  // Debug log body
+  console.log('Webhook body:', body);
 
   // Create a new Svix instance with your secret.
   const wh = new Webhook(WEBHOOK_SECRET);
