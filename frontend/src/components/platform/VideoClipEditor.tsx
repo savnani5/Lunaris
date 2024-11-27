@@ -436,28 +436,30 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
           className="relative aspect-video bg-black rounded-lg overflow-hidden cursor-pointer" 
           onClick={handleVideoClick}
         >
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemoveVideo?.();
-            }}
-            className="absolute top-4 right-4 z-[60] bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors duration-200"
-          >
-            <svg 
-              xmlns="http://www.w3.org/2000/svg" 
-              className="h-6 w-6 text-white" 
-              fill="none" 
-              viewBox="0 0 24 24" 
-              stroke="currentColor"
+          {!isYouTube && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveVideo?.();
+              }}
+              className="absolute top-4 right-4 z-[60] bg-black/50 hover:bg-black/70 p-2 rounded-full transition-colors duration-200"
             >
-              <path 
-                strokeLinecap="round" 
-                strokeLinejoin="round" 
-                strokeWidth={2} 
-                d="M6 18L18 6M6 6l12 12" 
-              />
-            </svg>
-          </button>
+              <svg 
+                xmlns="http://www.w3.org/2000/svg" 
+                className="h-6 w-6 text-white" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+              >
+                <path 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                  strokeWidth={2} 
+                  d="M6 18L18 6M6 6l12 12" 
+                />
+              </svg>
+            </button>
+          )}
 
           {(isLoading || !isVideoReady) && (
             <div className="absolute inset-0 flex items-center justify-center bg-black z-50">
