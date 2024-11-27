@@ -351,7 +351,8 @@ export function ManualClip() {
           duration: clip.endTime - clip.startTime
         }));
         
-        console.log('Sending clips for processing:', clipsForProcessing);
+        // console.log('Sending clips for processing:', clipsForProcessing);
+        console.log('Sending clips for processing');
         formData.append('clips', JSON.stringify(clipsForProcessing));
         formData.append('captionStyle', selectedCaptionStyle);
 

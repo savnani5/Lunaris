@@ -47,7 +47,8 @@ async function handleSubscriptionEvent(
     };
   } else {
     // For deletion, reset all subscription-related fields
-    console.log("Deleting subscription for user:", user.clerk_id);
+    // console.log("Deleting subscription for user:", user.clerk_id);
+    console.log(`Deleting subscription for user`);
     planData = {
       planType: null,
       billingCycle: null,
@@ -111,9 +112,9 @@ async function handleInvoiceEvent(
 
         await createTransaction(transactionData);
 
-        console.log(`Added ${planCredits} credits for user ${user.clerk_id} on subscription renewal`);
+        // console.log(`Added ${planCredits} credits for user ${user.clerk_id} on subscription renewal`);
       } else {
-        console.log(`Skipping credit addition for initial subscription payment for user ${user.clerk_id}`);
+        // console.log(`Skipping credit addition for initial subscription payment for user ${user.clerk_id}`);
       }
     }
 

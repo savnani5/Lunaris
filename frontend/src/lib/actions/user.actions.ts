@@ -16,7 +16,7 @@ export async function createUser(userData: {
   try {
     const { db } = connection;
 
-    console.log('Checking for existing user:', userData.clerk_id);
+    // console.log('Checking for existing user:', userData.clerk_id);
 
     const existingUser = await db.collection('user').findOne({ 
       clerk_id: userData.clerk_id 
@@ -81,8 +81,8 @@ export async function updateUser(userId: string, userData: Partial<UserModel>) {
     const existingUser = await db.collection('user').findOne({ clerk_id: userId });
 
     if (!existingUser) {
-      console.log(`User with clerk_id ${userId} not found. Creating new user.`);
-      // If user doesn't exist, create a new one
+      // console.log(`User with clerk_id ${userId} not found. Creating new user.`);
+      console.log(`User not found. Creating new user.`);
       const newUser = new UserModel(
         userId,
         userData.email || '',
@@ -126,7 +126,8 @@ export async function deleteUser(userId: string) {
     const deletedUser = await db.collection('user').findOneAndDelete({ clerk_id: userId });
 
     if (!deletedUser?.value) {
-      console.log(`User with clerk_id ${userId} not found in the database.`);
+      // console.log(`User with clerk_id ${userId} not found in the database.`);
+      console.log(`User not found in the database.`);
       return null; // Return null instead of throwing an error
     }
 
@@ -143,7 +144,7 @@ export async function deleteUser(userId: string) {
 
 // UPDATE PROJECTS
 export async function updateUserProjects(userId: string, projectId: string, action: 'add' | 'remove') {
-  console.log(`Attempting to update projects for user: ${userId}, project: ${projectId}, action: ${action}`);
+  console.log(`Attempting to update projects. Action: ${action}`);
   const connection = await getDbConnection();
   try {
     const { db } = connection;
@@ -151,7 +152,8 @@ export async function updateUserProjects(userId: string, projectId: string, acti
     // First, check if the user exists
     const existingUser = await db.collection('user').findOne({ clerk_id: userId });
     if (!existingUser) {
-      console.error(`User with clerk_id ${userId} not found in the database.`);
+      // console.error(`User with clerk_id ${userId} not found in the database.`);
+      console.error(`User not found in the database.`);
       return null;
     }
 
@@ -166,11 +168,12 @@ export async function updateUserProjects(userId: string, projectId: string, acti
     );
 
     if (!updatedUser?.value) {
-      console.error(`User with clerk_id ${userId} found but update failed.`);
+      // console.error(`User with clerk_id ${userId} found but update failed.`);
+      console.error(`User update failed.`);
       return null;
     }
 
-    console.log(`Successfully updated projects for user: ${userId}`);
+    console.log(`Successfully updated projects`);
     return JSON.parse(JSON.stringify(UserModel.fromObject(updatedUser.value)));
   } catch (error) {
     console.error("Error in updateUserProjects:", error);
@@ -228,7 +231,7 @@ export async function updateUserCredits(userId: string, planCredits: number) {
   try {
     const { db } = connection;
 
-    console.log(`Attempting to update credits for user ${userId} by ${planCredits}`);
+    // console.log(`Attempting to update credits for user ${userId} by ${planCredits}`);
 
     const result = await db.collection('user').findOneAndUpdate(
       { clerk_id: userId },
@@ -241,10 +244,10 @@ export async function updateUserCredits(userId: string, planCredits: number) {
       return null;
     }
 
-    console.log(`Successfully updated credits for user ${userId}. New credit balance: ${result.credits}`);
+    console.log(`Successfully updated credits. New balance: ${result.credits}`);
     return JSON.parse(JSON.stringify(UserModel.fromObject(result)));
   } catch (error) {
-    console.error(`Error in updateUserCreditsFromPlan for user ${userId}:`, error);
+    console.error(`Error in updateUserCreditsFromPlan:`, error);
     return null;
   } finally {
     await releaseConnection(connection);

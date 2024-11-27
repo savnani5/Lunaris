@@ -58,7 +58,8 @@ export const POST = async (request: Request) => {
       processing_timeframe,
       remaining_estimate 
     } = await request.json();
-    console.log(`Updating project status: ${projectId}`);
+    // console.log(`Updating project status: ${projectId}`);
+    console.log(`Updating project status`);
 
     if (!userId || !projectId || !status) {
       return NextResponse.json({ error: 'User ID, Project ID, and status are required' }, { status: 400 });

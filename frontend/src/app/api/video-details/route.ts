@@ -38,7 +38,8 @@ export const GET = async (request: Request) => {
       thumbnails: video.snippet?.thumbnails,
     };
 
-    console.log('Returning video details:', JSON.stringify(result, null, 2));
+    // console.log('Returning video details:', JSON.stringify(result, null, 2));
+    console.log('Returning video details:');
 
     return NextResponse.json(result);
   } catch (error) {

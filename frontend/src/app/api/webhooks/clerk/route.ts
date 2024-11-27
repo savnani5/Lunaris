@@ -26,11 +26,11 @@ export async function POST(req: Request) {
   const svix_signature = headerPayload.get("svix-signature");
 
   // Debug log headers
-  console.log('Webhook headers:', {
-    'svix-id': svix_id,
-    'svix-timestamp': svix_timestamp,
-    'svix-signature': svix_signature,
-  });
+  // console.log('Webhook headers:', {
+  //   'svix-id': svix_id,
+  //   'svix-timestamp': svix_timestamp,
+  //   'svix-signature': svix_signature,
+  // });
 
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
@@ -43,9 +43,7 @@ export async function POST(req: Request) {
   // Get the body
   const payload = await req.json();
   const body = JSON.stringify(payload);
-  
-  // Debug log body
-  console.log('Webhook body:', body);
+
 
   // Create a new Svix instance with your secret.
   const wh = new Webhook(WEBHOOK_SECRET);
@@ -132,7 +130,8 @@ export async function POST(req: Request) {
     const updatedUser = await updateUser(id, user);
 
     if (updatedUser === null) {
-      console.log(`Failed to update or create user with clerk_id ${id}`);
+      // console.log(`Failed to update or create user with clerk_id ${id}`);
+      console.error(`Failed to update or create user`);
       // You might want to log this event or take other actions
     }
 
@@ -148,8 +147,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ message: "OK", user: deletedUser });
   }
 
-  console.log(`Webhook with and ID of ${id} and type of ${eventType}`);
-  console.log("Webhook body:", body);
+  // console.log(`Webhook with and ID of ${id} and type of ${eventType}`);
+  console.log("Webhook received");
 
   return new Response("", { status: 200 });
 }
