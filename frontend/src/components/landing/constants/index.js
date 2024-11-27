@@ -151,8 +151,8 @@ export const pricing = [
     buttonText: "Get started",
     price_plans: [
        {
-         "link": process.env.STRIPE_MONTHLY_LINK,
-         "priceID": process.env.STRIPE_MONTHLY_PRICE_ID,
+         "link": process.env.NEXT_PUBLIC_STRIPE_MONTHLY_LINK,
+         "priceID": process.env.NEXT_PUBLIC_STRIPE_MONTHLY_PRICE_ID,
          "price": "20/month", 
          "credits": "100",
          "planType": "Starter",
@@ -166,8 +166,8 @@ export const pricing = [
         ],
        },
        {
-         "link": process.env.STRIPE_YEARLY_LINK,
-         "priceID": process.env.STRIPE_YEARLY_PRICE_ID,
+         "link": process.env.NEXT_PUBLIC_STRIPE_YEARLY_LINK,
+         "priceID": process.env.NEXT_PUBLIC_STRIPE_YEARLY_PRICE_ID,
          "og_price": "20/month",
          "price": "15/month",
          "credits": "1200",
