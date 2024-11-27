@@ -63,18 +63,19 @@ const PricingList = ({ isAnnual }) => {
                 <>
                   <div className="h3">$</div>
                   <div className="text-[5.5rem] leading-none font-bold">
-                    {currentPlan.price.split('/')[0]}
+                    {isAnnual 
+                      ? currentPlan.price.split('/')[0]
+                      : currentPlan.price.split('/')[0]
+                    }
                   </div>
-                  <div className="text-n-1/50 ml-2">
-                    {isAnnual ? "/year" : "/month"}
-                  </div>
+                  <div className="text-n-1/50 ml-2">/month</div>
                   {isAnnual && currentPlan.og_price && (
                     <div className="ml-4 flex flex-col items-start">
-                      <span className="text-n-1/50 line-through text-2xl">
-                        ${currentPlan.og_price.split('/')[0]}
+                      <span className="text-green-500 line-through text-2xl">
+                        ${currentPlan.og_price.split('/')[0]}/month
                       </span>
-                      <span className="text-green-500 text-sm">
-                        Save ${parseInt(currentPlan.og_price) - parseInt(currentPlan.price)}
+                      <span className="text-n-1/50 text-base mt-1">
+                        Billed as ${parseInt(currentPlan.price) * 12}/year
                       </span>
                     </div>
                   )}

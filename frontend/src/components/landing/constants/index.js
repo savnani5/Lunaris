@@ -153,14 +153,14 @@ export const pricing = [
        {
          "link": process.env.STRIPE_MONTHLY_LINK,
          "priceID": process.env.STRIPE_MONTHLY_PRICE_ID,
-         "price": "15/month", 
+         "price": "20/month", 
          "credits": "100",
          "planType": "Starter",
          "billingCycle": "monthly",
          "features": [
           "Get 100 credits per month",
           "Project storage for 30 days",
-          "Ability to buy extra credits at a discounted rate",
+          "Buy extra credits at a discounted rate",
           "Community support",
           "Project notifications"
         ],
@@ -168,15 +168,15 @@ export const pricing = [
        {
          "link": process.env.STRIPE_YEARLY_LINK,
          "priceID": process.env.STRIPE_YEARLY_PRICE_ID,
-         "og_price": "180/year",
-         "price": "149/year",
+         "og_price": "20/month",
+         "price": "15/month",
          "credits": "1200",
          "planType": "Starter",
          "billingCycle": "annual",
          "features": [
           "Get 1200 credits per year (available instantly)",
           "Project storage for 30 days",
-          "Ability to buy extra credits at a discounted rate",
+          "Buy extra credits at a discounted rate",
           "Community support",
           "Project notifications"
         ],

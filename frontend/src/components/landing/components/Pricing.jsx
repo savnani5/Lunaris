@@ -31,7 +31,7 @@ const Pricing = () => {
           </label>
           <span className={`ml-4 ${isAnnual ? 'text-n-1' : 'text-n-4'}`}>Annual</span>
         </div>
-        <p className="text-center text-green-500 font-semibold mb-8">Save 20% with annual billing</p>
+        <p className="text-center text-green-500 font-semibold mb-8">Save 25% with annual billing</p>
 
         <div className="relative">
           <PricingList isAnnual={isAnnual} />
