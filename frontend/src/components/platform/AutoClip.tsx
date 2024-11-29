@@ -783,7 +783,10 @@ export function AutoClip() {
               </select>
             </div>
             <div>
-              <h3 className="text-lg font-bold mb-1">Video Quality</h3> {/* Added bottom margin */}
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold mb-1">Video Quality</h3>
+                <span className="text-sm text-n-3">(reduce quality for faster processing)</span>
+              </div>
               <select 
                 className="w-full bg-n-6 text-n-1 rounded-md p-2"
                 value={videoQuality}

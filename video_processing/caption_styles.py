@@ -13,8 +13,9 @@ class ImanStyle(CaptionStyle):
             if not txt:  # Check if the text is empty or None
                 return None
             
+            # Make font size and stroke width consistent regardless of orientation
             fontsize = 80 if output_video_type == 'portrait' else 50
-            stroke_width = 4
+            stroke_width = 3  # Consistent stroke width for both orientations
             
             if highlight:
                 color = random.choice(['rgb(0, 255, 0)', 'rgb(255, 255, 0)'])  # Green and Yellow
@@ -26,7 +27,7 @@ class ImanStyle(CaptionStyle):
                                   font='Roboto-Black',
                                   color='black',
                                   stroke_color='black',
-                                  stroke_width=stroke_width + 4,
+                                  stroke_width=stroke_width + 2,  # Reduced from +4
                                   method='label',
                                   kerning=-2,
                                   size=(None, None))
@@ -37,7 +38,7 @@ class ImanStyle(CaptionStyle):
                               font='Roboto-Black',
                               color='black',
                               stroke_color='black',
-                              stroke_width=stroke_width + 2,
+                              stroke_width=stroke_width + 1,  # Reduced from +2
                               method='label',
                               kerning=-2,
                               size=(None, None))

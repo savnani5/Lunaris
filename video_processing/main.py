@@ -68,13 +68,18 @@ class VideoProcessor:
         }
         self.process_start_time = None
     
-    def download_video(self, source, path, quality, start_time, end_time, project_type="auto", clips=None):
+    def download_video(self, source, path, quality, start_time, end_time, project_type="auto", clips=None, update_status_with_estimate=None, clerk_user_id=None, project_id=None, video_title=None, processing_timeframe=None):
         if not os.path.exists(path):
             os.makedirs(path)
 
         quality = quality.replace('p', '')
         
         if isinstance(source, str):
+            # Clean up YouTube URL if it contains playlist parameters
+            if 'youtube.com' in source and '&list=' in source:
+                source = source.split('&list=')[0]
+                print(f"Cleaned YouTube URL: {source}")
+
             if source.startswith('s3://'):
                 # Handle S3 source
                 bucket = source.split('/')[2]
@@ -115,25 +120,25 @@ class VideoProcessor:
                         proxy_url = self.proxy_manager.get_proxy_url()
                         print(f"Attempting download with proxy: {proxy_url}")
                         
-                        # Get video title
-                        yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
-                        video_title = subprocess.check_output(
-                            yt_dlp_cmd, 
-                            universal_newlines=True,
-                            timeout=30
-                        ).strip()
+                        # Get video title if not provided
+                        if not video_title:
+                            yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
+                            video_title = subprocess.check_output(
+                                yt_dlp_cmd, 
+                                universal_newlines=True,
+                                timeout=30
+                            ).strip()
                         
                         path = os.path.join(path, video_title)
                         if not os.path.exists(path):
                             os.makedirs(path)
                         else:
-                            # Delete the contents of the folder
                             for file in os.listdir(path):
                                 file_path = os.path.join(path, file)
                                 if os.path.isfile(file_path):
                                     os.remove(file_path)
                         
-                        # Download command
+                        # Download command with progress
                         download_cmd = [
                             "yt-dlp",
                             source,
@@ -144,13 +149,68 @@ class VideoProcessor:
                             "--output",
                             "%(title)s.%(ext)s",
                             "--proxy",
-                            proxy_url
+                            proxy_url,
+                            "--progress",
+                            "--newline",
                         ]
                         
-                        subprocess.run(download_cmd, check=True, timeout=1000)
-                        success = True
-                        print("Video downloaded successfully!")
-                        
+                        process = subprocess.Popen(
+                            download_cmd,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT,
+                            universal_newlines=True,
+                            bufsize=1
+                        )
+
+                        # Track overall download state
+                        max_progress = 0
+                        current_progress = 0
+                        is_audio_phase = False
+                        for line in process.stdout:
+                            if '[download]' in line and '%' in line:
+                                try:
+                                    # Skip merger and destination lines
+                                    if any(x in line for x in ['Destination:', 'Merging formats']):
+                                        continue
+                                    
+                                    # Check if we've switched to audio download phase
+                                    if 'audio' in line.lower() or (max_progress > 95 and float(line.split('%')[0].split()[-1]) < 20):
+                                        is_audio_phase = True
+                                        
+                                    # Extract percentage from line
+                                    percent_part = line.split('%')[0]
+                                    percent_str = percent_part.split()[-1]
+                                    percent = float(percent_str)
+                                    
+                                    # Calculate overall progress based on phase
+                                    if is_audio_phase:
+                                        # Map audio progress (0-100) to overall progress (10-15)
+                                        overall_progress = 10 + int((percent * 5) / 100)
+                                    else:
+                                        # Map video progress (0-100) to overall progress (0-10)
+                                        overall_progress = int((percent * 10) / 100)
+                                    
+                                    # Keep track of maximum progress
+                                    if percent > max_progress and not is_audio_phase:
+                                        max_progress = percent
+                                    
+                                    # Only update if progress has changed significantly (every 2%)
+                                    if abs(percent - current_progress) >= 2:
+                                        current_progress = percent
+                                        # Ensure we never go backwards in progress
+                                        overall_progress = max(overall_progress, int((max_progress * 10) / 100))
+                                        
+                                        update_status_with_estimate("downloading", overall_progress)
+                                        print(f"Download progress: {percent:.1f}% (Overall: {overall_progress}/15)")
+                                        
+                                except (ValueError, IndexError) as e:
+                                    print(f"Error parsing progress: {str(e)} in line: {line}")
+                                    continue
+                        process.wait()
+                        if process.returncode == 0:
+                            success = True
+                        else:
+                            raise Exception("Download process failed")
                     except Exception as e:
                         print(f"Download attempt {retry_count + 1} failed: {str(e)}")
                         self.proxy_manager.mark_failure(proxy_url)
@@ -931,12 +991,12 @@ class VideoProcessor:
                     # Auto clip processing
                     og_video_path, downloaded_video_path, video_title = self.download_video(
                         video_link, "./downloads", video_quality, 
-                        start_time, end_time, project_type
+                        start_time, end_time, project_type, update_status_with_estimate=update_status_with_estimate
                     )
                     downloaded_audio_path = self.extract_audio(downloaded_video_path)
                     
                     if update_status_callback:
-                        update_status_with_estimate("transcribing", 10)
+                        update_status_with_estimate("transcribing", 15)
                     
                     transcript, word_timings = self.transcribe_audio(downloaded_audio_path)
                     
@@ -957,11 +1017,11 @@ class VideoProcessor:
                 else:  # manual clip processing
                     downloaded_video_path, downloaded_video_paths, video_title = self.download_video(
                         video_link, "./downloads", video_quality, 
-                        None, None, project_type, clips
+                        None, None, project_type, clips, update_status_with_estimate=update_status_with_estimate
                     )
                     
                     if update_status_callback:
-                        update_status_with_estimate("transcribing", 10)
+                        update_status_with_estimate("transcribing", 15)
                     
                     # Process each clip separately
                     segments_to_process = []
