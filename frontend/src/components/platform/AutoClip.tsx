@@ -59,7 +59,7 @@ export function AutoClip() {
   const [processing, setProcessing] = useState(false);
   const [clipLength, setClipLength] = useState("Auto (0m~1m)");
   const [genre, setGenre] = useState("Auto");
-  const [videoQuality, setVideoQuality] = useState("720p");
+  const [videoQuality, setVideoQuality] = useState("1080p");
   const [videoType, setVideoType] = useState("landscape");
   const [keywords, setKeywords] = useState("");
   const { user: clerkUser } = useUser();
