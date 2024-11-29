@@ -92,7 +92,7 @@ const ManageSubscription: React.FC = () => {
     <div className="max-w-5xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Manage Your Subscription</h1>
       <div className="p-4 bg-n-8 rounded-2xl">
-        <div className="flex justify-center items-center mb-6">
+        <div className="flex justify-center items-center mb-8">
           <span className={`mr-4 ${isAnnual ? 'text-n-4' : 'text-n-1'}`}>Monthly</span>
           <label className="relative inline-flex items-center cursor-pointer">
             <input
@@ -107,14 +107,14 @@ const ManageSubscription: React.FC = () => {
         </div>
         <p className="text-center text-green-500 font-semibold mb-8">Save 25% with annual billing</p>
 
-        <div className="flex justify-center gap-[1rem] max-lg:flex-wrap">
+        <div className="flex justify-center gap-[1.5rem] max-lg:flex-wrap">
           {pricing.map((item) => {
             const currentPlan = item.price_plans?.find(plan => plan.billingCycle === (isAnnual ? 'annual' : 'monthly'));
             
             return (
               <div
                 key={item.id}
-                className="w-[19rem] max-lg:w-full h-full px-6 bg-n-8 border border-n-6 rounded-[2rem] lg:w-auto py-14 [&>h4]:first:text-color-2 [&>h4]:even:text-color-1 [&>h4]:last:text-color-3"
+                className="w-full lg:w-[32rem] h-full px-6 sm:px-8 bg-n-8 border border-n-6 rounded-[2rem] py-8 sm:py-14 [&>h4]:first:text-color-2 [&>h4]:even:text-color-1 [&>h4]:last:text-color-3"
               >
                 <h4 className="h4 mb-4">{item.title}</h4>
 
@@ -122,20 +122,20 @@ const ManageSubscription: React.FC = () => {
                   {item.description}
                 </p>
 
-                <div className="flex items-center h-[5.5rem] mb-6">
+                <div className="flex flex-wrap items-center h-auto sm:h-[5.5rem] mb-6">
                   {currentPlan && currentPlan.price && (
                     <>
                       <div className="h3">$</div>
-                      <div className="text-[5.5rem] leading-none font-bold">
+                      <div className="text-[3.5rem] sm:text-[5.5rem] leading-none font-bold">
                         {currentPlan.price.split('/')[0]}
                       </div>
                       <div className="text-n-1/50 ml-2">/month</div>
                       {isAnnual && currentPlan.og_price && (
-                        <div className="ml-4 flex flex-col items-start">
-                          <span className="text-green-500 line-through text-2xl">
+                        <div className="ml-0 mt-2 sm:ml-4 sm:mt-0 w-full sm:w-auto flex flex-col items-start">
+                          <span className="text-green-500 line-through text-xl sm:text-2xl">
                             ${currentPlan.og_price.split('/')[0]}/month
                           </span>
-                          <span className="text-n-1/50 text-base mt-1">
+                          <span className="text-n-1/50 text-sm sm:text-base mt-1">
                             Billed as ${parseInt(currentPlan.price) * 12}/year
                           </span>
                         </div>
@@ -153,20 +153,19 @@ const ManageSubscription: React.FC = () => {
                     currentPlan?.priceID || '',
                     currentPlan?.link || ''
                   )}
-                  px={4}
                   white={true}
                 >
                   {userPlanType === currentPlan?.planType ? 'Manage Subscription' : item.buttonText}
                 </Button>
 
-                <ul>
+                <ul className="space-y-1">
                   {currentPlan?.features.map((feature, index) => (
                     <li
                       key={index}
                       className="flex items-start py-3 border-t border-n-6"
                     >
-                     <img src={check} width={20} height={20} alt="Check" className="mt-0.5 mr-4" />
-                     <p className="text-base font-normal">{feature}</p>
+                      <img src={check} width={20} height={20} alt="Check" className="mt-0.5 mr-4 flex-shrink-0" />
+                      <p className="text-sm sm:text-base font-normal">{feature}</p>
                     </li>
                   ))}
                 </ul>

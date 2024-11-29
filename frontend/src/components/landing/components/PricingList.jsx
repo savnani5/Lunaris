@@ -50,7 +50,7 @@ const PricingList = ({ isAnnual }) => {
         return (
           <div
             key={item.id}
-            className="w-[32rem] h-full px-8 bg-n-8 border border-n-6 rounded-[2rem] py-14 [&>h4]:first:text-color-2 [&>h4]:even:text-color-1 [&>h4]:last:text-color-3"
+            className="w-full lg:w-[32rem] h-full px-6 sm:px-8 bg-n-8 border border-n-6 rounded-[2rem] py-8 sm:py-14 [&>h4]:first:text-color-2 [&>h4]:even:text-color-1 [&>h4]:last:text-color-3"
           >
             <h4 className="h4 mb-4">{item.title}</h4>
 
@@ -58,11 +58,11 @@ const PricingList = ({ isAnnual }) => {
               {item.description}
             </p>
 
-            <div className="flex items-center h-[5.5rem] mb-6">
+            <div className="flex flex-wrap items-center h-auto sm:h-[5.5rem] mb-6">
               {currentPlan && currentPlan.price && (
                 <>
                   <div className="h3">$</div>
-                  <div className="text-[5.5rem] leading-none font-bold">
+                  <div className="text-[3.5rem] sm:text-[5.5rem] leading-none font-bold">
                     {isAnnual 
                       ? currentPlan.price.split('/')[0]
                       : currentPlan.price.split('/')[0]
@@ -70,11 +70,11 @@ const PricingList = ({ isAnnual }) => {
                   </div>
                   <div className="text-n-1/50 ml-2">/month</div>
                   {isAnnual && currentPlan.og_price && (
-                    <div className="ml-4 flex flex-col items-start">
-                      <span className="text-green-500 line-through text-2xl">
+                    <div className="ml-0 mt-2 sm:ml-4 sm:mt-0 w-full sm:w-auto flex flex-col items-start">
+                      <span className="text-green-500 line-through text-xl sm:text-2xl">
                         ${currentPlan.og_price.split('/')[0]}/month
                       </span>
-                      <span className="text-n-1/50 text-base mt-1">
+                      <span className="text-n-1/50 text-sm sm:text-base mt-1">
                         Billed as ${parseInt(currentPlan.price) * 12}/year
                       </span>
                     </div>
@@ -91,14 +91,14 @@ const PricingList = ({ isAnnual }) => {
               {userPlanType === currentPlan?.planType ? 'Manage Subscription' : item.buttonText}
             </Button>
 
-            <ul>
+            <ul className="space-y-1">
               {currentPlan?.features.map((feature, index) => (
                 <li
                   key={index}
                   className="flex items-start py-3 border-t border-n-6"
                 >
-                  <img src={check} width={20} height={20} alt="Check" className="mt-0.5 mr-4" />
-                  <p className="text-base font-normal">{feature}</p>
+                  <img src={check} width={20} height={20} alt="Check" className="mt-0.5 mr-4 flex-shrink-0" />
+                  <p className="text-sm sm:text-base font-normal">{feature}</p>
                 </li>
               ))}
             </ul>
