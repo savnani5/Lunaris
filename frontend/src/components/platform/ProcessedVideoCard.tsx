@@ -55,13 +55,16 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-full bg-n-7/70 rounded-2xl shadow-lg overflow-hidden"
-      style={{ maxWidth: isLandscape ? '100%' : '52rem' }}
+      className="w-full bg-n-7/70 rounded-2xl shadow-lg overflow-hidden mx-auto"
+      style={{ 
+        maxWidth: isLandscape ? '100%' : '52rem',
+        margin: '0 auto'  // Center the card
+      }}
     >
       <div 
         className={`mx-auto ${
           isLandscape 
-            ? 'p-2 sm:p-4 md:p-6' // Reduced padding for mobile landscape
+            ? 'p-4 sm:p-6' // Consistent padding for mobile and desktop
             : 'p-6 w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'
         }`}
       >
@@ -82,8 +85,8 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
         </div>
       </div>
       
-      <div className="p-4 sm:p-6 space-y-4">
-        <div className="flex flex-wrap gap-2">
+      <div className="px-4 sm:px-6 pb-6 space-y-4">
+        <div className="flex flex-wrap gap-2 mt-2">
           <ScoreBadge label="Score" value={clip.score} />
           <ScoreBadge label="Hook" value={clip.hook} />
           <ScoreBadge label="Flow" value={clip.flow} />
@@ -91,11 +94,11 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
           <ScoreBadge label="Trend" value={clip.trend} />
         </div>
         
-        <h2 className="text-xl font-semibold text-n-1">{clip.title}</h2>
+        <h2 className="text-xl font-semibold text-n-1 mt-2">{clip.title}</h2>
         <p className="text-n-3 text-sm whitespace-pre-wrap">{clip.transcript}</p>
         
         <button 
-          className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-2 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"
+          className="w-full mt-4 bg-color-1 hover:bg-color-1/80 text-n-1 py-3 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"
           onClick={handleDownload}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">

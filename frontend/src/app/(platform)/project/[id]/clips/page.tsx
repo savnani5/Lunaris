@@ -48,24 +48,26 @@ export default function ProjectClipsPage() {
 
   return (
     <div className="min-h-screen bg-black text-n-1 p-4">
-      <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold">Project Clips</h1>
-        {isLoading ? (
-          <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8 text-center">
-            <p className="text-n-3">Loading clips...</p>
-          </div>
-        ) : clips.length > 0 ? (
-          clips.map((clip) => (
-            <ProcessedVideoCard key={clip._id} clip={clip} />
-          ))
-        ) : (
-          <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8 text-center space-y-4">
-            <h2 className="text-xl font-semibold">No clips found</h2>
-            <p className="text-n-3">
-              Try increasing the processing timeframe to generate more potential clips from your video.
-            </p>
-          </div>
-        )}
+      <main className="flex flex-col items-center max-w-4xl mx-auto">
+        <h1 className="text-2xl font-bold mb-8 sm:mb-12">Project Clips</h1>
+        <div className="w-full space-y-8">
+          {isLoading ? (
+            <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8 text-center">
+              <p className="text-n-3">Loading clips...</p>
+            </div>
+          ) : clips.length > 0 ? (
+            clips.map((clip) => (
+              <ProcessedVideoCard key={clip._id} clip={clip} />
+            ))
+          ) : (
+            <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8 text-center space-y-4">
+              <h2 className="text-xl font-semibold">No clips found</h2>
+              <p className="text-n-3">
+                Try increasing the processing timeframe to generate more potential clips from your video.
+              </p>
+            </div>
+          )}
+        </div>
       </main>
     </div>
   );
