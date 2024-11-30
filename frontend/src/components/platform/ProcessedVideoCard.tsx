@@ -58,16 +58,21 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
       className="w-full bg-n-7/70 rounded-2xl shadow-lg overflow-hidden"
       style={{ maxWidth: '52rem' }}
     >
-      <div className={`mx-auto p-6 ${isLandscape ? 'w-11/12' : 'w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'}`}>
+      <div className={`mx-auto p-6 ${isLandscape ? 'w-full' : 'w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'}`}>
         <div 
-          className="relative overflow-hidden" 
+          className="relative overflow-hidden rounded-lg" 
           style={{ 
             paddingTop: isLandscape 
               ? `${(9 / 16) * 100}%` // landscape
               : `${(16 / 9) * 100}%` // portrait
           }}
         >
-          <video src={clip.s3_uri} className="absolute top-0 left-0 w-full h-full object-cover" controls />
+          <video 
+            src={clip.s3_uri} 
+            className="absolute top-0 left-0 w-full h-full object-contain bg-black" 
+            controls 
+            playsInline
+          />
         </div>
       </div>
       
