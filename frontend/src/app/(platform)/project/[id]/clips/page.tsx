@@ -52,7 +52,7 @@ export default function ProjectClipsPage() {
         <h1 className="text-2xl font-bold mb-8 sm:mb-12">Project Clips</h1>
         <div className="w-full space-y-8">
           {isLoading ? (
-            <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8 text-center">
+            <div className="w-full bg-n-7/70 rounded-2xl p-8 text-center mx-auto" style={{ maxWidth: '52rem' }}>
               <p className="text-n-3">Loading clips...</p>
             </div>
           ) : clips.length > 0 ? (
@@ -64,7 +64,7 @@ export default function ProjectClipsPage() {
               />
             ))
           ) : (
-            <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8 text-center space-y-4">
+            <div className="w-full bg-n-7/70 rounded-2xl p-8 text-center space-y-4 mx-auto" style={{ maxWidth: '52rem' }}>
               <h2 className="text-xl font-semibold">No clips found</h2>
               <p className="text-n-3">
                 Try increasing the processing timeframe to generate more potential clips from your video.
