@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 // Define the props type
 interface ProcessedVideoCardProps {
   clip: Clip;
+  index: number;
 }
 
 interface Clip {
@@ -21,7 +22,7 @@ interface Clip {
   created_at: string;
 }
 
-const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
+const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip, index }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9); // Default aspect ratio
 
   useEffect(() => {
@@ -58,13 +59,13 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
       className="w-full bg-n-7/70 rounded-2xl shadow-lg overflow-hidden mx-auto"
       style={{ 
         maxWidth: isLandscape ? '100%' : '52rem',
-        margin: '0 auto'  // Center the card
+        margin: '0 auto'
       }}
     >
       <div 
         className={`mx-auto ${
           isLandscape 
-            ? 'p-4 sm:p-6' // Consistent padding for mobile and desktop
+            ? 'p-4 sm:p-6' 
             : 'p-6 w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'
         }`}
       >
@@ -94,7 +95,10 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
           <ScoreBadge label="Trend" value={clip.trend} />
         </div>
         
-        <h2 className="text-xl font-semibold text-n-1 mt-2">{clip.title}</h2>
+        <h2 className="text-xl font-semibold text-n-1 mt-2">
+          <span className="text-n-1">{index.toString().padStart(2, '0')}. </span>
+          {clip.title}
+        </h2>
         <p className="text-n-3 text-sm whitespace-pre-wrap">{clip.transcript}</p>
         
         <button 

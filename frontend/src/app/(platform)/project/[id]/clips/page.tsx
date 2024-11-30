@@ -56,8 +56,12 @@ export default function ProjectClipsPage() {
               <p className="text-n-3">Loading clips...</p>
             </div>
           ) : clips.length > 0 ? (
-            clips.map((clip) => (
-              <ProcessedVideoCard key={clip._id} clip={clip} />
+            clips.map((clip, index) => (
+              <ProcessedVideoCard 
+                key={clip._id} 
+                clip={clip} 
+                index={index + 1} 
+              />
             ))
           ) : (
             <div className="w-full max-w-2xl bg-n-7/70 rounded-2xl p-8 text-center space-y-4">
