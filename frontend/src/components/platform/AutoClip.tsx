@@ -57,7 +57,7 @@ export function AutoClip() {
   const [videoLink, setVideoLink] = useState("");
   const [videoThumbnail, setVideoThumbnail] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [clipLength, setClipLength] = useState("Auto (0m~1m)");
+  const [clipLength, setClipLength] = useState("Auto (30s~60s)");
   const [genre, setGenre] = useState("Auto");
   const [videoQuality, setVideoQuality] = useState("1080p");
   const [videoType, setVideoType] = useState("landscape");
@@ -440,17 +440,13 @@ export function AutoClip() {
     let max = 180;
 
     switch (length) {
-      case "Auto (0m~1m)":
-        min = 0;
+      case "Auto (30s~60s)":
+        min = 30;
         max = 60;
         break;
       case "<30s":
         min = 0;
         max = 30;
-        break;
-      case "30s~60s":
-        min = 30;
-        max = 60;
         break;
       case "60s~90s":
         min = 60;
@@ -853,22 +849,22 @@ export function AutoClip() {
             </div>
             <h3 className="text-lg font-bold">Preferred Clip Length</h3>
             <div className="flex flex-wrap gap-2 mb-4">
-              <button
+              {/* <button
                 className={`rounded-md px-2 py-1 ${clipLength === "Auto (0m~1m)" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
                 onClick={() => handleClipLengthClick("Auto (0m~1m)")}>
                 Auto (0m~1m)
-              </button>
+              </button> */}
+              <button
+                className={`rounded-md px-2 py-1 ${clipLength === "Auto (30s~60s)" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
+                onClick={() => handleClipLengthClick("Auto (30s~60s)")}
+              >
+                Auto (30s~60s)
+              </button> 
               <button
                 className={`rounded-md px-2 py-1 ${clipLength === "<30s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
                 onClick={() => handleClipLengthClick("<30s")}>
                 &lt;30s
               </button>
-              <button
-                className={`rounded-md px-2 py-1 ${clipLength === "30s~60s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
-                onClick={() => handleClipLengthClick("30s~60s")}
-              >
-                30s~60s
-              </button> 
               <button
                 className={`rounded-md px-2 py-1 ${clipLength === "60s~90s" ? "bg-purple-500 text-white" : "bg-gray-600 text-white"}`}
                 onClick={() => handleClipLengthClick("60s~90s")}

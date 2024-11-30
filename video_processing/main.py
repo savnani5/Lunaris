@@ -4,7 +4,7 @@ import os
 import glob
 import subprocess
 import json
-
+import httpx
 from anthropic import Anthropic
 import cv2
 import boto3
@@ -287,24 +287,41 @@ class VideoProcessor:
     def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords="", output_file='interesting_segments.json'):
         # Calculate video duration and adjust expectations
         total_duration = word_timings[-1]['end'] - word_timings[0]['start']
-        is_short_video = total_duration < 240  # Less than 4 minutes
+        duration_minutes = total_duration / 60
+        
+        # Scale minimum segments based on duration
+        if duration_minutes <= 4:  # Short videos (≤ 4 minutes)
+            min_segments = 1
+            target_segments = 4
+        elif duration_minutes <= 10:  # Medium-short videos (4-10 minutes)
+            min_segments = 3
+            target_segments = 6
+        elif duration_minutes <= 30:  # Medium videos (10-30 minutes)
+            min_segments = 5
+            target_segments = 12
+        elif duration_minutes <= 60:  # Long videos (30-60 minutes)
+            min_segments = 10
+            target_segments = 15
+        else:  # Very long videos (> 60 minutes)
+            min_segments = 15
+            target_segments = int(duration_minutes / 4)  # Roughly one clip per 4 minutes
         
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                min_segments = 1 if is_short_video else 3
                 prompt = f"""You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content.
 
                 Transcript:
                 {transcript_text}
 
-                Video Duration: {total_duration:.1f} seconds {'(SHORT VIDEO)' if is_short_video else ''}
+                Video Duration: {total_duration:.1f} seconds ({duration_minutes:.1f} minutes)
 
                 Task:
                 1. Extract engaging segments that meet these criteria:
-                   - For this {'short' if is_short_video else 'long'} video:
-                     * MUST find at least {min_segments} usable segment{'s' if min_segments > 1 else ''}
-                     * {'Be flexible with length to capture complete thoughts' if is_short_video else 'Try to stay within target length when possible'}
+                   - For this {duration_minutes:.1f}-minute video:
+                     * MUST find at least {min_segments} segments
+                     * AIM for {target_segments} segments if possible
+                     * Prioritize segment quality but don't be overly strict
                    - Target length: {clip_length['min']} to {clip_length['max']} seconds
                    - Must be self-contained and coherent
                    - Must have clear hooks and conclusions
@@ -317,28 +334,31 @@ class VideoProcessor:
                    - Discuss universal themes (success, growth, relationships, etc.)
 
                 3. Score each segment (60-100) based on:
-                   - Viral potential (80% weight)
+                   - Viral potential (70% weight)
                        * Hook strength
                        * Emotional impact
                        * Relatability
                        * Share-worthy insight
-                   - Technical aspects (20% weight)
+                   - Technical aspects (30% weight)
                        * Story completeness
                        * Length optimization
+                   Note: For longer videos, accept segments with scores as low as 60
 
                 4. CRITICAL REQUIREMENTS:
                    - You MUST return exactly the transcript text that matches your chosen segments
                    - The text must exist in the transcript exactly as provided
-                   - For this {'short' if is_short_video else 'long'} video, you MUST find at least {min_segments} segment{'s' if min_segments > 1 else ''}
+                   - You MUST find at least {min_segments} segments
+                   - Try to find up to {target_segments} segments if possible
                    - Each segment must be a complete thought/story
+                   - Distribute segments throughout the video (don't cluster them)
 
                 5. If provided, prioritize (but don't limit to) segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
 
                 Important:
-                - This is {'a SHORT video requiring 1 good segment' if is_short_video else 'a LONG video requiring at least 3 segments'}
-                - Focus on finding complete, impactful moments
+                - This is a {duration_minutes:.1f}-minute video requiring at least {min_segments} segments
+                - For longer videos, accept more variety in segment quality
                 - Return EXACT transcript text for each segment
-                - Better to have {'one perfect segment' if is_short_video else 'three solid segments'} than fragments
+                - Better to have more segments with varying quality than too few perfect ones
                 
                 Use the process_segments tool to return your analysis in the required format.
                 """
@@ -867,7 +887,7 @@ class VideoProcessor:
         )
 
         with self._deepgram_lock:
-            response = self.deepgram_client.listen.prerecorded.v("1").transcribe_file(payload, options)
+            response = self.deepgram_client.listen.prerecorded.v("1").transcribe_file(payload, options, timeout=httpx.Timeout(300.0, connect=10.0))
 
         word_timings = []
         full_transcript = ''
