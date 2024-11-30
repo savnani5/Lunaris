@@ -56,15 +56,21 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
       className="w-full bg-n-7/70 rounded-2xl shadow-lg overflow-hidden"
-      style={{ maxWidth: '52rem' }}
+      style={{ maxWidth: isLandscape ? '100%' : '52rem' }}
     >
-      <div className={`mx-auto p-6 ${isLandscape ? 'w-full' : 'w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'}`}>
+      <div 
+        className={`mx-auto ${
+          isLandscape 
+            ? 'p-2 sm:p-4 md:p-6' // Reduced padding for mobile landscape
+            : 'p-6 w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'
+        }`}
+      >
         <div 
           className="relative overflow-hidden rounded-lg" 
           style={{ 
             paddingTop: isLandscape 
-              ? `${(9 / 16) * 100}%` // landscape
-              : `${(16 / 9) * 100}%` // portrait
+              ? `${(9 / 16) * 100}%` 
+              : `${(16 / 9) * 100}%`
           }}
         >
           <video 
@@ -76,7 +82,7 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
         </div>
       </div>
       
-      <div className="p-6 space-y-4">
+      <div className="p-4 sm:p-6 space-y-4">
         <div className="flex flex-wrap gap-2">
           <ScoreBadge label="Score" value={clip.score} />
           <ScoreBadge label="Hook" value={clip.hook} />
