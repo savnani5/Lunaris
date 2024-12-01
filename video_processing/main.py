@@ -345,7 +345,7 @@ class VideoProcessor:
             if filtered_segments and segment['start'] < last_end:
                 # Calculate overlap percentage
                 overlap = (last_end - segment['start']) / (segment['end'] - segment['start'])
-                if overlap > 0.5:  # Skip if more than 50% overlap
+                if overlap > 0.6:  # Skip if more than 60% overlap
                     continue
             
             filtered_segments.append(segment)
@@ -367,8 +367,8 @@ class VideoProcessor:
             min_segments = 5
             target_segments = 12
         else:  # Longer chunks
-            min_segments = 3
-            target_segments = 8
+            min_segments = 7
+            target_segments = 15
 
         max_retries = 3
         for attempt in range(max_retries):
