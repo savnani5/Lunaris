@@ -10,7 +10,7 @@ client = anthropic.Anthropic(
     api_key=ANTHROPIC_API_KEY,
 )
 message = client.messages.create(
-    model="claude-3-5-sonnet-20241022",
+    model="claude-3-5-sonnet-latest",
     max_tokens=1024,
     messages=[
         {"role": "user", "content": "Return only 1 emoji to represent all the following words: 'iphone', 'ipad', 'macbook', 'airpods'"}

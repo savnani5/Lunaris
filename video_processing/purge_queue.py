@@ -12,6 +12,7 @@ def purge_sqs_queue():
     )
     
     queue_url = os.environ.get('SQS_QUEUE_URL')
+    # queue_url = "https://sqs.us-west-1.amazonaws.com/022499016824/lunaris-prod-queue"
     
     try:
         # Purge the queue

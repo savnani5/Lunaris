@@ -54,7 +54,7 @@ class VideoProcessor:
             )
         
         with self._anthropic_lock:
-            self.anthropic_client = Anthropic()
+            self.anthropic_client = Anthropic(api_key=ANTHROPIC_API_KEY)
             
         with self._deepgram_lock:
             self.deepgram_client = DeepgramClient(DG_API_KEY)
@@ -83,18 +83,13 @@ class VideoProcessor:
             if source.startswith('s3://'):
                 # Handle S3 source
                 bucket = source.split('/')[2]
-                print(f"Bucket: {bucket}")
                 key = '/'.join(source.split('/')[3:])
-                print(f"Key: {key}")
                 video_title = os.path.splitext(os.path.basename(key))[0]
-                print(f"Video title: {video_title}")
                 local_path = os.path.join(path, video_title)
-                print(f"Local path: {local_path}")
                 os.makedirs(local_path, exist_ok=True)
                 video_path = os.path.join(local_path, os.path.basename(key))
                 print(f"Video path: {video_path}")
                 try:
-                    print(f"Downloading from S3: {bucket}/{key}")
                     self.s3_client.download_file(bucket, key, video_path)
                     
                     # Clean up S3 temp file after download
@@ -226,15 +221,43 @@ class VideoProcessor:
         # Process video based on project type
         if project_type == "auto":
             cut_video_path = self.cut_video(video_path, start_time, end_time, project_type)
-            return video_path, cut_video_path, video_title
+            return video_path, cut_video_path, video_title, []
         else:  # manual
             cut_video_paths = []
+            clip_infos = []  # New list to store clip info
+            
             for clip in clips:
+                # Add 20 seconds padding for transcription context (or less if near video boundaries)
                 start = clip.get('start', clip.get('startTime'))
                 end = clip.get('end', clip.get('endTime'))
-                cut_path = self.cut_video(video_path, start, end, project_type)
+                
+                # Get video duration using ffprobe
+                duration_cmd = [
+                    'ffprobe', 
+                    '-v', 'error', 
+                    '-show_entries', 'format=duration', 
+                    '-of', 'default=noprint_wrappers=1:nokey=1', 
+                    video_path
+                ]
+                video_duration = float(subprocess.check_output(duration_cmd).decode('utf-8').strip())
+                
+                # Calculate padded timestamps with boundary checks
+                padded_start = max(0, start - 20)  # Add 20 seconds padding at start
+                padded_end = min(video_duration, end + 20)  # Add 20 seconds padding at end
+                
+                # Store original and padded timestamps
+                clip_info = {
+                    'original_start': start,
+                    'original_end': end,
+                    'padded_start': padded_start,
+                    'padded_end': padded_end
+                }
+                
+                cut_path = self.cut_video(video_path, padded_start, padded_end, project_type)
                 cut_video_paths.append(cut_path)
-            return video_path, cut_video_paths, video_title
+                clip_infos.append(clip_info)  # Store clip info
+            
+            return video_path, cut_video_paths, video_title, clip_infos
 
     def cut_video(self, video_path, start_time, end_time, project_type):
         video_extension = os.path.splitext(video_path)[1]
@@ -257,6 +280,8 @@ class VideoProcessor:
             # For manual clips, create unique names
             clip_id = f"clip_{start_time:.2f}_{end_time:.2f}"
             cut_video_path = video_path.replace(video_extension, f"_{clip_id}{video_extension}")
+            
+            # Cut video with padding
             subprocess.run(["ffmpeg", "-i", video_path, "-ss", str(start_time), "-to", str(end_time), "-c", "copy", cut_video_path])
             
             # Extract and cut audio
@@ -440,8 +465,8 @@ class VideoProcessor:
 
                 with self._anthropic_lock:
                     response = self.anthropic_client.messages.create(
-                        model="claude-3-sonnet-20240229",
-                        max_tokens=4096,
+                        model="claude-3-5-sonnet-latest",
+                        max_tokens=8192,
                         messages=[{
                             "role": "user",
                             "content": prompt
@@ -491,12 +516,14 @@ class VideoProcessor:
                         text = segment['text']
                         transcript = segment['transcript']
                         word_timings_in_segment = []
+                        padded_word_timings = []  # New list for padded timings
 
                         # Find the start and end times for the combined text
                         words = text.lower().split()
                         start_time = None
                         end_time = None
                         start = False
+                        segment_start_index = None  # Track the starting index in word_timings
 
                         for i in range(len(word_timings)):
                             if start:
@@ -506,16 +533,34 @@ class VideoProcessor:
                             if [wt['word'] for wt in word_timings[i:i+10]] == words[:10]:
                                 start_time = word_timings[i]['start']
                                 start = True
+                                segment_start_index = i  # Store the starting index
                                 word_timings_in_segment.append(word_timings[i])
 
                             # Check if the last 10 words match
                             if [wt['word'] for wt in word_timings[i:i+10]] == words[-10:]:
                                 end_time = word_timings[i+9]['end']
+                                segment_end_index = i + 9  # Store the ending index
                                 word_timings_in_segment.extend(word_timings[i+1:i+10])
                                 break
                         
                         if start_time is None or end_time is None:
                             continue
+
+                        # Add padding to word timings and track segment indices
+                        if segment_start_index is not None:
+                            # Add padding at the start
+                            pad_start = max(0, segment_start_index - 50)
+                            padding_before = segment_start_index - pad_start
+                            padded_word_timings.extend(word_timings[pad_start:segment_start_index])
+                            
+                            # Add original segment timings
+                            segment_start_idx = len(padded_word_timings)  # Start index in padded list
+                            padded_word_timings.extend(word_timings_in_segment)
+                            segment_end_idx = len(padded_word_timings)  # End index in padded list
+                            
+                            # Add padding at the end
+                            pad_end = min(len(word_timings), segment_end_index + 51)
+                            padded_word_timings.extend(word_timings[segment_end_index+1:pad_end])
 
                         segment_data.append({
                             'title': title,
@@ -523,7 +568,11 @@ class VideoProcessor:
                             'end': end_time,
                             'text': text,
                             'transcript': transcript,
-                            'word_timings': word_timings_in_segment,
+                            'segment_indices': { 
+                                'start': segment_start_idx,
+                                'end': segment_end_idx
+                            },
+                            'padded_word_timings': padded_word_timings,
                             'score': segment['score'],
                             'hook': segment['hook'],
                             'flow': segment['flow'],
@@ -531,7 +580,6 @@ class VideoProcessor:
                             'trend': segment['trend']
                         })
 
-                   
                     print(f"Found {len(segment_data)} interesting segments!")
                     return segment_data
                     
@@ -586,10 +634,20 @@ class VideoProcessor:
             
             if caption_style != "no_captions":
                 caption_styler = CaptionStyleFactory.get_style(caption_style)
+                # Extract the actual segment word timings (not padded) for subtitles
+                segment_word_timings = segment['padded_word_timings'][segment['segment_indices']['start']:segment['segment_indices']['end']]
+                
+                # For manual clips, adjust timing to start from 0
+                if project_type == "manual":
+                    segment_start_time = segment['start']
+                    for timing in segment_word_timings:
+                        timing['start'] -= segment_start_time
+                        timing['end'] -= segment_start_time
+                
                 subtitled_clip = caption_styler.add_subtitles(
                     processed_clip, 
-                    segment['word_timings'], 
-                    0 if project_type == "manual" else segment['start'],  # Start from 0 for manual clips
+                    segment_word_timings,  # Use the actual segment timings
+                    0 if project_type == "manual" else segment['start'],
                     output_video_type
                 )
             else:
@@ -609,7 +667,9 @@ class VideoProcessor:
                 'hook': segment.get('hook'),
                 'flow': segment.get('flow'),
                 'engagement': segment.get('engagement'),
-                'trend': segment.get('trend')
+                'trend': segment.get('trend'),
+                'padded_word_timings': segment.get('padded_word_timings'),
+                'segment_indices': segment.get('segment_indices')
             }
             
             self.send_clip_data(clip_data)
@@ -1081,7 +1141,7 @@ class VideoProcessor:
                 # Download and process video based on project type
                 if project_type == "auto":
                     # Auto clip processing
-                    og_video_path, downloaded_video_path, video_title = self.download_video(
+                    _, downloaded_video_path, video_title, _ = self.download_video(
                         video_link, "./downloads", video_quality, 
                         start_time, end_time, project_type, update_status_with_estimate=update_status_with_estimate
                     )
@@ -1107,43 +1167,24 @@ class VideoProcessor:
                     segments_to_process = interesting_data
                     
                 else:  # manual clip processing
-                    downloaded_video_path, downloaded_video_paths, video_title = self.download_video(
+                    downloaded_video_path, downloaded_video_paths, video_title, clip_infos = self.download_video(
                         video_link, "./downloads", video_quality, 
                         None, None, project_type, clips, update_status_with_estimate=update_status_with_estimate
                     )
                     
                     if update_status_callback:
                         update_status_with_estimate("transcribing", 15)
-                    
-                    # Process each clip separately
-                    segments_to_process = []
-                    for i, (clip_path, clip_data) in enumerate(zip(downloaded_video_paths, clips)):
-                        clip_start = clip_data.get('start', clip_data.get('startTime', 0))
-                        clip_end = clip_data.get('end', clip_data.get('endTime', 0))
-                        
-                        audio_path = self.extract_audio(clip_path)
-                        transcript, word_timings = self.transcribe_audio(audio_path)
-                        
-                        segments_to_process.append({
-                            'start': clip_start,
-                            'end': clip_end,
-                            'video_path': clip_path,
-                            'word_timings': word_timings
-                        })
-                        
-                        if update_status_callback:
-                            progress = 10 + int((i + 1) / len(clips) * 10)
-                            update_status_with_estimate("transcribing", progress)
-                        
-                        segments_to_process = self.process_manual_clips(
-                            clips, 
-                            downloaded_video_paths, 
-                            update_status_callback,
-                            clerk_user_id,
-                            project_id,
-                            video_title,
-                            processing_timeframe
-                        )
+                       
+                    segments_to_process = self.process_manual_clips(
+                        clips, 
+                        downloaded_video_paths, 
+                        clip_infos,
+                        update_status_callback,
+                        clerk_user_id,
+                        project_id,
+                        video_title,
+                        processing_timeframe
+                    )
 
                 # Process segments
                 if update_status_callback:
@@ -1314,13 +1355,41 @@ class VideoProcessor:
                     print(f"All {max_retries} metrics attempts failed. Last error: {str(e)}")
                     raise  # Re-raise the last exception if all retries failed
 
-    def process_manual_clips(self, clips, downloaded_video_paths, update_status_callback=None, clerk_user_id=None, project_id=None, video_title=None, processing_timeframe=None):
+    def process_manual_clips(self, clips, downloaded_video_paths, clip_infos, update_status_callback=None, clerk_user_id=None, project_id=None, video_title=None, processing_timeframe=None):
         segments_to_process = []
         
-        for i, (clip_path, clip_data) in enumerate(zip(downloaded_video_paths, clips)):
-            # Get audio and transcript
+        for i, (clip_path, clip_data, clip_info) in enumerate(zip(downloaded_video_paths, clips, clip_infos)):
+            # Get audio and transcript for padded clip
             audio_path = self.extract_audio(clip_path)
-            transcript, word_timings = self.transcribe_audio(audio_path)
+            _, padded_word_timings = self.transcribe_audio(audio_path)
+            
+            
+            # Adjust word timings to match original video timeline
+            for timing in padded_word_timings:
+                timing['start'] += clip_info['padded_start']
+                timing['end'] += clip_info['padded_start']
+            
+            # Find indices for the actual clip content within padded word timings
+            segment_start_idx = None
+            segment_end_idx = None
+            
+            # Find the words that correspond to the original clip boundaries
+            for idx, timing in enumerate(padded_word_timings):
+                if timing['start'] >= clip_info['original_start'] and segment_start_idx is None:
+                    segment_start_idx = idx
+                if timing['end'] > clip_info['original_end'] and segment_end_idx is None:
+                    segment_end_idx = idx
+                    break
+            
+            # Handle edge cases
+            if segment_start_idx is None:
+                segment_start_idx = 0
+            if segment_end_idx is None:
+                segment_end_idx = len(padded_word_timings)
+            
+            # Extract the actual segment text from the word timings
+            segment_words = [timing['word'] for timing in padded_word_timings[segment_start_idx:segment_end_idx]]
+            transcript = ' '.join(segment_words)
             
             # Get metrics from Claude
             metrics = self.get_metrics(transcript)
@@ -1328,12 +1397,15 @@ class VideoProcessor:
             # Create segment data matching auto format
             segment = {
                 'title': metrics['title'],
-                'start': clip_data['start'],
-                'end': clip_data['end'],
+                'start': clip_info['original_start'],
+                'end': clip_info['original_end'],
                 'text': metrics['transcript'].lower(),
-                'transcript': metrics['transcript'],    
-                'video_path': clip_path,
-                'word_timings': word_timings,
+                'transcript': metrics['transcript'],
+                'segment_indices': {
+                    'start': segment_start_idx,
+                    'end': segment_end_idx
+                },
+                'padded_word_timings': padded_word_timings,
                 'score': metrics['score'],
                 'hook': metrics['hook'],
                 'flow': metrics['flow'],
@@ -1344,7 +1416,7 @@ class VideoProcessor:
             segments_to_process.append(segment)
             
             if update_status_callback:
-                progress = 10 + int((i + 1) / len(clips) * 10)
+                progress = 15 + int((i + 1) / len(clips) * 10)
                 update_status_callback(
                     clerk_user_id=clerk_user_id,
                     project_id=project_id,
