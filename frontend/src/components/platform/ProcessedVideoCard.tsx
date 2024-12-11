@@ -1,6 +1,8 @@
 'use client';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { WordTiming, SegmentIndices } from '@/lib/database/models/clip.model';
+import { useRouter } from 'next/navigation';
 
 // Define the props type
 interface ProcessedVideoCardProps {
@@ -20,9 +22,12 @@ interface Clip {
   engagement: string;
   trend: string;
   created_at: string;
+  padded_word_timings?: WordTiming[];
+  segment_indices?: SegmentIndices;
 }
 
 const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip, index }) => {
+  const router = useRouter();
   const [aspectRatio, setAspectRatio] = useState(16 / 9); // Default aspect ratio
 
   useEffect(() => {
@@ -49,6 +54,10 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip, index }) 
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleEditClick = () => {
+    router.push(`/editor/${clip._id}`);
   };
 
   return (
@@ -101,15 +110,29 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip, index }) 
         </h2>
         <p className="text-n-3 text-sm whitespace-pre-wrap">{clip.transcript}</p>
         
-        <button 
-          className="w-full mt-4 bg-color-1 hover:bg-color-1/80 text-n-1 py-3 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"
-          onClick={handleDownload}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-            <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-          </svg>
-          Download Clip
-        </button>
+        <div className="flex gap-4 mt-4">
+          <button 
+            className="flex-1 bg-color-1 hover:bg-color-1/80 text-n-1 py-3 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"
+            onClick={handleDownload}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
+            </svg>
+            Download Clip
+          </button>
+          
+          {clip.padded_word_timings && clip.segment_indices && (
+            <button 
+              className="flex-1 bg-color-1 hover:bg-color-1/80 text-n-1 py-3 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"
+              onClick={handleEditClick}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+              </svg>
+              Edit Clip
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );

@@ -22,7 +22,10 @@ export async function createClip(clipData: Omit<ClipModel, '_id' | 'created_at'>
       clipData.hook,
       clipData.flow,
       clipData.engagement,
-      clipData.trend
+      clipData.trend,
+      new Date(),
+      clipData.padded_word_timings,
+      clipData.segment_indices
     );
 
     const result = await db.collection('clip').insertOne({

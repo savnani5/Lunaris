@@ -1,5 +1,16 @@
 import { ObjectId } from 'mongodb';
 
+export interface WordTiming {
+  word: string;
+  start: number;
+  end: number;
+}
+
+export interface SegmentIndices {
+  start: number;
+  end: number;
+}
+
 export interface Clip {
   _id: string;
   project_id: string;
@@ -12,6 +23,8 @@ export interface Clip {
   engagement: string;
   trend: string;
   created_at: Date;
+  padded_word_timings?: WordTiming[];  // Optional field
+  segment_indices?: SegmentIndices;    // Optional field
 }
 
 export class ClipModel implements Clip {
@@ -26,7 +39,9 @@ export class ClipModel implements Clip {
     public flow: string,
     public engagement: string,
     public trend: string,
-    public created_at: Date = new Date()
+    public created_at: Date = new Date(),
+    public padded_word_timings?: WordTiming[],
+    public segment_indices?: SegmentIndices
   ) {}
 
   static fromObject(obj: any): ClipModel {
@@ -41,7 +56,9 @@ export class ClipModel implements Clip {
       obj.flow,
       obj.engagement,
       obj.trend,
-      new Date(obj.created_at)
+      new Date(obj.created_at),
+      obj.padded_word_timings,
+      obj.segment_indices
     );
   }
 
@@ -57,7 +74,9 @@ export class ClipModel implements Clip {
       flow: this.flow,
       engagement: this.engagement,
       trend: this.trend,
-      created_at: this.created_at
+      created_at: this.created_at,
+      padded_word_timings: this.padded_word_timings,
+      segment_indices: this.segment_indices
     };
   }
 }

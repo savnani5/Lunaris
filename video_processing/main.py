@@ -465,7 +465,7 @@ class VideoProcessor:
 
                 with self._anthropic_lock:
                     response = self.anthropic_client.messages.create(
-                        model="claude-3-5-sonnet-latest",
+                        model="claude-3-5-sonnet-20241022",
                         max_tokens=8192,
                         messages=[{
                             "role": "user",
