@@ -6,6 +6,7 @@ import Header from "@/components/landing/components/Header";
 import Hero from "@/components/landing/components/Hero";
 import Pricing from "@/components/landing/components/Pricing";
 import Videowall from "@/components/landing/components/Videowall";
+import Faq from "@/components/landing/components/Faq";
 
 export default function Home() {
   return (
@@ -17,6 +18,7 @@ export default function Home() {
         <Benefits />
         <Collaboration />
         <Pricing />
+        <Faq />
         <Footer /> 
         <ButtonGradient />
       </div>
