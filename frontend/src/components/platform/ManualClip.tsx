@@ -19,7 +19,8 @@ import CreditPurchasePopup from '@/components/platform/CreditPurchasePopup';
 import CreditWarningPopup from '@/components/platform/CreditWarningPopup';
 import SubscriptionRequiredPopup from '@/components/platform/SubscriptionRequiredPopup';
 import { VideoClipEditor } from '@/components/platform/VideoClipEditor';
-
+import { TranscriptSelector } from '@/components/platform/TranscriptSelector';
+import ReactPlayer from "react-player";
 
 const noCaptionVideo = '/assets/caption_styles/no_captions.mp4';
 const jreVideo = '/assets/caption_styles/jre.mp4';
@@ -29,6 +30,12 @@ const sadiaVideo = '/assets/caption_styles/sadia.mp4';
 const jakeVideo = '/assets/caption_styles/jake.mp4';
 const chrisVideo = '/assets/caption_styles/chris.mp4';
 const mattVideo = '/assets/caption_styles/matt.mp4';
+
+interface TranscriptLine {
+  text: string;
+  start: number;
+  end: number;
+}
 
 
 // Add these styles near the top of the file with other constants
@@ -51,6 +58,7 @@ const aspectRatioOptions = [
   }
 ];
 
+const generateUniqueId = () => `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 export function ManualClip() {
   const router = useRouter(); 
@@ -85,6 +93,11 @@ export function ManualClip() {
   const [clips, setClips] = useState<{ id: string; startTime: number; endTime: number; }[]>([]);
   const [uploadedVideoUrl, setUploadedVideoUrl] = useState<string | null>(null);
   const [activeXHR, setActiveXHR] = useState<XMLHttpRequest | null>(null);
+  const [selectionMode, setSelectionMode] = useState<'timeline' | 'transcript'>('timeline');
+  const [transcript, setTranscript] = useState<TranscriptLine[]>([]);
+  const [currentTime, setCurrentTime] = useState(0);
+  const playerRef = useRef<ReactPlayer>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
 
   const captionStyles = [
     { id: "no_captions", name: "No Captions", videoSrc: noCaptionVideo },
@@ -107,6 +120,7 @@ export function ManualClip() {
         setVideoDuration(parseDuration(data.duration));
         setVideoThumbnail(data.thumbnails.medium?.url || data.thumbnails.default?.url || "");
         setVideoTitle(data.title || "");
+        setTranscript(data.transcript || []);
       }
     } catch (error) {
       console.error('Error fetching video details:', error);
@@ -628,14 +642,21 @@ export function ManualClip() {
     setClips(newClips);
   };
 
+
+  useEffect(() => {
+    if (uploadedVideo && selectionMode === 'transcript') {
+      setSelectionMode('timeline');
+    }
+  }, [uploadedVideo]);
+
   return (
-    <div className="min-h-screen bg-black text-n-1 p-4 sm:p-8">
+    <div className="min-h-screen bg-black text-n-1 px-0 py-1 sm:p-8">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-6 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold mb-4 sm:mb-0">Choose Your Clips</h1>
         <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
           <Tooltip
             title={
-              <div className="bg-n-6/70 text-n-1 p-3 rounded-lg shadow-lg">
+              <div className="text-n-1">
                 <p className="font-semibold mb-1">
                   {user?.isSubscribed ? `${currentPlan} Plan` : "Promotional Credits"}
                 </p>
@@ -644,7 +665,7 @@ export function ManualClip() {
             }
             arrow
             classes={{
-              tooltip: 'bg-transparent',
+              tooltip: 'bg-n-6/70 p-2 rounded-lg',
               arrow: 'text-n-6/70'
             }}
           >
@@ -664,9 +685,9 @@ export function ManualClip() {
         </div>
       </header>
       <main className="mt-6 space-y-6 max-w-4xl mx-auto">
-        <div className="bg-n-7/70 rounded-2xl p-6 space-y-4">
+        <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4">
           <h2 className="text-2xl font-semibold mb-2">Video Source</h2>
-          <div className="flex items-center w-full space-x-4">
+          <div className="flex items-center w-full space-x-2 sm:space-x-4">
             <Input
               placeholder="Drop a YouTube link"
               className="flex-1 bg-n-6 text-n-1 border-n-5 focus:border-color-1"
@@ -675,7 +696,7 @@ export function ManualClip() {
               disabled={isUploading || !!uploadedVideo}
             />
             <Button 
-              className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200" 
+              className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !!videoLink}
             >
@@ -695,12 +716,68 @@ export function ManualClip() {
             </div>
           ) : (
             (videoLink || uploadedVideoUrl) && (
-              <VideoClipEditor
-                videoUrl={uploadedVideoUrl || videoLink}
-                onClipsChange={handleClipsChange}
-                isYouTube={!uploadedVideo}
-                onRemoveVideo={handleRemoveVideo}
-              />
+              <div className="mb-4">
+                <div className="flex items-center space-x-4 mb-4">
+                  <button
+                    className={`px-4 py-2 sm:py-3 rounded-lg text-sm sm:text-base ${
+                      selectionMode === 'timeline' ? 'bg-color-1' : 'bg-n-6'
+                    }`}
+                    onClick={() => setSelectionMode('timeline')}
+                  >
+                    Timeline Selection
+                  </button>
+                  <Tooltip
+                    title={
+                      uploadedVideo 
+                        ? "This is only available for YouTube videos. Please enter a YouTube link to use this feature."
+                        : ""
+                    }
+                    arrow
+                    classes={{
+                      tooltip: 'bg-n-6/70 text-n-1 p-2 rounded-lg',
+                      arrow: 'text-n-6/70'
+                    }}
+                  >
+                    <span>
+                      <button
+                        className={`px-4 py-2 sm:py-3 rounded-lg text-sm sm:text-base ${
+                          selectionMode === 'transcript' ? 'bg-color-1' : 'bg-n-6'
+                        } ${Boolean(uploadedVideo) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        onClick={() => !Boolean(uploadedVideo) && setSelectionMode('transcript')}
+                        disabled={Boolean(uploadedVideo)}
+                      >
+                        Transcript Selection
+                      </button>
+                    </span>
+                  </Tooltip>
+                </div>
+
+                {selectionMode === 'timeline' ? (
+                  <VideoClipEditor
+                    videoUrl={uploadedVideoUrl || videoLink}
+                    onClipsChange={handleClipsChange}
+                    isYouTube={!uploadedVideo}
+                    onRemoveVideo={handleRemoveVideo}
+                  />
+                ) : (
+                  <TranscriptSelector
+                    transcript={transcript}
+                    videoUrl={uploadedVideoUrl || videoLink}
+                    currentTime={currentTime}
+                    onTimeClick={(time) => {
+                      setCurrentTime(time);
+                    }}
+                    onPlaybackChange={(playing) => setIsPlaying(playing)}
+                    onClipsChange={(newClips) => {
+                      setClips(newClips.map(clip => ({
+                        id: clip.id,
+                        startTime: clip.startTime,
+                        endTime: clip.endTime
+                      })));
+                    }}
+                  />
+                )}
+              </div>
             )
           )}
         </div>
@@ -724,8 +801,8 @@ export function ManualClip() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold mb-1">Video Quality</h3>
-                <span className="text-sm text-n-3">(reduce quality for faster processing)</span>
+                <h3 className="text-base sm:text-lg font-bold mb-1">Video Quality</h3>
+                <span className="text-xs sm:text-sm text-n-3 whitespace-nowrap">(reduce quality for faster processing)</span>
               </div>
               <select 
                 className="w-full bg-n-6 text-n-1 rounded-md p-2"
@@ -750,7 +827,7 @@ export function ManualClip() {
                   <button
                     key={option.id}
                     onClick={() => setVideoType(option.id)}
-                    className={`flex items-center justify-center space-x-3 p-4 rounded-lg border-2 transition-all
+                    className={`flex items-center justify-center space-x-3 p-2 sm:p-4 rounded-lg border-2 transition-all
                       ${videoType === option.id 
                         ? 'border-color-1 bg-n-6/50' 
                         : 'border-n-5/50 hover:border-n-4'}`}
@@ -783,9 +860,9 @@ export function ManualClip() {
           </div>
         )}
       </main>
-      <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-4 mt-8">Manual Clip Projects</h2>
+      <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-1 mt-8">Manual Clip Projects</h2>
       {projects.length > 0 ? (
-        <div className="max-w-[1920px] mx-auto px-4 mt-8">
+        <div className="max-w-[1920px] mx-auto px-1 mt-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {projects
               .filter(project => project.status !== 'failed' && project.project_type === 'manual')

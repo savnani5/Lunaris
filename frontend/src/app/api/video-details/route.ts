@@ -1,10 +1,30 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
+import { getSubtitles } from 'youtube-caption-extractor';
 
 const youtube = google.youtube({
   version: 'v3',
-  auth: process.env.YT_API_KEY // Make sure to set this in your environment variables
+  auth: process.env.YT_API_KEY
 });
+
+async function fetchTranscript(videoId: string) {
+  try {
+    const captions = await getSubtitles({
+      videoID: videoId,
+      lang: 'en'  // or 'auto' for automatic language detection
+    });
+    
+    return captions.map(caption => ({
+      text: caption.text,
+      start: caption.start,
+      end: caption.start + caption.dur,
+      duration: caption.dur
+    }));
+  } catch (error) {
+    console.error('Error fetching transcript:', error);
+    return null;
+  }
+}
 
 export const GET = async (request: Request) => {
   const { searchParams } = new URL(request.url);
@@ -16,14 +36,15 @@ export const GET = async (request: Request) => {
 
   try {
     const videoId = extractVideoId(url);
-    console.log('Extracted video ID:', videoId);
+    // console.log('Extracted video ID:', videoId);
 
     const response = await youtube.videos.list({
       part: ['snippet', 'contentDetails'],
       id: [videoId]
     });
 
-    // console.log('YouTube API response:', JSON.stringify(response.data, null, 2));
+    // Fetch transcript
+    const transcript = await fetchTranscript(videoId);
 
     const video = response.data.items?.[0];
 
@@ -36,10 +57,11 @@ export const GET = async (request: Request) => {
       title: video.snippet?.title,
       duration: video.contentDetails?.duration,
       thumbnails: video.snippet?.thumbnails,
+      transcript: transcript
     };
 
     // console.log('Returning video details:', JSON.stringify(result, null, 2));
-    console.log('Returning video details:');
+    console.log('Returning video details');
 
     return NextResponse.json(result);
   } catch (error) {

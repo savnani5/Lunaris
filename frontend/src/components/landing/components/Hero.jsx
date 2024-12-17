@@ -1,6 +1,7 @@
 'use client'
 
 import { curve, heroBackground, hero_video } from "@/components/landing/assets"; 
+import { BackgroundCircles, Gradient } from "./design/Hero";
 import Button from "./Button";
 import Section from "./Section";
 import { useRef } from "react";
@@ -79,11 +80,10 @@ const Hero = () => {
               alt="hero"
             />
           </div>
+          <BackgroundCircles />
         </div>
         <CompanyLogos className="hidden relative z-20 mt-20 lg:block" />
       </div>
-
-      {/* <BottomLine /> */}
     </Section>
   );
 };

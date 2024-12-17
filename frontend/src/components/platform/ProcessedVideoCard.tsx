@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 // Define the props type
 interface ProcessedVideoCardProps {
   clip: Clip;
+  index: number;
 }
 
 interface Clip {
@@ -21,7 +22,7 @@ interface Clip {
   created_at: string;
 }
 
-const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
+const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip, index }) => {
   const [aspectRatio, setAspectRatio] = useState(16 / 9); // Default aspect ratio
 
   useEffect(() => {
@@ -55,24 +56,38 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
-      className="w-full bg-n-7/70 rounded-2xl shadow-lg overflow-hidden"
-      style={{ maxWidth: '52rem' }}
+      className="w-full bg-n-7/70 rounded-2xl shadow-lg overflow-hidden mx-auto"
+      style={{ 
+        maxWidth: isLandscape ? '100%' : '52rem',
+        margin: '0 auto'
+      }}
     >
-      <div className={`mx-auto p-6 ${isLandscape ? 'w-11/12' : 'w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'}`}>
+      <div 
+        className={`mx-auto ${
+          isLandscape 
+            ? 'p-2 sm:p-6' 
+            : 'p-2 sm:p-6 w-7/12 sm:w-7/12 md:w-6/12 lg:w-5/12'
+        }`}
+      >
         <div 
-          className="relative overflow-hidden" 
+          className="relative overflow-hidden rounded-lg" 
           style={{ 
             paddingTop: isLandscape 
-              ? `${(9 / 16) * 100}%` // landscape
-              : `${(16 / 9) * 100}%` // portrait
+              ? `${(9 / 16) * 100}%` 
+              : `${(16 / 9) * 100}%`
           }}
         >
-          <video src={clip.s3_uri} className="absolute top-0 left-0 w-full h-full object-cover" controls />
+          <video 
+            src={clip.s3_uri} 
+            className="absolute top-0 left-0 w-full h-full object-contain bg-black" 
+            controls 
+            playsInline
+          />
         </div>
       </div>
       
-      <div className="p-6 space-y-4">
-        <div className="flex flex-wrap gap-2">
+      <div className="px-2 sm:px-6 pb-4 sm:pb-6 space-y-4">
+        <div className="flex flex-wrap gap-2 mt-2">
           <ScoreBadge label="Score" value={clip.score} />
           <ScoreBadge label="Hook" value={clip.hook} />
           <ScoreBadge label="Flow" value={clip.flow} />
@@ -80,11 +95,14 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip }) => {
           <ScoreBadge label="Trend" value={clip.trend} />
         </div>
         
-        <h2 className="text-xl font-semibold text-n-1">{clip.title}</h2>
+        <h2 className="text-xl font-semibold text-n-1 mt-2">
+          <span className="text-n-1">{index.toString().padStart(2, '0')}. </span>
+          {clip.title}
+        </h2>
         <p className="text-n-3 text-sm whitespace-pre-wrap">{clip.transcript}</p>
         
         <button 
-          className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-2 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"
+          className="w-full mt-4 bg-color-1 hover:bg-color-1/80 text-n-1 py-3 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"
           onClick={handleDownload}
         >
           <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">

@@ -39,13 +39,13 @@ const Pricing = () => {
           <RightLine />
         </div>
       </div>
-      <div className="container md:pb-10 mt-16 md:mt-20 xl:mt-24">
+      {/* <div className="container md:pb-10 mt-16 md:mt-20 xl:mt-24">
         <div className="flex justify-center mt-12 md:mt-15 xl:mt-20">
           <a href="mailto:support@lunaris.media">
             <Button>Contact Support</Button>
           </a>
         </div>
-      </div>
+      </div> */}
     </Section>
   );
 };

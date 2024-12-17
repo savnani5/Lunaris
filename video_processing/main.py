@@ -4,7 +4,7 @@ import os
 import glob
 import subprocess
 import json
-
+import httpx
 from anthropic import Anthropic
 import cv2
 import boto3
@@ -284,61 +284,156 @@ class VideoProcessor:
             clip = video.subclip(start, end)
             clip.write_videofile(f"{output_folder}/clip_{i+1}.mp4")
 
-    def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords="", output_file='interesting_segments.json'):
-        # Calculate video duration and adjust expectations
+    def get_interesting_segments(self, transcript_text, word_timings, clip_length, keywords=""):
+        # Calculate video duration
         total_duration = word_timings[-1]['end'] - word_timings[0]['start']
-        is_short_video = total_duration < 240  # Less than 4 minutes
+        duration_minutes = total_duration / 60
         
+        # For videos under 30 mins, process normally
+        if duration_minutes <= 30:
+            return self._process_transcript_chunk(
+                transcript_text,
+                word_timings,
+                clip_length,
+                keywords,
+                duration_minutes
+            )
+        
+        # Calculate number of splits needed (roughly 30 min chunks)
+        num_splits = max(2, int(duration_minutes / 30))
+        print(f"Splitting {duration_minutes:.1f} minute video into {num_splits} chunks")
+        
+        # Split transcript into roughly equal chunks by word count
+        words = transcript_text.split()
+        words_per_chunk = len(words) // num_splits
+        overlap_words = 150  # Roughly 1 minute of speech
+        
+        all_segments = []
+        
+        # Process each chunk
+        for i in range(num_splits):
+            start_idx = max(0, i * words_per_chunk - overlap_words if i > 0 else 0)
+            end_idx = min(len(words), (i + 1) * words_per_chunk + overlap_words if i < num_splits - 1 else len(words))
+            
+            chunk_transcript = ' '.join(words[start_idx:end_idx])
+            chunk_duration = duration_minutes / num_splits + 2  # Add 2 minutes for overlap
+            
+            print(f"Processing chunk {i+1}/{num_splits} ({len(chunk_transcript.split())} words)")
+            
+            try:
+                chunk_segments = self._process_transcript_chunk(
+                    chunk_transcript,
+                    word_timings,
+                    clip_length,
+                    keywords,
+                    chunk_duration
+                )
+                all_segments.extend(chunk_segments)
+                
+            except Exception as e:
+                print(f"Error processing chunk {i+1}: {str(e)}")
+        
+        # Sort segments by start time
+        all_segments.sort(key=lambda x: x['start'])
+        
+        # Remove duplicate segments from overlap regions
+        filtered_segments = []
+        last_end = 0
+        
+        for segment in all_segments:
+            # Skip if this segment overlaps significantly with the previous one
+            if filtered_segments and segment['start'] < last_end:
+                # Calculate overlap percentage
+                overlap = (last_end - segment['start']) / (segment['end'] - segment['start'])
+                if overlap > 0.6:  # Skip if more than 60% overlap
+                    continue
+            
+            filtered_segments.append(segment)
+            last_end = segment['end']
+        
+        print(f"Found {len(filtered_segments)} total segments after filtering")
+        return filtered_segments
+
+    def _process_transcript_chunk(self, transcript_text, word_timings, clip_length, keywords="", duration_minutes=0):
+        """Process a single chunk of transcript - contains the original analysis logic"""
+        # Calculate expectations based on duration
+        if duration_minutes <= 4:  # Short videos (≤ 4 minutes)
+            min_segments = 1
+            target_segments = 4
+        elif duration_minutes <= 10:  # Medium-short videos (4-10 minutes)
+            min_segments = 3
+            target_segments = 6
+        elif duration_minutes <= 30:  # Medium videos (10-30 minutes)
+            min_segments = 5
+            target_segments = 12
+        else:  # Longer chunks
+            min_segments = 7
+            target_segments = 15
+
         max_retries = 3
         for attempt in range(max_retries):
             try:
-                min_segments = 1 if is_short_video else 3
                 prompt = f"""You are an expert content creator specializing in extracting engaging clips from podcasts. Analyze the following transcript and create compelling short-form content.
 
                 Transcript:
                 {transcript_text}
 
-                Video Duration: {total_duration:.1f} seconds {'(SHORT VIDEO)' if is_short_video else ''}
-
                 Task:
                 1. Extract engaging segments that meet these criteria:
-                   - For this {'short' if is_short_video else 'long'} video:
-                     * MUST find at least {min_segments} usable segment{'s' if min_segments > 1 else ''}
-                     * {'Be flexible with length to capture complete thoughts' if is_short_video else 'Try to stay within target length when possible'}
+                   - For this {duration_minutes:.1f}-minute section:
+                     * MUST find at least {min_segments} segments
+                     * AIM for {target_segments} segments if possible
+                     * Prioritize segment quality but don't be overly strict
                    - Target length: {clip_length['min']} to {clip_length['max']} seconds
                    - Must be self-contained and coherent
                    - Must have clear hooks and conclusions
                 
-                2. Prioritize segments that:
+                2. CRITICAL FORMATTING REQUIREMENTS:
+                   - For each segment, provide TWO versions of the text:
+                     a) 'text': Exact transcript text as provided (lowercase, no punctuation)
+                     b) 'transcript': Properly formatted version with:
+                        * Capitalized sentences
+                        * Proper punctuation
+                        * Periods at the end of sentences
+                        * Natural paragraph breaks
+                   
+                   Example format:
+                   text: "yeah so i think the most important thing is to focus on what matters and not get distracted by all the noise around you thats what really makes the difference"
+                   
+                   transcript: "Yeah, so I think the most important thing is to focus on what matters and not get distracted by all the noise around you. That's what really makes the difference."
+
+                3. Prioritize segments that:
                    - Have attention-grabbing openings
                    - Tell complete, emotionally resonant stories
                    - Contain unique insights or perspectives
                    - Include personal experiences or transformative moments
                    - Discuss universal themes (success, growth, relationships, etc.)
 
-                3. Score each segment (60-100) based on:
-                   - Viral potential (80% weight)
+                4. Score each segment (60-100) based on:
+                   - Viral potential (70% weight)
                        * Hook strength
                        * Emotional impact
                        * Relatability
                        * Share-worthy insight
-                   - Technical aspects (20% weight)
+                   - Technical aspects (30% weight)
                        * Story completeness
                        * Length optimization
 
-                4. CRITICAL REQUIREMENTS:
+                5. CRITICAL REQUIREMENTS:
                    - You MUST return exactly the transcript text that matches your chosen segments
                    - The text must exist in the transcript exactly as provided
-                   - For this {'short' if is_short_video else 'long'} video, you MUST find at least {min_segments} segment{'s' if min_segments > 1 else ''}
+                   - You MUST find at least {min_segments} segments
+                   - Try to find up to {target_segments} segments if possible
                    - Each segment must be a complete thought/story
+                   - Distribute segments throughout the video (don't cluster them)
 
-                5. If provided, prioritize (but don't limit to) segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
+                6. If provided, prioritize (but don't limit to) segments containing these keywords: {keywords if keywords else 'No specific keywords'}.
 
                 Important:
-                - This is {'a SHORT video requiring 1 good segment' if is_short_video else 'a LONG video requiring at least 3 segments'}
-                - Focus on finding complete, impactful moments
+                - This is a {duration_minutes:.1f}-minute video requiring at least {min_segments} segments
+                - For longer videos, accept more variety in segment quality
                 - Return EXACT transcript text for each segment
-                - Better to have {'one perfect segment' if is_short_video else 'three solid segments'} than fragments
+                - Better to have more segments with varying quality than too few perfect ones
                 
                 Use the process_segments tool to return your analysis in the required format.
                 """
@@ -381,15 +476,12 @@ class VideoProcessor:
                         tool_choice={"type": "tool", "name": "process_segments"}
                     )
                     
+                    print("claude Response: ", response)
                     tool_response = response.content[0].input
                     segments = tool_response.get("segments", [])
                     
                     if not segments:
                         raise ValueError("No segments returned by Claude")
-
-                    # Add validation for minimum segments
-                    if len(segments) < min_segments:
-                        raise ValueError(f"Claude returned {len(segments)} segments, but minimum {min_segments} required")
 
                     # Build the combined segment data
                     segment_data = []
@@ -447,7 +539,7 @@ class VideoProcessor:
                 if attempt < max_retries - 1:  # If we have retries left
                     print(f"Attempt {attempt + 1} failed: {str(e)}")
                     print(f"Retrying... ({attempt + 1}/{max_retries})")
-                    time.sleep(1)  # Add a small delay between retries
+                    time.sleep(2)  # Add a small delay between retries
                     continue
                 else:
                     print(f"All {max_retries} attempts failed. Last error: {str(e)}")
@@ -867,7 +959,7 @@ class VideoProcessor:
         )
 
         with self._deepgram_lock:
-            response = self.deepgram_client.listen.prerecorded.v("1").transcribe_file(payload, options)
+            response = self.deepgram_client.listen.prerecorded.v("1").transcribe_file(payload, options, timeout=httpx.Timeout(300.0, connect=10.0))
 
         word_timings = []
         full_transcript = ''
@@ -966,8 +1058,8 @@ class VideoProcessor:
                 if update_status_callback:
                     # Calculate video duration based on standardized clip format
                     video_duration = (end_time - start_time if project_type == "auto" 
-                                    else sum(clip.get('duration', clip.get('end', 0) - clip.get('start', 0)) 
-                                          for clip in clips))
+                                    else sum(float(clip.get('duration', float(clip.get('end', 0)) - float(clip.get('start', 0))))
+                                          for clip in (clips or [])))
                     
                     elapsed_time = time.time() - self.process_start_time
                     remaining_estimate = self.calculate_total_estimate(video_duration, elapsed_time, progress, stage)
@@ -983,7 +1075,7 @@ class VideoProcessor:
             os.makedirs('./subtitled_clips', exist_ok=True)
 
             if update_status_callback:
-                update_status_with_estimate("downloading", 0)
+                update_status_with_estimate("downloading", 1)
 
             try:
                 # Download and process video based on project type
@@ -1022,36 +1114,17 @@ class VideoProcessor:
                     
                     if update_status_callback:
                         update_status_with_estimate("transcribing", 15)
-                    
-                    # Process each clip separately
-                    segments_to_process = []
-                    for i, (clip_path, clip_data) in enumerate(zip(downloaded_video_paths, clips)):
-                        clip_start = clip_data.get('start', clip_data.get('startTime', 0))
-                        clip_end = clip_data.get('end', clip_data.get('endTime', 0))
+                   
                         
-                        audio_path = self.extract_audio(clip_path)
-                        transcript, word_timings = self.transcribe_audio(audio_path)
-                        
-                        segments_to_process.append({
-                            'start': clip_start,
-                            'end': clip_end,
-                            'video_path': clip_path,
-                            'word_timings': word_timings
-                        })
-                        
-                        if update_status_callback:
-                            progress = 10 + int((i + 1) / len(clips) * 10)
-                            update_status_with_estimate("transcribing", progress)
-                        
-                        segments_to_process = self.process_manual_clips(
-                            clips, 
-                            downloaded_video_paths, 
-                            update_status_callback,
-                            clerk_user_id,
-                            project_id,
-                            video_title,
-                            processing_timeframe
-                        )
+                    segments_to_process = self.process_manual_clips(
+                        clips, 
+                        downloaded_video_paths, 
+                        update_status_callback,
+                        clerk_user_id,
+                        project_id,
+                        video_title,
+                        processing_timeframe
+                    )
 
                 # Process segments
                 if update_status_callback:

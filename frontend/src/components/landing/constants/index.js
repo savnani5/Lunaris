@@ -311,3 +311,31 @@ export const socials = [
     url: "#",
   },
 ];
+
+export const faqData = [
+  {
+    id: "0",
+    question: "How does Lunaris work?",
+    answer: "Lunaris uses advanced AI to understand your video content and current social media trends. It automatically identifies the most engaging moments from your long-form videos and transforms them into attention-grabbing short clips. The platform enhances these clips with dynamic captions, smart layouts, and smooth transitions - making your content ready to go viral across social platforms!"
+  },
+  {
+    id: "1",
+    question: "Does Lunaris require video editing skills?",
+    answer: "No, Lunaris does not require video editing skills. We have a very simple interface that allows you to upload your video and generate clips with just a few clicks."
+  },
+  {
+    id: "2",
+    question: "Is Lunaris free to use?",
+    answer: "We offer 60 free credits (60 minutes of processing) to get you started. You can enroll in our starter or custom plan to get more credits and features."
+  },
+  {
+    id: "3",
+    question: "Can I add captions?",
+    answer: "Absolutely! In fact, Lunaris automatically adds captions for you with over 98% accuracy! You can also choose custom captions with our templates."
+  },
+  {
+    id: "4",
+    question: "Can I cancel my subscription anytime?",
+    answer: "Yes, you can cancel your subscription at any time. You'll continue to have access to your plan until the end of your current billing period."
+  },
+];

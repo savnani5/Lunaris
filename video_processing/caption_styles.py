@@ -13,9 +13,9 @@ class ImanStyle(CaptionStyle):
             if not txt:  # Check if the text is empty or None
                 return None
             
-            # Make font size and stroke width consistent regardless of orientation
+            # Make font size and stroke width proportional to orientation
             fontsize = 80 if output_video_type == 'portrait' else 50
-            stroke_width = 3  # Consistent stroke width for both orientations
+            base_stroke = 3 if output_video_type == 'portrait' else 2  # Scale base stroke with font size
             
             if highlight:
                 color = random.choice(['rgb(0, 255, 0)', 'rgb(255, 255, 0)'])  # Green and Yellow
@@ -27,7 +27,7 @@ class ImanStyle(CaptionStyle):
                                   font='Roboto-Black',
                                   color='black',
                                   stroke_color='black',
-                                  stroke_width=stroke_width + 2,  # Reduced from +4
+                                  stroke_width=base_stroke + 2,  # Consistent relative increase
                                   method='label',
                                   kerning=-2,
                                   size=(None, None))
@@ -38,7 +38,7 @@ class ImanStyle(CaptionStyle):
                               font='Roboto-Black',
                               color='black',
                               stroke_color='black',
-                              stroke_width=stroke_width + 1,  # Reduced from +2
+                              stroke_width=base_stroke + 1,  # Consistent relative increase
                               method='label',
                               kerning=-2,
                               size=(None, None))
@@ -49,7 +49,7 @@ class ImanStyle(CaptionStyle):
                                font='Roboto-Black',
                                color=color, 
                                stroke_color='black', 
-                               stroke_width=stroke_width,
+                               stroke_width=base_stroke,  # Base stroke width
                                method='label',
                                kerning=-2,
                                size=(None, None))
@@ -537,9 +537,9 @@ class ElonStyle(CaptionStyle):
             if not txt:  # Check if text is empty
                 return None
                 
-            # Smaller font size
+            # Smaller font size and proportional stroke width
             fontsize = 50 if output_video_type == 'landscape' else 80
-            stroke_width = 3  # Added stroke width for extra boldness
+            base_stroke = 2 if output_video_type == 'landscape' else 3  # Scale base stroke with font size
             
             # Create text clip with extra spacing using spaces
             padded_text = f"  {txt.upper()}  "  # Add horizontal padding with spaces
@@ -548,11 +548,11 @@ class ElonStyle(CaptionStyle):
             bg_clip_outer = TextClip(
                 padded_text,
                 fontsize=fontsize,
-                font='Roboto-Black',  # Changed to Roboto-Black
+                font='Roboto-Black',
                 color='white',
                 bg_color='white',
                 stroke_color='white',
-                stroke_width=stroke_width + 2,
+                stroke_width=base_stroke + 2,  # Consistent relative increase
                 method='label',
                 size=(None, None),
                 interline=1.5,
@@ -563,11 +563,11 @@ class ElonStyle(CaptionStyle):
             bg_clip = TextClip(
                 padded_text,
                 fontsize=fontsize,
-                font='Roboto-Black',  # Changed to Roboto-Black
+                font='Roboto-Black',
                 color='white',
                 bg_color='white',
                 stroke_color='white',
-                stroke_width=stroke_width + 1,
+                stroke_width=base_stroke + 1,  # Consistent relative increase
                 method='label',
                 size=(None, None),
                 interline=1.5,
@@ -578,11 +578,11 @@ class ElonStyle(CaptionStyle):
             txt_clip = TextClip(
                 padded_text,
                 fontsize=fontsize,
-                font='Roboto-Black',  # Changed to Roboto-Black
+                font='Roboto-Black',
                 color='black',
                 bg_color='white',
                 stroke_color='black',
-                stroke_width=stroke_width,
+                stroke_width=base_stroke,  # Base stroke width
                 method='label',
                 size=(None, None),
                 interline=1.5,
@@ -603,7 +603,7 @@ class ElonStyle(CaptionStyle):
                     color='white',
                     bg_color='white',
                     stroke_color='white',
-                    stroke_width=stroke_width + 2,
+                    stroke_width=base_stroke + 2,  # Consistent relative increase
                     method='label',
                     size=(None, None),
                     interline=1.5,
@@ -616,7 +616,7 @@ class ElonStyle(CaptionStyle):
                     color='white',
                     bg_color='white',
                     stroke_color='white',
-                    stroke_width=stroke_width + 1,
+                    stroke_width=base_stroke + 1,  # Consistent relative increase
                     method='label',
                     size=(None, None),
                     interline=1.5,
@@ -629,7 +629,7 @@ class ElonStyle(CaptionStyle):
                     color='black',
                     bg_color='white',
                     stroke_color='black',
-                    stroke_width=stroke_width,
+                    stroke_width=base_stroke,  # Base stroke width
                     method='label',
                     size=(None, None),
                     interline=1.5,
@@ -938,7 +938,7 @@ class MattStyle(CaptionStyle):
                 return None
             
             fontsize = 50 if output_video_type == 'landscape' else 80
-            stroke_width = 4
+            base_stroke = 3 if output_video_type == 'portrait' else 2
             
             if highlight:
                 color = 'rgb(255, 0, 0)'
@@ -950,7 +950,7 @@ class MattStyle(CaptionStyle):
                                   font='Roboto-Black',
                                   color='black',
                                   stroke_color='black',
-                                  stroke_width=stroke_width + 4,
+                                  stroke_width=base_stroke + 2,
                                   method='label',
                                   kerning=-2,
                                   size=(None, None))
@@ -961,7 +961,7 @@ class MattStyle(CaptionStyle):
                               font='Roboto-Black',
                               color='black',
                               stroke_color='black',
-                              stroke_width=stroke_width + 2,
+                              stroke_width=base_stroke + 1,
                               method='label',
                               kerning=-2,
                               size=(None, None))
@@ -972,7 +972,7 @@ class MattStyle(CaptionStyle):
                                font='Roboto-Black',
                                color=color, 
                                stroke_color='black', 
-                               stroke_width=stroke_width,
+                               stroke_width=base_stroke,
                                method='label',
                                kerning=-2,
                                size=(None, None))
