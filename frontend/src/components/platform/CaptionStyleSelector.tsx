@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, TouchEvent } from 'react';
 
 interface CaptionStyle {
   id: string;
@@ -16,9 +16,41 @@ const CaptionStyleSelector: React.FC<CaptionStyleSelectorProps> = ({ styles, sel
   const [currentIndex, setCurrentIndex] = useState(0);
   const videoRefs = useRef<(HTMLVideoElement | null)[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [touchEnd, setTouchEnd] = useState<number | null>(null);
 
   // Find the index of the currently selected style
   const selectedIndex = styles.findIndex(style => style.id === selectedStyle);
+
+  const handleTouchStart = (e: TouchEvent) => {
+    setTouchStart(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    setTouchEnd(e.targetTouches[0].clientX);
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStart || !touchEnd) return;
+
+    const distance = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+
+    if (Math.abs(distance) < minSwipeDistance) {
+      return;
+    }
+
+    if (distance > 0) {
+      // Swiped left
+      goToNext();
+    } else {
+      // Swiped right
+      goToPrevious();
+    }
+
+    setTouchStart(null);
+    setTouchEnd(null);
+  };
 
   const goToNext = () => {
     const newIndex = Math.min(selectedIndex + 1, styles.length - 1);
@@ -44,8 +76,11 @@ const CaptionStyleSelector: React.FC<CaptionStyleSelectorProps> = ({ styles, sel
           &lt;
         </button>
         <div 
-          className="flex transition-transform duration-300 ease-in-out"
+          className="flex transition-transform duration-300 ease-in-out touch-pan-x"
           style={{ transform: `translateX(-${currentIndex * 33.33}%)` }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           {styles.map((style, index) => (
             <div

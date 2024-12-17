@@ -72,6 +72,7 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
   const [isLoading, setIsLoading] = useState(true);
   const [dragType, setDragType] = useState<'start' | 'end' | null>(null);
   const [lastSelectedClipId, setLastSelectedClipId] = useState<string | null>(null);
+  const [touchActive, setTouchActive] = useState(false);
 
   // Add this effect to handle video URL changes
   useEffect(() => {
@@ -158,8 +159,8 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
   const addNewClip = () => {
     const newClip = {
       id: `clip-${Date.now()}`,
-      startTime: currentTime,
-      endTime: Math.min(currentTime + 60, duration)
+      startTime: Number(currentTime),
+      endTime: Math.min(Number(currentTime) + 60, duration)
     };
     const updatedClips = [...clips, newClip];
     setClips(updatedClips);
@@ -274,12 +275,49 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
     }
   };
 
-  const handleStartDrag = (e: React.MouseEvent, clip: ClipTimeframe, type: 'start' | 'end') => {
-    e.stopPropagation();
-    setIsSeeking(true);
-    setDragType(type);
-    setSelectedClip(clip);
-    setShouldUpdateProgress(false);
+  const handleStartDrag = (
+    event: React.MouseEvent,
+    targetClip: ClipTimeframe,
+    handle: 'start' | 'end'
+  ) => {
+    event.preventDefault();
+    const timeline = timelineRef.current;
+    if (!timeline) return;
+
+    const timelineRect = timeline.getBoundingClientRect();
+    const startX = event.clientX;
+    const clipStartPercent = (targetClip.startTime / duration) * 100;
+    const clipEndPercent = (targetClip.endTime / duration) * 100;
+
+    const handleMouseMove = (moveEvent: MouseEvent) => {
+      moveEvent.preventDefault();
+      const deltaX = moveEvent.clientX - startX;
+      const deltaPercent = (deltaX / timelineRect.width) * 100;
+
+      if (handle === 'start') {
+        const newStartPercent = Math.max(0, Math.min(clipStartPercent + deltaPercent, clipEndPercent - 1));
+        const newStartTime = (newStartPercent / 100) * duration;
+        updateClip({
+          ...targetClip,
+          startTime: newStartTime
+        });
+      } else {
+        const newEndPercent = Math.min(100, Math.max(clipStartPercent + 1, clipEndPercent + deltaPercent));
+        const newEndTime = (newEndPercent / 100) * duration;
+        updateClip({
+          ...targetClip,
+          endTime: newEndTime
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
   };
 
   const handleStopDrag = useCallback(() => {
@@ -429,11 +467,76 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
     setIsPlaying(!isPlaying);
   };
 
+  const handleTouchStart = (e: React.TouchEvent, clip: ClipTimeframe, type: 'start' | 'end') => {
+    e.preventDefault();
+    setTouchActive(true);
+    setIsSeeking(true);
+    setDragType(type);
+    setSelectedClip(clip);
+    setShouldUpdateProgress(false);
+  };
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!touchActive || !timelineRef.current || !selectedClip || !dragType) return;
+
+    e.preventDefault(); // Prevent scrolling while dragging
+
+    const rect = timelineRef.current.getBoundingClientRect();
+    const touch = e.touches[0];
+    const touchPosition = (touch.clientX - rect.left) / rect.width;
+    const newTime = duration * Math.max(0, Math.min(1, touchPosition));
+
+    if (dragType === 'start') {
+      const updatedClip = {
+        ...selectedClip,
+        startTime: Math.min(Math.max(0, newTime), selectedClip.endTime - 1)
+      };
+      updateClip(updatedClip);
+    } else if (dragType === 'end') {
+      const updatedClip = {
+        ...selectedClip,
+        endTime: Math.min(Math.max(selectedClip.startTime + 1, newTime), duration)
+      };
+      updateClip(updatedClip);
+    }
+  }, [touchActive, selectedClip, dragType, duration, updateClip]);
+
+  const handleTouchEnd = useCallback(() => {
+    if (touchActive) {
+      setTouchActive(false);
+      setIsSeeking(false);
+      setDragType(null);
+      setShouldUpdateProgress(true);
+      setIsPlaying(true);
+    }
+  }, [touchActive]);
+
+  useEffect(() => {
+    const handleTouchMoveWithPrevent = (e: TouchEvent) => {
+      if (touchActive) {
+        e.preventDefault(); // Prevent scrolling while dragging
+        handleTouchMove(e);
+      }
+    };
+
+    if (timelineRef.current) {
+      document.addEventListener('touchmove', handleTouchMoveWithPrevent, { passive: false });
+      document.addEventListener('touchend', handleTouchEnd);
+      document.addEventListener('touchcancel', handleTouchEnd);
+    }
+
+    return () => {
+      document.removeEventListener('touchmove', handleTouchMoveWithPrevent);
+      document.removeEventListener('touchend', handleTouchEnd);
+      document.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [handleTouchMove, handleTouchEnd, touchActive]);
+
   return (
-    <div className="space-y-6">
-      <div className="space-y-4">
+    <div className="space-y-4 sm:space-y-6">
+      <div className="space-y-2 sm:space-y-4">
         <div 
-          className="relative aspect-video bg-black rounded-lg overflow-hidden cursor-pointer" 
+          className="relative aspect-video bg-black rounded-lg overflow-hidden cursor-pointer w-full max-h-[85vh] sm:max-h-none" 
           onClick={handleVideoClick}
         >
           {!isYouTube && (
@@ -512,43 +615,44 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
             </div>
           )}
 
-          {/* Add video-controls class to the controls container */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent video-controls">
+          {/* Adjusted controls for better mobile visibility */}
+          <div className="absolute bottom-0 left-0 right-0 p-2 sm:p-4 bg-gradient-to-t from-black/70 to-transparent video-controls">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
+              <div className="flex items-center space-x-2 sm:space-x-4">
                 <button
                   onClick={handlePlayPause}
                   className="text-white hover:text-color-1 transition-colors"
                 >
                   {isPlaying ? (
-                    <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
                     </svg>
                   ) : (
-                    <svg className="w-8 h-8" viewBox="0 0 24 24" fill="currentColor">
+                    <svg className="w-6 h-6 sm:w-8 sm:h-8" viewBox="0 0 24 24" fill="currentColor">
                       <path d="M8 5v14l11-7z"/>
                     </svg>
                   )}
                 </button>
-                <span className="text-white">{formatTime(currentTime)} / {formatTime(duration)}</span>
+                <span className="text-white text-sm sm:text-base">{formatTime(currentTime)} / {formatTime(duration)}</span>
               </div>
               
+              {/* Adjusted playback speed dropdown for mobile */}
               <div className="relative">
                 <button 
                   className="text-white hover:text-color-1 transition-colors px-2 py-1 rounded-md flex items-center space-x-1 group"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <svg className="w-3 h-3 sm:w-4 sm:h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span className="relative">
+                  <span className="text-sm sm:text-base relative">
                     {playbackSpeed}x
                     <div className="absolute bottom-full right-0 mb-2 bg-n-6 rounded-lg shadow-lg opacity-0 invisible group-hover:opacity-90 group-hover:visible transition-all">
-                      <div className="p-2 space-y-1">
+                      <div className="p-1 sm:p-2 space-y-0.5 sm:space-y-1">
                         {speedOptions.map((speed) => (
                           <button
                             key={speed}
                             onClick={() => handleSpeedChange(speed)}
-                            className={`w-full text-left px-3 py-1 rounded-md text-sm whitespace-nowrap
+                            className={`w-full text-left px-2 sm:px-3 py-1 rounded-md text-xs sm:text-sm whitespace-nowrap
                               ${playbackSpeed === speed 
                                 ? 'bg-color-1 text-white' 
                                 : 'text-white hover:bg-n-5'}`}
@@ -565,10 +669,10 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
           </div>
         </div>
 
-        {/* Timeline */}
+        {/* Timeline - Adjusted height for mobile */}
         <div 
           ref={timelineRef}
-          className="relative h-24 bg-n-7 rounded-lg overflow-hidden"
+          className="relative h-16 sm:h-24 bg-n-7 rounded-lg overflow-hidden"
         >
           {/* Add a gradient background instead */}
           <div 
@@ -610,14 +714,30 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
                   }}
                 >
                   <div 
-                    className="timeline-handle left-0" 
-                    style={{ pointerEvents: 'auto' }}
-                    onMouseDown={(e) => handleStartDrag(e, clip, 'start')} 
+                    className="timeline-handle left-handle" 
+                    style={{ 
+                      left: 0,
+                      pointerEvents: 'auto',
+                      cursor: 'ew-resize'
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation(); // Prevent timeline click
+                      handleStartDrag(e, clip, 'start');
+                    }}
+                    onTouchStart={(e) => handleTouchStart(e, clip, 'start')}
                   />
                   <div 
-                    className="timeline-handle right-0" 
-                    style={{ pointerEvents: 'auto' }}
-                    onMouseDown={(e) => handleStartDrag(e, clip, 'end')} 
+                    className="timeline-handle right-handle" 
+                    style={{ 
+                      right: 0,
+                      pointerEvents: 'auto',
+                      cursor: 'ew-resize'
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation(); // Prevent timeline click
+                      handleStartDrag(e, clip, 'end');
+                    }}
+                    onTouchStart={(e) => handleTouchStart(e, clip, 'end')}
                   />
                 </div>
               );
@@ -638,44 +758,56 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
           />
         </div>
 
-        {/* Clips list */}
-        <div className="space-y-4 clips-list">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold">Processing Clips</h3>
-            <Button
-              onClick={addNewClip}
-              className="bg-color-1 hover:bg-color-1/80 text-n-1"
-              disabled={!isReady}
-            >
-              Add Clip at Current Time
-            </Button>
-          </div>
+        {/* Clips list section - only show when clips exist */}
+        {clips.length > 0 && (
+          <div className="mt-4 space-y-2 sm:space-y-4 clips-list">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-2 sm:space-y-0">
+              <h3 className="text-base sm:text-lg font-bold">Processing Clips</h3>
+              <Button
+                onClick={addNewClip}
+                className="w-full sm:w-auto bg-color-1 hover:bg-color-1/80 text-n-1 text-sm sm:text-base"
+                disabled={!isReady}
+              >
+                Add Clip at Current Time
+              </Button>
+            </div>
 
-          <div className="space-y-2 max-h-60 overflow-y-auto">
-            {clips.slice().reverse().map((clip, index) => {
-              const clipColor = `hsl(${((clips.length - 1 - index) * 60) % 360}, 70%, 50%)`;
-              return (
-                <div
-                  key={clip.id}
-                  className={`p-4 rounded-lg border-2 transition-all cursor-pointer
-                    ${selectedClip?.id === clip.id 
-                      ? 'border-color-1 bg-n-6/50' 
-                      : 'border-n-5/50 hover:border-n-4'}`}
-                  onClick={() => selectClip(clip)}
-                >
-                  <div className="flex justify-between items-center">
-                    <div className="space-y-2">
-                      <span className="font-semibold">Clip {clips.length - index}</span>
+            <div className="h-[300px] overflow-y-auto space-y-2">
+              {clips.slice().reverse().map((clip, index) => {
+                const clipColor = `hsl(${((clips.length - 1 - index) * 60) % 360}, 70%, 50%)`;
+                return (
+                  <div
+                    key={clip.id}
+                    className={`p-4 rounded-lg border-2 transition-all cursor-pointer
+                      ${selectedClip?.id === clip.id 
+                        ? 'border-color-1 bg-n-6/50' 
+                        : 'border-n-5/50 hover:border-n-4'}`}
+                    onClick={() => selectClip(clip)}
+                  >
+                    <div className="flex flex-col space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="font-semibold">Clip {clips.length - index}</span>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            removeClip(clip.id);
+                          }}
+                          className="text-red-500 hover:text-red-400"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+
                       {selectedClip?.id === clip.id ? (
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-4">
-                            {/* Start time inputs */}
-                            <div className="flex items-center space-x-1">
+                        <div className="space-y-2 w-full">
+                          {/* Mobile-optimized time inputs */}
+                          <div className="flex items-center space-x-1 sm:space-x-2">
+                            <div className="flex items-center space-x-0.5 sm:space-x-1">
                               <Input
                                 type="text"
                                 value={clipTimeInputs[clip.id]?.start?.hours ?? '0'}
                                 onChange={(e) => validateAndUpdateTime(clip.id, 'start', 'hours', e.target.value)}
-                                className="w-14 text-center"
+                                className="w-[38px] sm:w-14 h-7 sm:h-9 text-center text-xs sm:text-base px-0 sm:px-2"
                                 placeholder="HH"
                                 maxLength={2}
                               />
@@ -684,7 +816,7 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
                                 type="text"
                                 value={clipTimeInputs[clip.id]?.start?.minutes ?? '0'}
                                 onChange={(e) => validateAndUpdateTime(clip.id, 'start', 'minutes', e.target.value)}
-                                className="w-14 text-center"
+                                className="w-[38px] sm:w-14 h-7 sm:h-9 text-center text-xs sm:text-base px-0 sm:px-2"
                                 placeholder="MM"
                                 maxLength={2}
                               />
@@ -693,19 +825,18 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
                                 type="text"
                                 value={clipTimeInputs[clip.id]?.start?.seconds ?? '0'}
                                 onChange={(e) => validateAndUpdateTime(clip.id, 'start', 'seconds', e.target.value)}
-                                className="w-14 text-center"
+                                className="w-[38px] sm:w-14 h-7 sm:h-9 text-center text-xs sm:text-base px-0 sm:px-2"
                                 placeholder="SS"
                                 maxLength={2}
                               />
                             </div>
-                            <span>to</span>
-                            {/* End time inputs */}
-                            <div className="flex items-center space-x-1">
+                            <span className="text-xs sm:text-base">to</span>
+                            <div className="flex items-center space-x-0.5 sm:space-x-1">
                               <Input
                                 type="text"
                                 value={clipTimeInputs[clip.id]?.end?.hours ?? '0'}
                                 onChange={(e) => validateAndUpdateTime(clip.id, 'end', 'hours', e.target.value)}
-                                className="w-14 text-center"
+                                className="w-[38px] sm:w-14 h-7 sm:h-9 text-center text-xs sm:text-base px-0 sm:px-2"
                                 placeholder="HH"
                                 maxLength={2}
                               />
@@ -714,7 +845,7 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
                                 type="text"
                                 value={clipTimeInputs[clip.id]?.end?.minutes ?? '0'}
                                 onChange={(e) => validateAndUpdateTime(clip.id, 'end', 'minutes', e.target.value)}
-                                className="w-14 text-center"
+                                className="w-[38px] sm:w-14 h-7 sm:h-9 text-center text-xs sm:text-base px-0 sm:px-2"
                                 placeholder="MM"
                                 maxLength={2}
                               />
@@ -723,7 +854,7 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
                                 type="text"
                                 value={clipTimeInputs[clip.id]?.end?.seconds ?? '0'}
                                 onChange={(e) => validateAndUpdateTime(clip.id, 'end', 'seconds', e.target.value)}
-                                className="w-14 text-center"
+                                className="w-[38px] sm:w-14 h-7 sm:h-9 text-center text-xs sm:text-base px-0 sm:px-2"
                                 placeholder="SS"
                                 maxLength={2}
                               />
@@ -742,21 +873,25 @@ export function VideoClipEditor({ videoUrl, onClipsChange, isYouTube = false, on
                         </div>
                       )}
                     </div>
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        removeClip(clip.id);
-                      }}
-                      className="text-red-500 hover:text-red-400"
-                    >
-                      Remove
-                    </Button>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
+
+        {/* Show Add Clip button alone when no clips exist */}
+        {clips.length === 0 && (
+          <div className="mt-4">
+            <Button
+              onClick={addNewClip}
+              className="w-full sm:w-auto bg-color-1 hover:bg-color-1/80 text-n-1 text-sm sm:text-base"
+              disabled={!isReady}
+            >
+              Add Clip at Current Time
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

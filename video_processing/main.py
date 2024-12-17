@@ -1058,8 +1058,8 @@ class VideoProcessor:
                 if update_status_callback:
                     # Calculate video duration based on standardized clip format
                     video_duration = (end_time - start_time if project_type == "auto" 
-                                    else sum(clip.get('duration', clip.get('end', 0) - clip.get('start', 0)) 
-                                          for clip in clips))
+                                    else sum(float(clip.get('duration', float(clip.get('end', 0)) - float(clip.get('start', 0))))
+                                          for clip in (clips or [])))
                     
                     elapsed_time = time.time() - self.process_start_time
                     remaining_estimate = self.calculate_total_estimate(video_duration, elapsed_time, progress, stage)
@@ -1114,36 +1114,17 @@ class VideoProcessor:
                     
                     if update_status_callback:
                         update_status_with_estimate("transcribing", 15)
-                    
-                    # Process each clip separately
-                    segments_to_process = []
-                    for i, (clip_path, clip_data) in enumerate(zip(downloaded_video_paths, clips)):
-                        clip_start = clip_data.get('start', clip_data.get('startTime', 0))
-                        clip_end = clip_data.get('end', clip_data.get('endTime', 0))
+                   
                         
-                        audio_path = self.extract_audio(clip_path)
-                        transcript, word_timings = self.transcribe_audio(audio_path)
-                        
-                        segments_to_process.append({
-                            'start': clip_start,
-                            'end': clip_end,
-                            'video_path': clip_path,
-                            'word_timings': word_timings
-                        })
-                        
-                        if update_status_callback:
-                            progress = 10 + int((i + 1) / len(clips) * 10)
-                            update_status_with_estimate("transcribing", progress)
-                        
-                        segments_to_process = self.process_manual_clips(
-                            clips, 
-                            downloaded_video_paths, 
-                            update_status_callback,
-                            clerk_user_id,
-                            project_id,
-                            video_title,
-                            processing_timeframe
-                        )
+                    segments_to_process = self.process_manual_clips(
+                        clips, 
+                        downloaded_video_paths, 
+                        update_status_callback,
+                        clerk_user_id,
+                        project_id,
+                        video_title,
+                        processing_timeframe
+                    )
 
                 # Process segments
                 if update_status_callback:

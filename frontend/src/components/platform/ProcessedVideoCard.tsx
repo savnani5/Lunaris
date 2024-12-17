@@ -65,8 +65,8 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip, index }) 
       <div 
         className={`mx-auto ${
           isLandscape 
-            ? 'p-4 sm:p-6' 
-            : 'p-6 w-8/12 sm:w-7/12 md:w-6/12 lg:w-5/12'
+            ? 'p-2 sm:p-6' 
+            : 'p-2 sm:p-6 w-7/12 sm:w-7/12 md:w-6/12 lg:w-5/12'
         }`}
       >
         <div 
@@ -86,7 +86,7 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip, index }) 
         </div>
       </div>
       
-      <div className="px-4 sm:px-6 pb-6 space-y-4">
+      <div className="px-2 sm:px-6 pb-4 sm:pb-6 space-y-4">
         <div className="flex flex-wrap gap-2 mt-2">
           <ScoreBadge label="Score" value={clip.score} />
           <ScoreBadge label="Hook" value={clip.hook} />

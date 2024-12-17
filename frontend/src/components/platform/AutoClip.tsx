@@ -656,13 +656,13 @@ export function AutoClip() {
   const requiredCredits = Math.floor((endTime - startTime) / 60);
 
   return (
-    <div className="min-h-screen bg-black text-n-1 p-4 sm:p-8">
+    <div className="min-h-screen bg-black text-n-1 px-0 py-1 sm:p-8">
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between py-6 max-w-4xl mx-auto">
-        <h1 className="text-3xl font-bold mb-4 sm:mb-0">Create Viral Clips</h1>
+        <h1 className="text-3xl font-bold mb-4 sm:mb-0">Auto Create Clips</h1>
         <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto">
           <Tooltip
             title={
-              <div className="bg-n-6/70 text-n-1 p-3 rounded-lg shadow-lg">
+              <div className="text-n-1">
                 <p className="font-semibold mb-1">
                   {user?.isSubscribed ? `${currentPlan} Plan` : "Promotional Credits"}
                 </p>
@@ -671,7 +671,7 @@ export function AutoClip() {
             }
             arrow
             classes={{
-              tooltip: 'bg-transparent',
+              tooltip: 'bg-n-6/70 p-2 rounded-lg',
               arrow: 'text-n-6/70'
             }}
           >
@@ -691,9 +691,9 @@ export function AutoClip() {
         </div>
       </header>
       <main className="mt-6 space-y-6 max-w-4xl mx-auto"> {/* Reduced top margin and vertical spacing */}
-        <div className="bg-n-7/70 rounded-2xl p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
+        <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
           <h2 className="text-2xl font-semibold mb-2">Video Source</h2> {/* Added bottom margin */}
-          <div className="flex items-center w-full space-x-4">
+          <div className="flex items-center w-full space-x-2 sm:space-x-4">
             <Input
               placeholder="Drop a YouTube link"
               className="flex-1 bg-n-6 text-n-1 border-n-5 focus:border-color-1"
@@ -702,11 +702,11 @@ export function AutoClip() {
               disabled={isUploading || !!uploadedVideo}
             />
             <Button 
-              className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200" 
+              className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !!videoLink}
             >
-              {isUploading ? `Uploading ${uploadProgress}%` : "Upload Video"}
+              {isUploading ? `${uploadProgress}%` : "Upload Video"}
             </Button>
             <input
               type="file"
@@ -780,8 +780,8 @@ export function AutoClip() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h3 className="text-lg font-bold mb-1">Video Quality</h3>
-                <span className="text-sm text-n-3">(reduce quality for faster processing)</span>
+              <h3 className="text-base sm:text-lg font-bold mb-1">Video Quality</h3>
+              <span className="text-xs sm:text-sm text-n-3 whitespace-nowrap">(reduce quality for faster processing)</span>
               </div>
               <select 
                 className="w-full bg-n-6 text-n-1 rounded-md p-2"
@@ -795,12 +795,13 @@ export function AutoClip() {
               </select>
             </div>
             <div className="flex items-center mb-2">
-              <h3 className="text-lg font-bold mr-2">Processing Timeframe</h3>
-              <div className="bg-gray-700 bg-opacity-50 text-green-500 text-xs font px-2 py-2 rounded flex items-center">
-                required credits
+            <h3 className="text-lg font-bold mr-2">Processing Timeframe</h3>
+              <div className="bg-gray-700 bg-opacity-50 text-green-500 text-xs px-1.5 sm:px-2 py-1.5 sm:py-2 rounded flex items-center">
+                <span className="hidden sm:inline">required credits</span>
+                <span className="sm:hidden">credits</span>
                 <svg
                   xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5 ml-2 text-green-500"
+                  className="h-4 w-4 sm:h-5 sm:w-5 ml-1 sm:ml-2 text-green-500"
                   viewBox="0 0 20 20"
                   fill="currentColor"
                 >
@@ -898,7 +899,7 @@ export function AutoClip() {
                   <button
                     key={option.id}
                     onClick={() => setVideoType(option.id)}
-                    className={`flex items-center justify-center space-x-3 p-4 rounded-lg border-2 transition-all
+                    className={`flex items-center justify-center space-x-3 p-2 sm:p-4 rounded-lg border-2 transition-all
                       ${videoType === option.id 
                         ? 'border-color-1 bg-n-6/50' 
                         : 'border-n-5/50 hover:border-n-4'}`}
@@ -931,9 +932,9 @@ export function AutoClip() {
           </div>
         )}
       </main>
-      <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-4 mt-8">Auto Clip Projects</h2>
+      <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-1 mt-8">Auto Clip Projects</h2>
       {projects.length > 0 ? (
-        <div className="max-w-[1920px] mx-auto px-4 mt-8">
+        <div className="max-w-[1920px] mx-auto px-1 mt-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {projects
               .filter(project => project.status !== 'failed' && project.project_type === 'auto')
