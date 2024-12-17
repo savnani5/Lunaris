@@ -9,10 +9,16 @@ const youtube = google.youtube({
 
 async function fetchTranscript(videoId: string) {
   try {
+    console.log('Fetching transcript for video:', videoId);
     const captions = await getSubtitles({
       videoID: videoId,
-      lang: 'en'  // or 'auto' for automatic language detection
+      lang: 'en'
     });
+    
+    if (!captions || captions.length === 0) {
+      console.log('No captions found for video:', videoId);
+      return null;
+    }
     
     return captions.map(caption => ({
       text: caption.text,
@@ -21,7 +27,7 @@ async function fetchTranscript(videoId: string) {
       duration: caption.dur
     }));
   } catch (error) {
-    console.error('Error fetching transcript:', error);
+    console.error('Transcript fetch error:', error);
     return null;
   }
 }
@@ -35,8 +41,9 @@ export const GET = async (request: Request) => {
   }
 
   try {
+    console.log('Processing URL:', url); // Debug log
     const videoId = extractVideoId(url);
-    // console.log('Extracted video ID:', videoId);
+    console.log('Extracted video ID:', videoId); // Debug log
 
     const response = await youtube.videos.list({
       part: ['snippet', 'contentDetails'],
@@ -72,8 +79,18 @@ export const GET = async (request: Request) => {
 }
 
 function extractVideoId(url: string): string {
-  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-  const match = url.match(regex);
-  if (!match) throw new Error('Invalid YouTube URL');
-  return match[1];
+  try {
+    const urlObj = new URL(url);
+    const videoId = urlObj.searchParams.get('v') || 
+                    urlObj.pathname.split('/').pop() ||
+                    url.split('youtu.be/').pop()?.split('?')[0];
+                    
+    if (!videoId || videoId.length !== 11) {
+      throw new Error('Invalid YouTube video ID');
+    }
+    return videoId;
+  } catch (error) {
+    console.error('URL parsing error:', error);
+    throw new Error('Invalid YouTube URL');
+  }
 }
