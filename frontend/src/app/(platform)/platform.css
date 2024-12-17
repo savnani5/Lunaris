@@ -111,3 +111,28 @@ html {
 .play-button-overlay:hover {
   opacity: 1;
 }
+
+/* Scope transcript selection styles to the transcript container */
+.transcript-container ::selection {
+  background: transparent;
+  color: inherit;
+}
+
+.transcript-container ::-moz-selection {
+  background: transparent;
+  color: inherit;
+}
+
+/* Scope transcript line styles */
+.transcript-container .transcript-line {
+  -webkit-user-drag: none;
+  position: relative;
+}
+
+.transcript-container .transcript-line.selected {
+  background: rgba(139, 92, 246, 0.3);
+}
+
+.transcript-container .transcript-line * {
+  -webkit-user-drag: none;
+}

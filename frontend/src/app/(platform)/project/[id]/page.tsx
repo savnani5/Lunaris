@@ -120,7 +120,7 @@ export default function ProjectPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-n-1 p-4">
+    <div className="min-h-screen bg-black text-n-1 px-0 sm:px-4">
       <main className="flex flex-col items-center space-y-8 max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold">{statusMessage.title}</h1>
         <p className="text-n-3">{statusMessage.subtitle}</p>

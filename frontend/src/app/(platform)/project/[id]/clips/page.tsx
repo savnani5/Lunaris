@@ -47,9 +47,9 @@ export default function ProjectClipsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-n-1 p-4">
+    <div className="min-h-screen bg-black text-n-1 px-0 py-2 sm:p-4">
       <main className="flex flex-col items-center max-w-4xl mx-auto">
-        <h1 className="text-2xl font-bold mb-8 sm:mb-12">Project Clips</h1>
+        <h1 className="text-2xl sm:text-3xl font-bold mb-8 sm:mb-12">Project Clips</h1>
         <div className="w-full space-y-8">
           {isLoading ? (
             <div className="w-full bg-n-7/70 rounded-2xl p-8 text-center mx-auto" style={{ maxWidth: '52rem' }}>
