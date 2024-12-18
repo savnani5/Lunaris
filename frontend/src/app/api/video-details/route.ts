@@ -25,7 +25,7 @@ async function fetchTranscript(videoId: string) {
           ...init,
           agent: proxyAgent,
           headers: {
-            ...(init?.headers || {}),
+            ...(init?.headers ? Object.fromEntries(Object.entries(init.headers)) : {}),
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
           }
         } as RequestInit & { agent: any });
