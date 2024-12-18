@@ -136,8 +136,23 @@ export const GET = async (request: Request) => {
 }
 
 function extractVideoId(url: string): string {
-  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
-  const match = url.match(regex);
-  if (!match) throw new Error('Invalid YouTube URL');
-  return match[1];
+  try {
+    // Handle different URL formats
+    const urlObj = new URL(url);
+    
+    if (urlObj.hostname === 'youtu.be') {
+      return urlObj.pathname.slice(1);
+    }
+    
+    if (urlObj.hostname.includes('youtube.com')) {
+      const videoId = urlObj.searchParams.get('v');
+      if (!videoId) throw new Error('No video ID found in URL');
+      return videoId;
+    }
+    
+    throw new Error('Not a YouTube URL');
+  } catch (error) {
+    console.error('URL parsing error:', url, error);
+    throw new Error('Invalid YouTube URL');
+  }
 }
