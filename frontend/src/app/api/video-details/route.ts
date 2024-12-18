@@ -1,102 +1,40 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-
-import { Innertube, UniversalCache } from 'youtubei.js';
+import { YoutubeTranscript } from 'youtube-transcript';
 
 const youtube = google.youtube({
   version: 'v3',
   auth: process.env.YT_API_KEY
 });
 
-
 async function fetchTranscript(videoId: string) {
   try {
-    const yt = await Innertube.create({
-      cache: new UniversalCache(false)
+    // Get video details with API key
+    const youtube = google.youtube({
+      version: 'v3',
+      auth: process.env.YT_API_KEY
     });
 
-    if (!process.env.YOUTUBE_CREDENTIALS) {
-      throw new Error('YouTube credentials not found');
-    }
-
-    console.log('Using cached credentials');
-    (yt.session as any).credentials = JSON.parse(process.env.YOUTUBE_CREDENTIALS);
-
-    // Add refresh token handling
-    yt.session.on('auth', ({ credentials }) => {
-      console.log('New credentials received');
+    const response = await youtube.videos.list({
+      part: ['snippet', 'contentDetails'],
+      id: [videoId]
     });
 
-    yt.session.on('update-credentials', async ({ credentials }) => {
-      console.log('Credentials need update');
-    });
+    // Get transcript without auth
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
 
-    // Try to sign in with existing credentials
-    await yt.session.signIn();
-    
-    // If we get here, credentials are valid
-    console.log('Successfully signed in');
+    const video = response.data.items?.[0];
+    if (!video) throw new Error('Video not found');
 
-    console.log('Fetching video info for:', videoId);
-    const video = await yt.getBasicInfo(videoId);
-    
-    if (video.playability_status?.status === 'LOGIN_REQUIRED') {
-      throw new Error('Authentication failed - please refresh credentials');
-    }
-
-    console.log('Full video object:', JSON.stringify(video, null, 2));
-
-    if (!video.captions) {
-      console.log('No captions object found in video response');
-      return null;
-    }
-
-    const captionTracks = video.captions.caption_tracks;
-    console.log('Caption tracks:', JSON.stringify(captionTracks, null, 2));
-
-    if (!captionTracks || captionTracks.length === 0) {
-      console.log('No caption tracks found');
-      return null;
-    }
-
-    // Get English auto-generated captions
-    const track = captionTracks.find(t => t.language_code === 'en' && t.kind === 'asr');
-    console.log('Selected track:', JSON.stringify(track, null, 2));
-
-    if (!track) {
-      console.log('No English auto-generated captions found');
-      return null;
-    }
-
-    console.log('Fetching transcript from URL:', track.base_url);
-    const response = await fetch(track.base_url);
-    const xml = await response.text();
-    console.log('Received XML length:', xml.length);
-
-    // Parse XML to get transcript
-    const captions = xml.match(/<text[^>]*>(.*?)<\/text>/g)?.map(caption => {
-      const start = parseFloat(caption.match(/start="([^"]+)"/)?.[1] || '0');
-      const dur = parseFloat(caption.match(/dur="([^"]+)"/)?.[1] || '0');
-      const text = caption.replace(/<[^>]*>/g, '')
-        .trim()
-        .replace(/&amp;/g, '&')
-        .replace(/&quot;/g, '"')
-        .replace(/&#39;/g, "'")
-        .replace(/&lt;/g, '<')
-        .replace(/&gt;/g, '>');
-      
-      return {
-        text,
-        start,
-        end: start + dur,
-        duration: dur
-      };
-    }) || [];
-
-    return captions;
+    return {
+      title: video.snippet?.title,
+      duration: video.contentDetails?.duration,
+      thumbnails: video.snippet?.thumbnails,
+      transcript: transcript
+    };
   } catch (error) {
-    console.error('Error fetching transcript:', error);
-    return null;
+    console.error('Error:', error);
+    throw error;
   }
 }
 
@@ -112,27 +50,7 @@ export const GET = async (request: Request) => {
     const videoId = extractVideoId(url);
     // console.log('Extracted video ID:', videoId);
 
-    const response = await youtube.videos.list({
-      part: ['snippet', 'contentDetails'],
-      id: [videoId]
-    });
-
-    // Fetch transcript
-    const transcript = await fetchTranscript(videoId);
-
-    const video = response.data.items?.[0];
-
-    if (!video) {
-      console.error('Video not found in API response');
-      return NextResponse.json({ error: 'Video not found' }, { status: 404 });
-    }
-
-    const result = {
-      title: video.snippet?.title,
-      duration: video.contentDetails?.duration,
-      thumbnails: video.snippet?.thumbnails,
-      transcript: transcript
-    };
+    const result = await fetchTranscript(videoId);
 
     // console.log('Returning video details:', JSON.stringify(result, null, 2));
     console.log('Returning video details');
