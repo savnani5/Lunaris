@@ -11,58 +11,28 @@ const youtube = google.youtube({
 
 async function fetchTranscript(videoId: string) {
   try {
-    // Parse proxy list from environment variable
-    const proxyList = JSON.parse(process.env.PROXY_LIST || '[]');
+    console.log('Creating Innertube instance...');
+    const yt = await Innertube.create();
     
-    // Randomly select a proxy
-    const proxy = proxyList[Math.floor(Math.random() * proxyList.length)];
-    const proxyUrl = `http://${proxy.username}:${proxy.password}@${proxy.url}:${proxy.port}`;
-
-    const yt = await Innertube.create({
-      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-        try {
-          const response = await fetch(input, {
-            ...init,
-            next: { revalidate: 0 },
-            headers: {
-              ...(init?.headers ? Object.fromEntries(new Headers(init.headers)) : {}),
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-            },
-            agent: new (require('https-proxy-agent').HttpsProxyAgent)(proxyUrl)
-          } as RequestInit & { agent: any });
-          
-          if (!response.ok) {
-            console.error('Proxy request failed:', {
-              status: response.status,
-              statusText: response.statusText,
-              url: input.toString(),
-              proxy: proxyUrl
-            });
-            // Fallback to direct request if proxy fails
-            return fetch(input, init);
-          }
-          
-          return response;
-        } catch (error) {
-          console.error('Fetch error:', error);
-          // Fallback to direct request on error
-          return fetch(input, init);
-        }
-      }
-    });
-
+    console.log('Fetching video info for:', videoId);
     const video = await yt.getBasicInfo(videoId);
-    console.log('Video info received:', {
-      hasCaptions: !!video.captions,
-      captionTracks: video.captions?.caption_tracks?.length
-    });
     
+    console.log('Full video object:', JSON.stringify({
+      captions: video.captions,
+      basic_info: {
+        title: video.basic_info?.title,
+        id: video.basic_info?.id,
+      }
+    }, null, 2));
+
     if (!video.captions) {
-      console.log('No captions available');
+      console.log('No captions object found in video response');
       return null;
     }
 
-    const captionTracks = video.captions.caption_tracks;
+    const captionTracks = video.captions.getCaptionTracks();
+    console.log('Caption tracks:', JSON.stringify(captionTracks, null, 2));
+
     if (!captionTracks || captionTracks.length === 0) {
       console.log('No caption tracks found');
       return null;
@@ -70,14 +40,18 @@ async function fetchTranscript(videoId: string) {
 
     // Get English auto-generated captions
     const track = captionTracks.find(t => t.language_code === 'en' && t.kind === 'asr');
+    console.log('Selected track:', JSON.stringify(track, null, 2));
+
     if (!track) {
-      console.log('No English captions found');
+      console.log('No English auto-generated captions found');
       return null;
     }
 
+    console.log('Fetching transcript from URL:', track.base_url);
     const response = await fetch(track.base_url);
     const xml = await response.text();
-    
+    console.log('Received XML length:', xml.length);
+
     // Parse XML to get transcript
     const captions = xml.match(/<text[^>]*>(.*?)<\/text>/g)?.map(caption => {
       const start = parseFloat(caption.match(/start="([^"]+)"/)?.[1] || '0');
