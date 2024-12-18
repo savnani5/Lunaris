@@ -11,19 +11,34 @@ const youtube = google.youtube({
 
 async function fetchTranscript(videoId: string) {
   try {
-    console.log('Creating Innertube instance...');
-    const yt = await Innertube.create();
+    const proxyList = JSON.parse(process.env.PROXY_LIST || '[]');
+    const proxy = proxyList[Math.floor(Math.random() * proxyList.length)];
+    const proxyUrl = `http://${proxy.username}:${proxy.password}@${proxy.url}:${proxy.port}`;
     
+    console.log('Using proxy:', proxy.url);
+    
+    const yt = await Innertube.create({
+      fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
+        const proxyAgent = new (require('https-proxy-agent').HttpsProxyAgent)(proxyUrl);
+        
+        const response = await fetch(input, {
+          ...init,
+          agent: proxyAgent,
+          headers: {
+            ...(init?.headers || {}),
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          }
+        } as RequestInit & { agent: any });
+
+        console.log('Proxy request status:', response.status);
+        return response;
+      }
+    });
+
     console.log('Fetching video info for:', videoId);
     const video = await yt.getBasicInfo(videoId);
     
-    console.log('Full video object:', JSON.stringify({
-      captions: video.captions,
-      basic_info: {
-        title: video.basic_info?.title,
-        id: video.basic_info?.id,
-      }
-    }, null, 2));
+    console.log('Full video object:', JSON.stringify(video, null, 2));
 
     if (!video.captions) {
       console.log('No captions object found in video response');
