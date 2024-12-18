@@ -1,7 +1,9 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { getSubtitles } from 'youtube-caption-extractor';
+import { YoutubeTranscript } from 'youtube-transcript';
 
+
+// Initialize YouTube client with OAuth2
 const youtube = google.youtube({
   version: 'v3',
   auth: process.env.YT_API_KEY
@@ -10,22 +12,24 @@ const youtube = google.youtube({
 async function fetchTranscript(videoId: string) {
   try {
     console.log('Fetching transcript for video:', videoId);
-    const captions = await getSubtitles({
-      videoID: videoId,
-      lang: 'en'
-    });
     
-    if (!captions || captions.length === 0) {
-      console.log('No captions found for video:', videoId);
+    const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
+    
+    if (!transcriptItems || transcriptItems.length === 0) {
+      console.log('No transcript found for video:', videoId);
       return null;
     }
-    
-    return captions.map(caption => ({
-      text: caption.text,
-      start: caption.start,
-      end: caption.start + caption.dur,
-      duration: caption.dur
+
+    // Transform the transcript into our desired format
+    const transcript = transcriptItems.map((item: any) => ({
+      text: item.text,
+      start: item.offset / 1000, // Convert to seconds
+      duration: item.duration,
+      end: (item.offset + item.duration) / 1000 // Convert to seconds
     }));
+
+    return transcript;
+
   } catch (error) {
     console.error('Transcript fetch error:', error);
     return null;
