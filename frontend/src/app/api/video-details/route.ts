@@ -30,7 +30,7 @@ async function fetchTranscript(videoId: string) {
       return null;
     }
 
-    const captionTracks = video.captions.getCaptionTracks();
+    const captionTracks = video.captions.caption_tracks;
     console.log('Caption tracks:', JSON.stringify(captionTracks, null, 2));
 
     if (!captionTracks || captionTracks.length === 0) {
