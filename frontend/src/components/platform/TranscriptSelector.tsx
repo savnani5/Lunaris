@@ -418,9 +418,6 @@ export function TranscriptSelector({
 
   return (
     <div className="w-full relative flex flex-col gap-4">
-      <p className="text-n-3 mb-4 text-sm px-2">
-        Click/Touch and drag to select multiple lines
-      </p>
       
       <div className="w-full">
         <div className="aspect-video w-full">
@@ -435,7 +432,7 @@ export function TranscriptSelector({
           />
         </div>
       </div>
-
+    
       <div className="w-full">
         <div className="space-y-4" ref={containerRef}>
           <div className="flex items-center space-x-2 px-2">
@@ -487,7 +484,9 @@ export function TranscriptSelector({
               </div>
             )}
           </div>
-
+          <p className="text-n-3 mb-4 text-sm px-2">
+            Click/Touch and drag to select multiple lines
+          </p>
           <div 
             ref={containerRef}
             className="transcript-container h-[400px] overflow-y-auto bg-n-6/50 backdrop-blur-sm rounded-xl p-2 md:p-4"

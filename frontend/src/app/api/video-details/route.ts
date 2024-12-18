@@ -1,37 +1,63 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { YoutubeTranscript } from 'youtube-transcript';
 
+import { Innertube } from 'youtubei.js';
 
-// Initialize YouTube client with OAuth2
 const youtube = google.youtube({
   version: 'v3',
   auth: process.env.YT_API_KEY
 });
 
+
 async function fetchTranscript(videoId: string) {
   try {
-    console.log('Fetching transcript for video:', videoId);
+    const yt = await Innertube.create();
+    const video = await yt.getBasicInfo(videoId);
     
-    const transcriptItems = await YoutubeTranscript.fetchTranscript(videoId);
-    
-    if (!transcriptItems || transcriptItems.length === 0) {
-      console.log('No transcript found for video:', videoId);
+    if (!video.captions) {
+      console.log('No captions available');
       return null;
     }
 
-    // Transform the transcript into our desired format
-    const transcript = transcriptItems.map((item: any) => ({
-      text: item.text,
-      start: item.offset / 1000, // Convert to seconds
-      duration: item.duration,
-      end: (item.offset + item.duration) / 1000 // Convert to seconds
-    }));
+    const captionTracks = video.captions.caption_tracks;
+    if (!captionTracks || captionTracks.length === 0) {
+      console.log('No caption tracks found');
+      return null;
+    }
 
-    return transcript;
+    // Get English auto-generated captions
+    const track = captionTracks.find(t => t.language_code === 'en' && t.kind === 'asr');
+    if (!track) {
+      console.log('No English captions found');
+      return null;
+    }
 
+    const response = await fetch(track.base_url);
+    const xml = await response.text();
+    
+    // Parse XML to get transcript
+    const captions = xml.match(/<text[^>]*>(.*?)<\/text>/g)?.map(caption => {
+      const start = parseFloat(caption.match(/start="([^"]+)"/)?.[1] || '0');
+      const dur = parseFloat(caption.match(/dur="([^"]+)"/)?.[1] || '0');
+      const text = caption.replace(/<[^>]*>/g, '')
+        .trim()
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>');
+      
+      return {
+        text,
+        start,
+        end: start + dur,
+        duration: dur
+      };
+    }) || [];
+
+    return captions;
   } catch (error) {
-    console.error('Transcript fetch error:', error);
+    console.error('Error fetching transcript:', error);
     return null;
   }
 }
@@ -45,9 +71,8 @@ export const GET = async (request: Request) => {
   }
 
   try {
-    console.log('Processing URL:', url); // Debug log
     const videoId = extractVideoId(url);
-    console.log('Extracted video ID:', videoId); // Debug log
+    // console.log('Extracted video ID:', videoId);
 
     const response = await youtube.videos.list({
       part: ['snippet', 'contentDetails'],
@@ -83,18 +108,8 @@ export const GET = async (request: Request) => {
 }
 
 function extractVideoId(url: string): string {
-  try {
-    const urlObj = new URL(url);
-    const videoId = urlObj.searchParams.get('v') || 
-                    urlObj.pathname.split('/').pop() ||
-                    url.split('youtu.be/').pop()?.split('?')[0];
-                    
-    if (!videoId || videoId.length !== 11) {
-      throw new Error('Invalid YouTube video ID');
-    }
-    return videoId;
-  } catch (error) {
-    console.error('URL parsing error:', error);
-    throw new Error('Invalid YouTube URL');
-  }
+  const regex = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/;
+  const match = url.match(regex);
+  if (!match) throw new Error('Invalid YouTube URL');
+  return match[1];
 }

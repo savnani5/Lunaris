@@ -33,6 +33,7 @@
     "esbuild": "^0.24.0",
     "framer-motion": "^11.11.7",
     "googleapis": "^144.0.0",
+    "https-proxy-agent": "^7.0.6",
     "lodash": "^4.17.21",
     "lucide-react": "^0.400.0",
     "mongodb": "^6.8.1",
@@ -51,9 +52,7 @@
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "uuid": "^11.0.3",
-    "youtube-caption-extractor": "^1.4.3",
-    "youtube-transcript": "^1.2.1",
-    "youtubei.js": "^10.4.0"
+    "youtubei.js": "^12.2.0"
   },
   "devDependencies": {
     "@types/lodash": "^4.17.7",
