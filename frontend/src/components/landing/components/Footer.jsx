@@ -1,6 +1,7 @@
 import React from "react";
 import Section from "./Section";
 import { socials } from "../constants";
+import Link from "next/link";
 
 const Footer = () => {
   return (
@@ -8,6 +9,13 @@ const Footer = () => {
       <div className="container flex sm:justify-between justify-center items-center gap-10 max-sm:flex-col">
         <p className="caption text-n-4 lg:block">
           © {new Date().getFullYear()}. All rights reserved.
+          {" • "}
+          <Link
+            href="/privacy-policy"
+            className="hover:text-color-2 transition-colors"
+          >
+            Privacy Policy
+          </Link>
         </p>
         <ul className="flex gap-5 flex-wrap">
           {/* {socials.map((item) => (
