@@ -20,27 +20,42 @@ async function fetchTranscript(videoId: string) {
 
     const yt = await Innertube.create({
       fetch: async (input: RequestInfo | URL, init?: RequestInit) => {
-        const response = await fetch(input, {
-          ...init,
-          next: { revalidate: 0 },
-          headers: {
-            ...(init?.headers ? Object.fromEntries(new Headers(init.headers)) : {}),
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          },
-          agent: new (require('https-proxy-agent').HttpsProxyAgent)(proxyUrl)
-        } as RequestInit & { agent: any });
-        
-        if (!response.ok) {
-          console.error('Proxy request failed:', response.status);
-          // Fallback to direct request if proxy fails
+        try {
+          const response = await fetch(input, {
+            ...init,
+            next: { revalidate: 0 },
+            headers: {
+              ...(init?.headers ? Object.fromEntries(new Headers(init.headers)) : {}),
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+            },
+            agent: new (require('https-proxy-agent').HttpsProxyAgent)(proxyUrl)
+          } as RequestInit & { agent: any });
+          
+          if (!response.ok) {
+            console.error('Proxy request failed:', {
+              status: response.status,
+              statusText: response.statusText,
+              url: input.toString(),
+              proxy: proxyUrl
+            });
+            // Fallback to direct request if proxy fails
+            return fetch(input, init);
+          }
+          
+          return response;
+        } catch (error) {
+          console.error('Fetch error:', error);
+          // Fallback to direct request on error
           return fetch(input, init);
         }
-        
-        return response;
       }
     });
 
     const video = await yt.getBasicInfo(videoId);
+    console.log('Video info received:', {
+      hasCaptions: !!video.captions,
+      captionTracks: video.captions?.caption_tracks?.length
+    });
     
     if (!video.captions) {
       console.log('No captions available');
