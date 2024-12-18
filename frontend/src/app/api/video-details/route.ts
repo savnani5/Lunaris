@@ -1,36 +1,93 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { YoutubeTranscript } from 'youtube-transcript';
+import fetch from 'node-fetch';
 
 const youtube = google.youtube({
   version: 'v3',
   auth: process.env.YT_API_KEY
 });
 
+async function fetchTranscriptWithFallback(videoId: string) {
+  // First try youtube-transcript
+  try {
+    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
+    console.log('Transcript fetched with youtube-transcript');
+    return transcript;
+  } catch (error) {
+    console.log('youtube-transcript failed, trying fallback method');
+  }
+
+  // Fallback: Try fetching from timedtext API directly
+  try {
+    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
+    const html = await response.text();
+    
+    // Extract captions URL from page
+    const match = html.match(/"captionTracks":\[(.*?)\]/);
+    if (!match) throw new Error('No captions found');
+
+    const captionTracks = JSON.parse(`[${match[1]}]`);
+    const englishTrack = captionTracks.find((track: any) => 
+      track.languageCode === 'en' || track.vssId?.includes('.en')
+    );
+
+    if (!englishTrack) throw new Error('No English captions found');
+
+    const captionsResponse = await fetch(englishTrack.baseUrl);
+    const captionsXml = await captionsResponse.text();
+
+    // Parse XML to transcript format
+    const transcriptItems = captionsXml.match(/<text[^>]*>(.*?)<\/text>/g) || [];
+    return transcriptItems.map((item: string) => {
+      const start = parseFloat(item.match(/start="([^"]*)"/)![1]);
+      const duration = parseFloat(item.match(/dur="([^"]*)"/)![1]);
+      const text = item.replace(/<[^>]*>/g, '').trim();
+      
+      return {
+        text,
+        offset: start,
+        duration,
+      };
+    });
+  } catch (error) {
+    console.error('Fallback method failed:', error);
+    throw new Error('Failed to fetch transcript');
+  }
+}
+
 async function fetchTranscript(videoId: string) {
   try {
-    // Get video details with API key
     const youtube = google.youtube({
       version: 'v3',
       auth: process.env.YT_API_KEY
     });
 
-    const response = await youtube.videos.list({
-      part: ['snippet', 'contentDetails'],
-      id: [videoId]
-    });
+    const [videoResponse, transcript] = await Promise.all([
+      youtube.videos.list({
+        part: ['snippet', 'contentDetails'],
+        id: [videoId]
+      }),
+      fetchTranscriptWithFallback(videoId)
+    ]);
 
-    // Get transcript without auth
-    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-
-    const video = response.data.items?.[0];
+    const video = videoResponse.data.items?.[0];
     if (!video) throw new Error('Video not found');
+
+    const formattedTranscript = transcript.map((item: any, index: number, array: any[]) => ({
+      text: item.text,
+      start: item.offset,
+      end: (index < array.length - 1) 
+        ? array[index + 1].offset 
+        : (item.offset + item.duration),
+      duration: item.duration
+    }));
 
     return {
       title: video.snippet?.title,
       duration: video.contentDetails?.duration,
       thumbnails: video.snippet?.thumbnails,
-      transcript: transcript
+      transcript: formattedTranscript
     };
   } catch (error) {
     console.error('Error:', error);
