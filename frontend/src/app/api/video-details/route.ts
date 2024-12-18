@@ -16,16 +16,34 @@ async function fetchTranscript(videoId: string) {
     });
 
     if (!process.env.YOUTUBE_CREDENTIALS) {
-      console.log('No cached credentials found');
       throw new Error('YouTube credentials not found');
     }
 
     console.log('Using cached credentials');
     (yt.session as any).credentials = JSON.parse(process.env.YOUTUBE_CREDENTIALS);
 
+    // Add refresh token handling
+    yt.session.on('auth', ({ credentials }) => {
+      console.log('New credentials received');
+    });
+
+    yt.session.on('update-credentials', async ({ credentials }) => {
+      console.log('Credentials need update');
+    });
+
+    // Try to sign in with existing credentials
+    await yt.session.signIn();
+    
+    // If we get here, credentials are valid
+    console.log('Successfully signed in');
+
     console.log('Fetching video info for:', videoId);
     const video = await yt.getBasicInfo(videoId);
     
+    if (video.playability_status?.status === 'LOGIN_REQUIRED') {
+      throw new Error('Authentication failed - please refresh credentials');
+    }
+
     console.log('Full video object:', JSON.stringify(video, null, 2));
 
     if (!video.captions) {
