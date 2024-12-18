@@ -126,22 +126,34 @@ export const GET = async (request: Request) => {
 
 function extractVideoId(url: string): string {
   try {
-    // Handle different URL formats
-    const urlObj = new URL(url);
+    console.log('Attempting to extract video ID from URL:', url);
     
-    if (urlObj.hostname === 'youtu.be') {
-      return urlObj.pathname.slice(1);
+    if (!url || typeof url !== 'string') {
+      console.error('Invalid URL input:', url);
+      throw new Error('URL must be a non-empty string');
     }
+
+    // Remove any leading/trailing whitespace and @ symbol
+    url = url.trim().replace(/^@/, '');
+    console.log('Cleaned URL:', url);
+
+    // Simple regex to extract video ID
+    const videoIdMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/);
     
-    if (urlObj.hostname.includes('youtube.com')) {
-      const videoId = urlObj.searchParams.get('v');
-      if (!videoId) throw new Error('No video ID found in URL');
+    if (videoIdMatch && videoIdMatch[1]) {
+      const videoId = videoIdMatch[1];
+      console.log('Successfully extracted video ID:', videoId);
       return videoId;
     }
-    
-    throw new Error('Not a YouTube URL');
+
+    console.error('No valid video ID pattern found in URL');
+    throw new Error('No video ID found in URL');
   } catch (error) {
-    console.error('URL parsing error:', url, error);
+    console.error('URL parsing error:', {
+      url,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw new Error('Invalid YouTube URL');
   }
 }
