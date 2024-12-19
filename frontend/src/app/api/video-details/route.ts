@@ -2,6 +2,26 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { Innertube } from 'youtubei.js/web';
 
+const youtube = google.youtube({
+  version: 'v3',
+  auth: process.env.YT_API_KEY
+});
+
+async function fetchTranscriptWithFallback(videoId: string) {
+  const youtube = await Innertube.create({
+    lang: 'en',
+    location: 'US',
+    retrieve_player: false,
+  });
+
+  const info = await youtube.getInfo(videoId);
+  const transcriptData = await info.getTranscript();
+  return transcriptData?.transcript?.content?.body?.initial_segments?.map((segment) => ({
+    text: segment.snippet.text,
+    offset: Number(segment.start_ms) / 1000,
+    duration: (Number(segment.end_ms) - Number(segment.start_ms)) / 1000
+  }));
+}
 
 async function fetchTranscript(videoId: string) {
   try {
@@ -10,36 +30,31 @@ async function fetchTranscript(videoId: string) {
       auth: process.env.YT_API_KEY
     });
 
-    const yt = await Innertube.create({
-      lang: 'en',
-      location: 'US',
-      retrieve_player: false,
-    });
-
-    const [videoResponse, info] = await Promise.all([
+    const [videoResponse, transcript] = await Promise.all([
       youtube.videos.list({
         part: ['snippet', 'contentDetails'],
         id: [videoId]
       }),
-      yt.getInfo(videoId)
+      fetchTranscriptWithFallback(videoId)
     ]);
-
-    const transcriptData = await info.getTranscript();
-    const transcript = transcriptData?.transcript?.content?.body?.initial_segments?.map((segment: any) => ({
-      text: decodeHtmlEntities(segment.snippet.text),
-      start: segment.start_ms / 1000,
-      end: (segment.start_ms + segment.duration_ms) / 1000,
-      duration: segment.duration_ms / 1000
-    }));
 
     const video = videoResponse.data.items?.[0];
     if (!video) throw new Error('Video not found');
+
+    const formattedTranscript = transcript.map((item: any, index: number, array: any[]) => ({
+      text: item.text,
+      start: item.offset,
+      end: (index < array.length - 1) 
+        ? array[index + 1].offset 
+        : (item.offset + item.duration),
+      duration: item.duration
+    }));
 
     return {
       title: video.snippet?.title,
       duration: video.contentDetails?.duration,
       thumbnails: video.snippet?.thumbnails,
-      transcript: transcript
+      transcript: formattedTranscript
     };
   } catch (error) {
     console.error('Error:', error);
