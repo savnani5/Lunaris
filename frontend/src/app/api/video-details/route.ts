@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
 import { YoutubeTranscript } from 'youtube-transcript';
 import fetch from 'node-fetch';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 
 const youtube = google.youtube({
   version: 'v3',
@@ -25,30 +26,31 @@ async function fetchTranscriptWithFallback(videoId: string) {
     const proxyUrl = `http://${proxy.username}:${proxy.password}@${proxy.url}:${proxy.port}`;
     
     console.log('Using proxy:', proxy.url);
-    const HttpsProxyAgent = require('https-proxy-agent');
     const proxyAgent = new HttpsProxyAgent(proxyUrl);
 
     // Try auto-generated captions first
     const autoUrl = `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}&kind=asr`;
     let response = await fetch(autoUrl, {
-      agent: proxyAgent,
+      agent: proxyAgent as any,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
       }
     });
     
+    console.log('Proxy request status:', response.status);
+    
     // If no auto captions, try regular captions
     if (!response.ok) {
       const regularUrl = `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}`;
       response = await fetch(regularUrl, {
-        agent: proxyAgent,
+        agent: proxyAgent as any,
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
       });
+      console.log('Proxy request status:', response.status);
     }
 
-    console.log('Caption API response status:', response.status);
     const xml = await response.text();
     console.log('Raw caption XML length:', xml.length);
 
