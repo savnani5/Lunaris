@@ -136,3 +136,36 @@ html {
 .transcript-container .transcript-line * {
   -webkit-user-drag: none;
 }
+
+/* Mobile selection mode styles */
+@media (max-width: 768px) {
+  .transcript-container {
+    touch-action: pan-y;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Disable text selection on mobile */
+  .transcript-container {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  /* Style for selection mode */
+  .transcript-container.mobile-selection-mode {
+    touch-action: none;
+  }
+
+  .transcript-container.mobile-selection-mode .transcript-line {
+    transition: background-color 0.2s ease;
+  }
+
+  /* Hide default text selection highlighting on mobile */
+  .transcript-container *::selection {
+    background: transparent;
+  }
+  
+  .transcript-container *::-webkit-selection {
+    background: transparent;
+  }
+}

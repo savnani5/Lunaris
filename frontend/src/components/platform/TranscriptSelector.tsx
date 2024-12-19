@@ -50,6 +50,7 @@ export function TranscriptSelector({
   const [isLongPressing, setIsLongPressing] = useState(false);
   const longPressTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [touchStartPosition, setTouchStartPosition] = useState<{ x: number; y: number } | null>(null);
+  const [isMobileSelectionMode, setIsMobileSelectionMode] = useState(false);
 
   const formatTime = (seconds: number) => {
     if (isNaN(seconds) || seconds === undefined) return '0:00';
@@ -72,6 +73,17 @@ export function TranscriptSelector({
       if (index <= maxSelected) {
         for (let i = index; i <= maxSelected; i++) {
           newSelected.delete(i);
+        }
+        setSelectedLines(newSelected);
+      }
+      return;
+    }
+
+    if (isMobileSelectionMode) {
+      if (selectionStart !== null && index > selectionStart) {
+        const newSelected = new Set<number>();
+        for (let i = selectionStart; i <= index; i++) {
+          newSelected.add(i);
         }
         setSelectedLines(newSelected);
       }
@@ -272,7 +284,7 @@ export function TranscriptSelector({
   
     const results: number[] = [];
     transcript.forEach((line, index) => {
-      if (line.text.toLowerCase().includes(query.toLowerCase())) {
+      if (line && line.text && line.text.toLowerCase().includes(query.toLowerCase())) {
         results.push(index);
       }
     });
@@ -356,8 +368,16 @@ export function TranscriptSelector({
   };
 
   const handleTouchStart = (index: number, event: React.TouchEvent) => {
+    if (longPressTimeoutRef.current) {
+      clearTimeout(longPressTimeoutRef.current);
+    }
+
     longPressTimeoutRef.current = setTimeout(() => {
-      setIsLongPressing(true);
+      if (navigator.vibrate) {
+        navigator.vibrate(100);
+      }
+
+      setIsMobileSelectionMode(true);
       setIsSelecting(true);
       setSelectionStart(index);
       
@@ -371,11 +391,18 @@ export function TranscriptSelector({
           y: event.touches[0].clientY
         });
       }
-    }, 500);
+    }, 700);
+  };
+
+  const exitSelectionMode = () => {
+    setIsMobileSelectionMode(false);
+    setIsSelecting(false);
+    setSelectionStart(null);
+    setSelectedLines(new Set());
   };
 
   const handleTouchMove = (event: React.TouchEvent) => {
-    if (!isLongPressing && !isSelecting) return;
+    if (!isMobileSelectionMode) return;
     
     const touch = event.touches[0];
     if (!touch) return;
@@ -484,12 +511,17 @@ export function TranscriptSelector({
               </div>
             )}
           </div>
-          <p className="text-n-3 mb-4 text-sm px-2">
-            Click/Touch and drag to select multiple lines
+          <p className="text-n-3 mb-4 text-sm px-2 hidden md:block">
+            Click and drag to select multiple lines
+          </p>
+          <p className="text-n-3 mb-4 text-sm px-2 md:hidden">
+            Long press and tap below to select multiple lines
           </p>
           <div 
             ref={containerRef}
-            className="transcript-container h-[400px] overflow-y-auto bg-n-6/50 backdrop-blur-sm rounded-xl p-2 md:p-4"
+            className={`transcript-container h-[400px] overflow-y-auto bg-n-6/50 backdrop-blur-sm rounded-xl p-2 md:p-4 ${
+              isMobileSelectionMode ? 'mobile-selection-mode' : ''
+            }`}
             onMouseMove={handleMove}
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}

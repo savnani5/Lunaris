@@ -676,7 +676,7 @@ export function ManualClip() {
               <span className="text-green-500 font-semibold whitespace-nowrap">{formatCredits(userCredits)}</span>
             </div>
           </Tooltip>
-          <Button 
+          <Button
             className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 whitespace-nowrap"
             onClick={handleBuyCredits}
           >
