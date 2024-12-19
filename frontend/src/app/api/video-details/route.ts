@@ -18,40 +18,60 @@ async function fetchTranscriptWithFallback(videoId: string) {
     console.log('youtube-transcript failed, trying fallback method');
   }
 
-  // Fallback: Try fetching from timedtext API directly
+  // Fallback: Try direct XML caption fetch with proxy
   try {
-    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`);
-    const html = await response.text();
+    const proxyList = JSON.parse(process.env.PROXY_LIST || '[]');
+    const proxy = proxyList[Math.floor(Math.random() * proxyList.length)];
+    const proxyUrl = `http://${proxy.username}:${proxy.password}@${proxy.url}:${proxy.port}`;
     
-    // Extract captions URL from page
-    const match = html.match(/"captionTracks":\[(.*?)\]/);
-    if (!match) throw new Error('No captions found');
+    console.log('Using proxy:', proxy.url);
+    const HttpsProxyAgent = require('https-proxy-agent');
+    const proxyAgent = new HttpsProxyAgent(proxyUrl);
 
-    const captionTracks = JSON.parse(`[${match[1]}]`);
-    const englishTrack = captionTracks.find((track: any) => 
-      track.languageCode === 'en' || track.vssId?.includes('.en')
-    );
+    // Try auto-generated captions first
+    const autoUrl = `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}&kind=asr`;
+    let response = await fetch(autoUrl, {
+      agent: proxyAgent,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+    
+    // If no auto captions, try regular captions
+    if (!response.ok) {
+      const regularUrl = `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}`;
+      response = await fetch(regularUrl, {
+        agent: proxyAgent,
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+    }
 
-    if (!englishTrack) throw new Error('No English captions found');
-
-    const captionsResponse = await fetch(englishTrack.baseUrl);
-    const captionsXml = await captionsResponse.text();
+    console.log('Caption API response status:', response.status);
+    const xml = await response.text();
+    console.log('Raw caption XML length:', xml.length);
 
     // Parse XML to transcript format
-    const transcriptItems = captionsXml.match(/<text[^>]*>(.*?)<\/text>/g) || [];
+    const transcriptItems = xml.match(/<text[^>]*>(.*?)<\/text>/g) || [];
+    if (transcriptItems.length === 0) {
+      throw new Error('No caption entries found');
+    }
+
+    console.log('Found caption entries:', transcriptItems.length);
     return transcriptItems.map((item: string) => {
-      const start = parseFloat(item.match(/start="([^"]*)"/)![1]);
-      const duration = parseFloat(item.match(/dur="([^"]*)"/)![1]);
-      const text = item.replace(/<[^>]*>/g, '').trim();
+      const startMatch = item.match(/start="([^"]*)"/) || ['', '0'];
+      const durMatch = item.match(/dur="([^"]*)"/) || ['', '0'];
+      const text = decodeHtmlEntities(item.replace(/<[^>]*>/g, '').trim());
       
       return {
         text,
-        offset: start,
-        duration,
+        offset: parseFloat(startMatch[1]),
+        duration: parseFloat(durMatch[1])
       };
     });
   } catch (error) {
-    console.error('Fallback method failed:', error);
+    console.error('Direct caption fetch failed:', error);
     throw new Error('Failed to fetch transcript');
   }
 }
@@ -152,4 +172,17 @@ function extractVideoId(url: string): string {
     });
     throw new Error('Invalid YouTube URL');
   }
+}
+
+function decodeHtmlEntities(text: string): string {
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
 }
