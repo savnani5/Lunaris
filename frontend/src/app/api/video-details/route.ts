@@ -1,82 +1,7 @@
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { YoutubeTranscript } from 'youtube-transcript';
-import fetch from 'node-fetch';
-import { HttpsProxyAgent } from 'https-proxy-agent';
+import { Innertube } from 'youtubei.js/web';
 
-const youtube = google.youtube({
-  version: 'v3',
-  auth: process.env.YT_API_KEY
-});
-
-async function fetchTranscriptWithFallback(videoId: string) {
-  // First try youtube-transcript
-  try {
-    const transcript = await YoutubeTranscript.fetchTranscript(videoId);
-    console.log('Transcript fetched with youtube-transcript');
-    return transcript;
-  } catch (error) {
-    console.log('youtube-transcript failed, trying fallback method');
-  }
-
-  // Fallback: Try direct XML caption fetch with proxy
-  try {
-    const proxyList = JSON.parse(process.env.PROXY_LIST || '[]');
-    const proxy = proxyList[Math.floor(Math.random() * proxyList.length)];
-    const proxyUrl = `http://${proxy.username}:${proxy.password}@${proxy.url}:${proxy.port}`;
-    
-    console.log('Using proxy:', proxy.url);
-    const proxyAgent = new HttpsProxyAgent(proxyUrl);
-
-    // Try auto-generated captions first
-    const autoUrl = `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}&kind=asr`;
-    let response = await fetch(autoUrl, {
-      agent: proxyAgent as any,
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-      }
-    });
-    
-    console.log('Proxy request status:', response.status);
-    
-    // If no auto captions, try regular captions
-    if (!response.ok) {
-      const regularUrl = `https://www.youtube.com/api/timedtext?lang=en&v=${videoId}`;
-      response = await fetch(regularUrl, {
-        agent: proxyAgent as any,
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-        }
-      });
-      console.log('Proxy request status:', response.status);
-    }
-
-    const xml = await response.text();
-    console.log('Raw caption XML length:', xml.length);
-
-    // Parse XML to transcript format
-    const transcriptItems = xml.match(/<text[^>]*>(.*?)<\/text>/g) || [];
-    if (transcriptItems.length === 0) {
-      throw new Error('No caption entries found');
-    }
-
-    console.log('Found caption entries:', transcriptItems.length);
-    return transcriptItems.map((item: string) => {
-      const startMatch = item.match(/start="([^"]*)"/) || ['', '0'];
-      const durMatch = item.match(/dur="([^"]*)"/) || ['', '0'];
-      const text = decodeHtmlEntities(item.replace(/<[^>]*>/g, '').trim());
-      
-      return {
-        text,
-        offset: parseFloat(startMatch[1]),
-        duration: parseFloat(durMatch[1])
-      };
-    });
-  } catch (error) {
-    console.error('Direct caption fetch failed:', error);
-    throw new Error('Failed to fetch transcript');
-  }
-}
 
 async function fetchTranscript(videoId: string) {
   try {
@@ -85,31 +10,36 @@ async function fetchTranscript(videoId: string) {
       auth: process.env.YT_API_KEY
     });
 
-    const [videoResponse, transcript] = await Promise.all([
+    const yt = await Innertube.create({
+      lang: 'en',
+      location: 'US',
+      retrieve_player: false,
+    });
+
+    const [videoResponse, info] = await Promise.all([
       youtube.videos.list({
         part: ['snippet', 'contentDetails'],
         id: [videoId]
       }),
-      fetchTranscriptWithFallback(videoId)
+      yt.getInfo(videoId)
     ]);
+
+    const transcriptData = await info.getTranscript();
+    const transcript = transcriptData?.transcript?.content?.body?.initial_segments?.map((segment: any) => ({
+      text: decodeHtmlEntities(segment.snippet.text),
+      start: segment.start_ms / 1000,
+      end: (segment.start_ms + segment.duration_ms) / 1000,
+      duration: segment.duration_ms / 1000
+    }));
 
     const video = videoResponse.data.items?.[0];
     if (!video) throw new Error('Video not found');
-
-    const formattedTranscript = transcript.map((item: any, index: number, array: any[]) => ({
-      text: item.text,
-      start: item.offset,
-      end: (index < array.length - 1) 
-        ? array[index + 1].offset 
-        : (item.offset + item.duration),
-      duration: item.duration
-    }));
 
     return {
       title: video.snippet?.title,
       duration: video.contentDetails?.duration,
       thumbnails: video.snippet?.thumbnails,
-      transcript: formattedTranscript
+      transcript: transcript
     };
   } catch (error) {
     console.error('Error:', error);
