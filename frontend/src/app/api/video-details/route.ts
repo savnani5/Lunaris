@@ -41,7 +41,7 @@ async function fetchTranscript(videoId: string) {
     const video = videoResponse.data.items?.[0];
     if (!video) throw new Error('Video not found');
 
-    const formattedTranscript = transcript.map((item: any, index: number, array: any[]) => ({
+    const formattedTranscript = (transcript ?? []).map((item: any, index: number, array: any[]) => ({
       text: item.text,
       start: item.offset,
       end: (index < array.length - 1) 
