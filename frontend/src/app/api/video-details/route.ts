@@ -81,7 +81,7 @@ export const GET = async (request: Request) => {
 
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Error fetching video details:', error);
+    // console.error('Error fetching video details:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json({ error: 'Failed to fetch video details', details: errorMessage }, { status: 500 });
   }
@@ -105,7 +105,7 @@ function extractVideoId(url: string): string {
     
     if (videoIdMatch && videoIdMatch[1]) {
       const videoId = videoIdMatch[1];
-      console.log('Successfully extracted video ID:', videoId);
+      // console.log('Successfully extracted video ID:', videoId);
       return videoId;
     }
 
@@ -119,17 +119,4 @@ function extractVideoId(url: string): string {
     });
     throw new Error('Invalid YouTube URL');
   }
-}
-
-function decodeHtmlEntities(text: string): string {
-  return text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&apos;/g, "'")
-    .replace(/&#x27;/g, "'")
-    .replace(/&#x2F;/g, '/')
-    .replace(/&#(\d+);/g, (match, dec) => String.fromCharCode(dec));
 }
