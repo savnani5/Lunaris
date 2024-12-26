@@ -98,6 +98,7 @@ export function ManualClip() {
   const [currentTime, setCurrentTime] = useState(0);
   const playerRef = useRef<ReactPlayer>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   const captionStyles = [
     { id: "no_captions", name: "No Captions", videoSrc: noCaptionVideo },
@@ -494,12 +495,15 @@ export function ManualClip() {
 
   const fetchUserProjects = async (userId: string) => {
     try {
+      setIsLoadingProjects(true);
       const userProjects = await getProjectsByUserId(userId);
       if (userProjects) {
         setProjects(userProjects);
       }
     } catch (error) {
       console.error('Error fetching user projects:', error);
+    } finally {
+      setIsLoadingProjects(false);
     }
   };
 
@@ -861,7 +865,11 @@ export function ManualClip() {
         )}
       </main>
       <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-1 mt-8">Manual Clip Projects</h2>
-      {projects.length > 0 ? (
+      {isLoadingProjects ? (
+        <div className="flex justify-center items-center py-8">
+          <Spinner className="w-8 h-8 text-color-1" />
+        </div>
+      ) : projects.length > 0 ? (
         <div className="max-w-[1920px] mx-auto px-1 mt-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {projects
