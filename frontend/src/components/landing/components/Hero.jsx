@@ -38,7 +38,7 @@ const Hero = () => {
             </span>
           </h1>
           <p className="body-1 max-w-3xl mx-auto mb-6 text-n-2 lg:mb-10">
-            Transform your content into viral clips with AI captions, smart reframing, and virality optimization - all in one platform.
+            Repurpose your content into viral clips with AI captions, smart reframing, and virality optimization - all in one platform.
           </p>
           {!isSignedIn && (
             <Link href="/sign-up">
