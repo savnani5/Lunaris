@@ -11,6 +11,7 @@ export async function createUser(userData: {
   email: string;
   firstName: string;
   lastName: string;
+  referredBy?: string;
 }) {
   const connection = await getDbConnection();
   try {
@@ -27,8 +28,6 @@ export async function createUser(userData: {
       return UserModel.fromObject(existingUser);
     }
 
-    console.log('Creating new user');
-
     const newUser = new UserModel(
       userData.clerk_id,
       userData.email,
@@ -37,6 +36,13 @@ export async function createUser(userData: {
       Number(process.env.INITIAL_CREDITS),
       [],
       new Date(),
+      null,
+      null,
+      false,
+      0,
+      null,
+      null,
+      userData.referredBy
     );
 
     const result = await db.collection('user').insertOne(newUser.toObject());
@@ -248,6 +254,43 @@ export async function updateUserCredits(userId: string, planCredits: number) {
     return JSON.parse(JSON.stringify(UserModel.fromObject(result)));
   } catch (error) {
     console.error(`Error in updateUserCreditsFromPlan:`, error);
+    return null;
+  } finally {
+    await releaseConnection(connection);
+  }
+}
+
+// Get affiliate performance
+export async function getAffiliatePerformance(affiliateUsername: string, startDate?: Date, endDate?: Date) {
+  const connection = await getDbConnection();
+  try {
+    const { db } = connection;
+    
+    const query: any = {
+      referredBy: affiliateUsername,
+      isSubscribed: true
+    };
+
+    // Add date range if provided
+    if (startDate || endDate) {
+      query.created_at = {};
+      if (startDate) query.created_at.$gte = startDate;
+      if (endDate) query.created_at.$lte = endDate;
+    }
+
+    const referredUsers = await db.collection('user').find(query).toArray();
+
+    return {
+      totalReferrals: referredUsers.length,
+      subscribers: referredUsers.map(user => ({
+        email: user.email,
+        planType: user.planType,
+        billingCycle: user.billingCycle,
+        subscriptionDate: user.created_at
+      }))
+    };
+  } catch (error) {
+    console.error("Error getting affiliate performance:", error);
     return null;
   } finally {
     await releaseConnection(connection);

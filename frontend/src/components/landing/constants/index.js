@@ -48,6 +48,11 @@ export const navigation = [
     title: "Pricing",
     url: "#pricing",
   },
+  {
+    id: "4",
+    title: "Affiliate",
+    url: "https://buttoned-submarine-cb6.notion.site/Lunaris-AI-Affiliate-Program-164b45e2e44480feb865d546722ec6dc",
+  }
 ];
 
 export const authLinks = [
@@ -260,6 +265,14 @@ export const benefits = [
   },
   {
     id: "4",
+    title: "Transcript Selection",
+    text: "Select the best moments from your long form content based on the transcript or timeline.",
+    // backgroundUrl: "./src/components/landing/assets/benefits/card-6.svg",
+    iconUrl: benefitIcon2,
+    imageUrl: benefitImage2,
+  },
+  {
+    id: "5",
     title: "Publish and Share",
     text: "Instantly publish and share your clips to YouTube, TikTok, Instagram, Facebook, and X from one place.",
     // backgroundUrl: "./src/components/landing/assets/benefits/card-4.svg",
@@ -267,16 +280,16 @@ export const benefits = [
     imageUrl: benefitImage2,
     light: true,
     comingSoon: true,
-  },
-  {
-    id: "5",
-    title: "Background music",
-    text: "Add background music to your content to make it more engaging.",
-    // backgroundUrl: "./src/components/landing/assets/benefits/card-6.svg",
-    iconUrl: benefitIcon2,
-    imageUrl: benefitImage2,
-    comingSoon: true,
-  },
+  }
+  // {
+  //   id: "5",
+  //   title: "Background music",
+  //   text: "Add background music to your content to make it more engaging.",
+  //   // backgroundUrl: "./src/components/landing/assets/benefits/card-6.svg",
+  //   iconUrl: benefitIcon2,
+  //   imageUrl: benefitImage2,
+  //   comingSoon: true,
+  // },
 ];
 
 export const socials = [

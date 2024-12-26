@@ -38,7 +38,7 @@ const Hero = () => {
             </span>
           </h1>
           <p className="body-1 max-w-3xl mx-auto mb-6 text-n-2 lg:mb-10">
-            Go viral with AI generated short videos with automatic captions, reframing and background music. 
+            Transform your content into viral clips with AI captions, smart reframing, and virality optimization - all in one platform.
           </p>
           {!isSignedIn && (
             <Link href="/sign-up">

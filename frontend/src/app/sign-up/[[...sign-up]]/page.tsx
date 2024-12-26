@@ -1,7 +1,19 @@
+'use client'
 import { SignUp } from '@clerk/nextjs'
 import Image from 'next/image'
+import { useEffect, useState } from 'react'
 
 export default function Page() {
+  const [referralSource, setReferralSource] = useState<string | null>(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ref = params.get('ref')
+    if (ref) {
+      setReferralSource(ref)
+    }
+  }, [])
+
   return (
     <div className="min-h-screen bg-black text-n-1">
       <div className="flex items-center px-5 lg:px-7.5 xl:px-10 py-4">
@@ -29,6 +41,11 @@ export default function Page() {
               footer: "text-n-3",
             },
           }}
+          {...(referralSource && {
+            unsafeMetadata: {
+              referralSource: referralSource
+            }
+          })}
         />
       </div>
     </div>
