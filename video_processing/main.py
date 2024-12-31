@@ -387,6 +387,7 @@ class VideoProcessor:
                    - Target length: {clip_length['min']} to {clip_length['max']} seconds
                    - Must be self-contained and coherent
                    - Must have clear hooks and conclusions
+                   - Must have 4-5 relevant hashtags
                 
                 2. CRITICAL FORMATTING REQUIREMENTS:
                    - For each segment, provide TWO versions of the text:
@@ -464,9 +465,16 @@ class VideoProcessor:
                                                 "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
                                                 "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
                                                 "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
-                                                "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]}
+                                                "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                                "hashtags": {
+                                                    "type": "array",
+                                                    "items": {"type": "string"},
+                                                    "description": "4-5 relevant hashtags for the clip",
+                                                    "minItems": 4,
+                                                    "maxItems": 5
+                                                }
                                             },
-                                            "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                                            "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend", "hashtags"]
                                         }
                                     }
                                 },
@@ -528,7 +536,8 @@ class VideoProcessor:
                             'hook': segment['hook'],
                             'flow': segment['flow'],
                             'engagement': segment['engagement'],
-                            'trend': segment['trend']
+                            'trend': segment['trend'],
+                            'hashtags': segment['hashtags'],
                         })
 
                    
@@ -609,7 +618,8 @@ class VideoProcessor:
                 'hook': segment.get('hook'),
                 'flow': segment.get('flow'),
                 'engagement': segment.get('engagement'),
-                'trend': segment.get('trend')
+                'trend': segment.get('trend'),
+                'hashtags': segment.get('hashtags', [])
             }
             
             self.send_clip_data(clip_data)
@@ -1248,6 +1258,7 @@ class VideoProcessor:
                 - Flow grade (A+, A, A-, B+, B)
                 - Engagement grade (A+, A, A-, B+, B)
                 - Trend relevance grade (A+, A, A-, B+, B)
+                - Relevant hashtags for the clip (4-5)
                 
                 Use the process_metrics tool to return your analysis.
                 """
@@ -1269,9 +1280,16 @@ class VideoProcessor:
                                     "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
                                     "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
                                     "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
-                                    "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]}
+                                    "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                    "hashtags": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "4-5 relevant hashtags for the clip",
+                                        "minItems": 4,
+                                        "maxItems": 5
+                                    }
                                 },
-                                "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                                "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend", "hashtags"]
                             }
                         }],
                         tool_choice={"type": "tool", "name": "process_metrics"}
@@ -1319,7 +1337,8 @@ class VideoProcessor:
                 'hook': metrics['hook'],
                 'flow': metrics['flow'],
                 'engagement': metrics['engagement'],
-                'trend': metrics['trend']
+                'trend': metrics['trend'],
+                'hashtags': metrics['hashtags'],
             }
             
             segments_to_process.append(segment)
@@ -1384,4 +1403,4 @@ if __name__ == "__main__":
 
     # # Crop video to portrait with faces
     # # processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, s3_client=s3_client, s3_bucket=s3_bucket)
-    # processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, caption_style=caption_style, debug=True) 
+    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, caption_style=caption_style, debug=True) 

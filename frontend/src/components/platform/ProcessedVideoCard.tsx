@@ -19,6 +19,7 @@ interface Clip {
   flow: string;
   engagement: string;
   trend: string;
+  hashtags: string[];
   created_at: string;
 }
 
@@ -100,6 +101,19 @@ const ProcessedVideoCard: React.FC<ProcessedVideoCardProps> = ({ clip, index }) 
           {clip.title}
         </h2>
         <p className="text-n-3 text-sm whitespace-pre-wrap">{clip.transcript}</p>
+        
+        {Array.isArray(clip.hashtags) && clip.hashtags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {clip.hashtags.map((hashtag, i) => (
+              <span 
+                key={i} 
+                className="text-sm text-color-1 px-1 py-0.5"
+              >
+                {hashtag.startsWith('#') ? hashtag : `#${hashtag}`}
+              </span>
+            ))}
+          </div>
+        )}
         
         <button 
           className="w-full mt-4 bg-color-1 hover:bg-color-1/80 text-n-1 py-3 px-4 rounded-full transition-colors duration-200 font-semibold flex items-center justify-center"
