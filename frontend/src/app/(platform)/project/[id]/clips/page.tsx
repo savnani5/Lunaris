@@ -15,6 +15,7 @@ interface Clip {
   flow: string;
   engagement: string;
   trend: string;
+  hashtags: string[];
   created_at: string;
 }
 
