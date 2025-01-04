@@ -66,6 +66,20 @@ export function TranscriptSelector({
   };
 
   const handleStart = (index: number, event: React.MouseEvent | React.TouchEvent) => {
+    // Always seek to the clicked line's start time and play, regardless of clip selection
+    const clickedLine = transcript[index];
+    if (playerRef.current) {
+      playerRef.current.seekTo(clickedLine.start, 'seconds');
+    }
+    onTimeClick(clickedLine.start);
+    setIsPlaying(true);
+    onPlaybackChange?.(true);
+
+    // Clear selected clip when clicking on a different line
+    if (selectedClip && !selectedClip.lineIndices.includes(index)) {
+      setSelectedClip(null);
+    }
+
     if ('button' in event && event.ctrlKey) {
       const newSelected = new Set(selectedLines);
       const maxSelected = Math.max(...Array.from(selectedLines));
