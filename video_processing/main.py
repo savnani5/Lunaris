@@ -63,8 +63,22 @@ class VideoProcessor:
         
         # Simplified timing estimates (seconds per minute of video)
         self.PROCESSING_ESTIMATE = {
-            'base_time': 90,  # Base processing time in seconds
-            'per_minute': 30   # Additional seconds per minute of video
+            '360p': {
+                'base_time': 90,    # Base processing time in seconds
+                'per_minute': 25    # Additional seconds per minute of video
+            },
+            '480p': {
+                'base_time': 120,
+                'per_minute': 30
+            },
+            '720p': {
+                'base_time': 150,
+                'per_minute': 35
+            },
+            '1080p': {
+                'base_time': 180,
+                'per_minute': 40
+            }
         }
         self.process_start_time = None
     
@@ -1017,11 +1031,16 @@ class VideoProcessor:
 
         return frame
 
-    def calculate_total_estimate(self, video_duration, elapsed_time=0, progress=0, stage=""):
+    def calculate_total_estimate(self, video_duration, elapsed_time=0, progress=0, stage="", quality="720p"):
         """Calculate remaining time based on progress percentage and elapsed time"""
-        # Calculate initial total estimate
-        initial_estimate = int(self.PROCESSING_ESTIMATE['base_time'] + 
-                             (self.PROCESSING_ESTIMATE['per_minute'] * (video_duration / 60)))
+        # Standardize quality format and default to 720p if invalid
+        quality = quality.replace('p', '') + 'p'
+        if quality not in self.PROCESSING_ESTIMATE:
+            quality = '720p'
+        
+        # Calculate initial total estimate based on quality
+        initial_estimate = int(self.PROCESSING_ESTIMATE[quality]['base_time'] + 
+                             (self.PROCESSING_ESTIMATE[quality]['per_minute'] * (video_duration / 60)))
         
         # If progress hasn't started, return initial estimate
         if progress <= 0:
@@ -1072,7 +1091,13 @@ class VideoProcessor:
                                           for clip in (clips or [])))
                     
                     elapsed_time = time.time() - self.process_start_time
-                    remaining_estimate = self.calculate_total_estimate(video_duration, elapsed_time, progress, stage)
+                    remaining_estimate = self.calculate_total_estimate(
+                        video_duration, 
+                        elapsed_time, 
+                        progress, 
+                        stage,
+                        video_quality
+                    )
                     
                     print(f"Stage: {stage}, Progress: {progress}%, Remaining: {remaining_estimate}s")
                     update_status_callback(
