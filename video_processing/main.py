@@ -68,16 +68,16 @@ class VideoProcessor:
                 'per_minute': 25    # Additional seconds per minute of video
             },
             '480p': {
-                'base_time': 120,
-                'per_minute': 30
-            },
-            '720p': {
-                'base_time': 150,
+                'base_time': 90,
                 'per_minute': 35
             },
+            '720p': {
+                'base_time': 90,
+                'per_minute': 45
+            },
             '1080p': {
-                'base_time': 180,
-                'per_minute': 40
+                'base_time': 90,
+                'per_minute': 55
             }
         }
         self.process_start_time = None
@@ -199,10 +199,10 @@ class VideoProcessor:
                                     # Calculate overall progress based on phase
                                     if is_audio_phase:
                                         # Map audio progress (0-100) to overall progress (10-15)
-                                        overall_progress = 10 + int((percent * 5) / 100)
+                                        overall_progress = 11 + int((percent * 5) / 100)
                                     else:
-                                        # Map video progress (0-100) to overall progress (0-10)
-                                        overall_progress = int((percent * 10) / 100)
+                                        # Map video progress (0-100) to overall progress (1-11)
+                                        overall_progress = 1 + int((percent * 10) / 100)
                                     
                                     # Keep track of maximum progress
                                     if percent > max_progress and not is_audio_phase:
@@ -1073,7 +1073,7 @@ class VideoProcessor:
 
     def process_video(self, video_link, project_id=None, clerk_user_id=None, 
                      user_email=None, video_title=None, processing_timeframe=None, 
-                     video_quality="720p", video_type="portrait", start_time=None, end_time=None, 
+                     video_quality="720p", video_type="portrait", video_duration=None, start_time=None, end_time=None, 
                      clip_length=None, keywords="", caption_style="elon", add_watermark=False,
                      update_status_callback=None, s3_client=None, s3_bucket=None, project_type="auto", clips=None):
         try:
@@ -1086,9 +1086,9 @@ class VideoProcessor:
             def update_status_with_estimate(stage, progress):
                 if update_status_callback:
                     # Calculate video duration based on standardized clip format
-                    video_duration = (end_time - start_time if project_type == "auto" 
-                                    else sum(float(clip.get('duration', float(clip.get('end', 0)) - float(clip.get('start', 0))))
-                                          for clip in (clips or [])))
+                    # video_duration = (end_time - start_time if project_type == "auto" 
+                    #                 else sum(float(clip.get('duration', float(clip.get('end', 0)) - float(clip.get('start', 0))))
+                    #                       for clip in (clips or [])))
                     
                     elapsed_time = time.time() - self.process_start_time
                     remaining_estimate = self.calculate_total_estimate(
@@ -1123,12 +1123,12 @@ class VideoProcessor:
                     downloaded_audio_path = self.extract_audio(downloaded_video_path)
                     
                     if update_status_callback:
-                        update_status_with_estimate("transcribing", 15)
+                        update_status_with_estimate("transcribing", 20)
                     
                     transcript, word_timings = self.transcribe_audio(downloaded_audio_path)
                     
                     if update_status_callback:
-                        update_status_with_estimate("analyzing", 20)
+                        update_status_with_estimate("analyzing", 25)
                     
                     interesting_data = self.get_interesting_segments(transcript, word_timings, clip_length, keywords)
                     if not interesting_data:
@@ -1148,7 +1148,7 @@ class VideoProcessor:
                     )
                     
                     if update_status_callback:
-                        update_status_with_estimate("transcribing", 15)
+                        update_status_with_estimate("transcribing", 20)
                    
                         
                     segments_to_process = self.process_manual_clips(

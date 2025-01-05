@@ -143,10 +143,11 @@ class Worker:
                 processing_timeframe=data.get('processing_timeframe'),
                 video_quality=data.get('video_quality'),
                 video_type=data.get('video_type'),
+                video_duration=data.get('video_duration'),
                 start_time=data.get('start_time'),
                 end_time=data.get('end_time'), 
-                clip_length=data.get('clip_length'),  # None for manual
-                keywords=data.get('keywords', ''),    # None for manual
+                clip_length=data.get('clip_length'),
+                keywords=data.get('keywords', ''),    
                 caption_style=data.get('caption_style'), 
                 add_watermark=data.get('add_watermark'),
                 update_status_callback=self.update_project_status,
