@@ -336,6 +336,7 @@ export function AutoClip() {
         formData.append('genre', genre);
         formData.append('videoQuality', videoQuality);
         formData.append('videoType', videoType);
+        formData.append('videoDuration', videoDuration?.toString() || '0');
         formData.append('startTime', startTime.toString());
         formData.append('endTime', endTime.toString());
         formData.append('clipLengthMin', clipLengthRange.min.toString());

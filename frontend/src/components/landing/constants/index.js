@@ -48,11 +48,11 @@ export const navigation = [
     title: "Pricing",
     url: "#pricing",
   },
-  {
-    id: "4",
-    title: "Affiliate",
-    url: "https://buttoned-submarine-cb6.notion.site/Lunaris-AI-Affiliate-Program-164b45e2e44480feb865d546722ec6dc",
-  }
+  // {
+  //   id: "4",
+  //   title: "Affiliate",
+  //   url: "https://buttoned-submarine-cb6.notion.site/Lunaris-AI-Affiliate-Program-164b45e2e44480feb865d546722ec6dc",
+  // }
 ];
 
 export const authLinks = [

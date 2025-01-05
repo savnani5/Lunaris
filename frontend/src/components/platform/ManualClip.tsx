@@ -354,8 +354,10 @@ export function ManualClip() {
         formData.append('genre', genre);
         formData.append('videoQuality', videoQuality);
         formData.append('videoType', videoType);
+        formData.append('videoDuration', videoDuration?.toString() || '0');
         formData.append('project_type', 'manual');
         
+      
         // Format clips data for backend processing
         const clipsForProcessing = clips.map((clip, index) => ({
           id: clip.id,
