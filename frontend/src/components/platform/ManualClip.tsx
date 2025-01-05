@@ -66,7 +66,7 @@ export function ManualClip() {
   const [videoThumbnail, setVideoThumbnail] = useState("");
   const [processing, setProcessing] = useState(false);
   const [genre, setGenre] = useState("Auto");
-  const [videoQuality, setVideoQuality] = useState("1080p");
+  const [videoQuality, setVideoQuality] = useState("720p");
   const [videoType, setVideoType] = useState("landscape");
   const { user: clerkUser } = useUser();
   const [user, setUser] = useState<UserModel | null>(null);
