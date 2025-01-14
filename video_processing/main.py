@@ -134,6 +134,26 @@ class VideoProcessor:
                         proxy_url = self.proxy_manager.get_proxy_url()
                         print(f"Attempting download with proxy: {proxy_url}")
                         
+                        # Test proxy connection before attempting download
+                        try:
+                            test_cmd = [
+                                "curl", "-v", "-x", proxy_url, 
+                                "https://ipv4.icanhazip.com", 
+                                "--connect-timeout", "10"
+                            ]
+                            test_result = subprocess.run(
+                                test_cmd,
+                                capture_output=True,
+                                text=True,
+                                timeout=15
+                            )
+                            print(f"Proxy test result: {test_result.stdout}")
+                            if test_result.returncode != 0:
+                                raise Exception(f"Proxy test failed: {test_result.stderr}")
+                        except Exception as e:
+                            print(f"Proxy connection test failed: {str(e)}")
+                            raise
+
                         # Get video title if not provided
                         if not video_title:
                             yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
@@ -227,6 +247,7 @@ class VideoProcessor:
                             raise Exception("Download process failed")
                     except Exception as e:
                         print(f"Download attempt {retry_count + 1} failed: {str(e)}")
+                        print(f"Full error: {repr(e)}")
                         self.proxy_manager.mark_failure(proxy_url)
                         retry_count += 1
                         if retry_count < max_retries:

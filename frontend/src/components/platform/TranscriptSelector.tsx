@@ -312,7 +312,7 @@ export function TranscriptSelector({
       if (firstResultElement) {
         firstResultElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
       }
-    }
+    }  
   };
 
   const navigateSearch = (direction: 'next' | 'prev') => {

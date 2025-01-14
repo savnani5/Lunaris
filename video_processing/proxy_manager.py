@@ -39,7 +39,9 @@ class ProxyManager:
         # Randomly select a proxy
         proxy = random.choice(self.proxies)
         proxy_url = f"http://{proxy['username']}:{proxy['password']}@{proxy['url']}:{proxy['port']}"
-        logger.info(f"Selected proxy: {proxy['url']}")
+        
+        # Log proxy details (excluding credentials)
+        logger.info(f"Selected proxy: {proxy['url']}:{proxy['port']}")
         return proxy_url
 
     def mark_failure(self, proxy_url: str):
