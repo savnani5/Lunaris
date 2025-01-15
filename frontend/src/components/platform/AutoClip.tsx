@@ -163,6 +163,9 @@ export function AutoClip() {
         });
       }
 
+      // Add CORS headers
+      xhr.withCredentials = false; // Important for S3
+      
       // Handle progress
       if (onUploadProgress) {
         xhr.upload.onprogress = onUploadProgress;
@@ -180,7 +183,10 @@ export function AutoClip() {
         }
       };
 
-      xhr.onerror = () => reject(new Error('Network error'));
+      xhr.onerror = () => {
+        console.error('XHR Error:', xhr.statusText);
+        reject(new Error('Network error'));
+      };
       
       // Send the request
       xhr.send(options.body as XMLHttpRequestBodyInit);

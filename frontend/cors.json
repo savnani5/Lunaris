@@ -8,17 +8,23 @@
                 "PUT",
                 "POST",
                 "DELETE",
-                "GET"
+                "GET",
+                "HEAD"
             ],
             "AllowedOrigins": [
                 "http://localhost:3000",
-                "https://lunaris-six.vercel.app/",
+                "https://lunaris-six.vercel.app",
                 "https://api.lunaris.media",
-                "https://lunaris.media"
+                "https://lunaris.media",
+                "https://www.lunaris.media"
             ],
             "ExposeHeaders": [
-                "ETag"
-            ]
+                "ETag",
+                "x-amz-server-side-encryption",
+                "x-amz-request-id",
+                "x-amz-id-2"
+            ],
+            "MaxAgeSeconds": 3600
         }
     ]
 }
