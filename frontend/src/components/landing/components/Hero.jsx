@@ -66,12 +66,14 @@ const Hero = () => {
               {!isSignedIn && (
                 <Link href="/sign-up">
                   <Button white>
-                    &nbsp;Get Free Credits&nbsp;
+                    <span className="hidden sm:inline">&nbsp;Get Free Credits&nbsp;</span>
+                    <span className="sm:hidden">&nbsp;Free Credits&nbsp;</span>
                   </Button>
                 </Link>
               )}
               <Button white onClick={() => setShowDemo(true)}>
-                &nbsp;Watch Demo&nbsp;
+                <span className="hidden sm:inline">&nbsp;Watch Demo&nbsp;</span>
+                <span className="sm:hidden">&nbsp;Demo&nbsp;</span>
               </Button>
             </div>
           </div>
