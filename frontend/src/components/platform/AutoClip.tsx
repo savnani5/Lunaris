@@ -154,9 +154,9 @@ export function AutoClip() {
     setIsUploading(true);
     setUploadedVideo(file);
     setVideoTitle(file.name);
-    setIsValidInput(false);
-
-    // Create a temporary URL for the video file and handle thumbnail/metadata
+    setIsValidInput(true);
+    
+    // Create local URL immediately for preview
     const videoURL = URL.createObjectURL(file);
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -237,6 +237,7 @@ export function AutoClip() {
       setIsValidInput(true);
     } catch (error) {
       console.error('Error uploading file:', error);
+      setIsValidInput(false);
       // Clean up on error
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
