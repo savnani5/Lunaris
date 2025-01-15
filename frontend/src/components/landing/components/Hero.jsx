@@ -100,7 +100,7 @@ const Hero = () => {
             <div className="absolute -top-[80%] left-1/2 w-[125%] -translate-x-1/2 md:-top-[50%] md:w-[88%] lg:-top-[65%] z-10">
               <Image
                 src={heroBackground}
-                className="w-full object-cover mix-blend-color-dodge opacity-40"
+                className="w-full object-cover mix-blend-color-dodge opacity-30"
                 width={1440}
                 height={1800}
                 priority={true}
