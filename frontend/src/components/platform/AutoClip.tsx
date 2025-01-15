@@ -926,7 +926,13 @@ export function AutoClip() {
         <Button 
           className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
           onClick={handleProcessClick} 
-          disabled={processing || isUploading || !isValidInput}
+          disabled={
+            processing || 
+            isUploading || 
+            !isValidInput || 
+            (!videoLink && !uploadedVideo) ||
+            isLoadingVideoDetails
+          }
         >
           {processing ? "Processing..." : "Get viral clips"}
         </Button>
