@@ -147,6 +147,46 @@ export function AutoClip() {
     }
   }, [videoLink]);
 
+  const fetchWithProgress = (url: string, options: RequestInit & { onUploadProgress?: (event: ProgressEvent) => void }): Promise<Response> => {
+    const { onUploadProgress, ...fetchOptions } = options;
+    
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      setActiveXHR(xhr);
+      
+      xhr.open(options.method || 'GET', url);
+      
+      // Set headers
+      if (options.headers) {
+        Object.entries(options.headers).forEach(([key, value]) => {
+          xhr.setRequestHeader(key, value as string);
+        });
+      }
+
+      // Handle progress
+      if (onUploadProgress) {
+        xhr.upload.onprogress = onUploadProgress;
+      }
+
+      // Handle response
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(new Response(xhr.response, {
+            status: xhr.status,
+            statusText: xhr.statusText,
+          }));
+        } else {
+          reject(new Error(`HTTP ${xhr.status} - ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+      
+      // Send the request
+      xhr.send(options.body as XMLHttpRequestBodyInit);
+    });
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -158,7 +198,6 @@ export function AutoClip() {
     setVideoLink("");
     setUploadedVideo(file);
 
-    // Start upload in background
     setIsUploading(true);
     try {
       // Get presigned URL
@@ -177,7 +216,7 @@ export function AutoClip() {
 
       const { uploadUrl, fileKey, bucket } = await presignedUrlResponse.json();
 
-      // Upload to S3 with progress tracking
+      // Use fetchWithProgress instead of regular fetch
       const uploadResponse = await fetchWithProgress(uploadUrl, {
         method: 'PUT',
         body: file,
@@ -246,47 +285,6 @@ export function AutoClip() {
     } finally {
       setIsUploading(false);
     }
-  };
-
-  // Helper function to track upload progress with fetch
-  const fetchWithProgress = (url: string, options: RequestInit & { onUploadProgress?: (event: ProgressEvent) => void }): Promise<Response> => {
-    const { onUploadProgress, ...fetchOptions } = options;
-    
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      setActiveXHR(xhr); // Store the XHR instance
-      
-      xhr.open(options.method || 'GET', url);
-      
-      // Set headers
-      if (options.headers) {
-        Object.entries(options.headers).forEach(([key, value]) => {
-          xhr.setRequestHeader(key, value as string);
-        });
-      }
-
-      // Handle progress
-      if (onUploadProgress) {
-        xhr.upload.onprogress = onUploadProgress;
-      }
-
-      // Handle response
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(new Response(xhr.response, {
-            status: xhr.status,
-            statusText: xhr.statusText,
-          }));
-        } else {
-          reject(new Error(`HTTP ${xhr.status} - ${xhr.statusText}`));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error('Network error'));
-      
-      // Send the request
-      xhr.send(options.body as XMLHttpRequestBodyInit);
-    });
   };
 
   const handleProcessClick = async () => {
