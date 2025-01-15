@@ -151,40 +151,15 @@ export function AutoClip() {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsUploading(true);
-    setUploadedVideo(file);
+    // Create local URL immediately for preview
+    const localUrl = URL.createObjectURL(file);
     setVideoTitle(file.name);
     setIsValidInput(true);
-    
-    // Create local URL immediately for preview
-    const videoURL = URL.createObjectURL(file);
-    const video = document.createElement('video');
-    video.preload = 'metadata';
+    setVideoLink("");
+    setUploadedVideo(file);
 
-    video.onloadedmetadata = () => {
-      setVideoDuration(video.duration);
-    };
-
-    video.onloadeddata = () => {
-      console.log("Video data loaded, waiting to generate thumbnail...");
-      setTimeout(() => {
-        video.currentTime = 1; // Set to 1 second to avoid black frames
-      }, 1000);
-    };
-
-    video.onseeked = () => {
-      console.log("Video seeked, generating thumbnail...");
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const thumbnailUrl = canvas.toDataURL('image/jpeg');
-      setVideoThumbnail(thumbnailUrl);
-    };
-
-    video.src = videoURL;
-    video.load();
-
+    // Start upload in background
+    setIsUploading(true);
     try {
       // Get presigned URL
       const presignedUrlResponse = await fetch('/api/get-upload-url', {
@@ -202,18 +177,13 @@ export function AutoClip() {
 
       const { uploadUrl, fileKey, bucket } = await presignedUrlResponse.json();
 
-      // Create FormData and append file
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Use fetch instead of XMLHttpRequest for better error handling
+      // Upload to S3 with progress tracking
       const uploadResponse = await fetchWithProgress(uploadUrl, {
         method: 'PUT',
         body: file,
         headers: {
           'Content-Type': file.type,
         },
-        // Track upload progress
         onUploadProgress: (progressEvent: any) => {
           if (progressEvent.lengthComputable) {
             const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
@@ -234,17 +204,47 @@ export function AutoClip() {
         key: fileKey
       } as any));
 
-      setIsValidInput(true);
+      // Create a video element to get metadata
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = () => {
+          setVideoDuration(video.duration);
+          resolve(null);
+        };
+        video.onerror = reject;
+        video.src = localUrl;
+      });
+      
+      // Generate thumbnail
+      video.currentTime = 1;
+      await new Promise(resolve => {
+        video.onseeked = resolve;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const thumbnailUrl = canvas.toDataURL('image/jpeg');
+        setVideoThumbnail(thumbnailUrl);
+      }
+
+      video.remove();
+      URL.revokeObjectURL(localUrl);
+
     } catch (error) {
-      console.error('Error uploading file:', error);
-      setIsValidInput(false);
-      // Clean up on error
+      console.error('Error processing video:', error);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      setIsValidInput(false);
     } finally {
       setIsUploading(false);
-      URL.revokeObjectURL(videoURL);
     }
   };
 
