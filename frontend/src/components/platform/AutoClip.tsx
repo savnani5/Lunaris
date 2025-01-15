@@ -704,15 +704,16 @@ export function AutoClip() {
         <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
           <h2 className="text-2xl font-semibold mb-2">Video Source</h2> {/* Added bottom margin */}
           <div className="flex items-center w-full space-x-2 sm:space-x-4">
-            <Input
+            {/* <Input
               placeholder="Drop a YouTube link"
               className="flex-1 bg-n-6 text-n-1 border-n-5 focus:border-color-1"
               value={videoLink}
               onChange={handleVideoLinkChange}
               disabled={isUploading || !!uploadedVideo}
-            />
+            /> */}
             <Button 
-              className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
+              className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
+              // className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !!videoLink}
             >

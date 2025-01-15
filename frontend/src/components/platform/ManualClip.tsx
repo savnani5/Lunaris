@@ -693,15 +693,16 @@ export function ManualClip() {
         <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4">
           <h2 className="text-2xl font-semibold mb-2">Video Source</h2>
           <div className="flex items-center w-full space-x-2 sm:space-x-4">
-            <Input
+            {/* <Input
               placeholder="Drop a YouTube link"
               className="flex-1 bg-n-6 text-n-1 border-n-5 focus:border-color-1"
               value={videoLink}
               onChange={handleVideoLinkChange}
               disabled={isUploading || !!uploadedVideo}
-            />
+            /> */}
             <Button 
-              className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
+              className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
+              // className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !!videoLink}
             >
@@ -722,7 +723,7 @@ export function ManualClip() {
           ) : (
             (videoLink || uploadedVideoUrl) && (
               <div className="mb-4">
-                <div className="flex items-center space-x-4 mb-4">
+                {/* <div className="flex items-center space-x-4 mb-4">
                   <button
                     className={`px-4 py-2 sm:py-3 rounded-lg text-sm sm:text-base ${
                       selectionMode === 'timeline' ? 'bg-color-1' : 'bg-n-6'
@@ -755,7 +756,7 @@ export function ManualClip() {
                       </button>
                     </span>
                   </Tooltip>
-                </div>
+                </div> */}
 
                 {selectionMode === 'timeline' ? (
                   <VideoClipEditor
