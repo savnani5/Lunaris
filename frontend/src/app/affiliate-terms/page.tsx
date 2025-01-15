@@ -14,7 +14,7 @@ const AffiliateTerms = () => {
       <div className="container mx-auto px-4 max-w-4xl">
         <div className="prose prose-invert max-w-none">
           <h1 className="text-4xl font-bold mb-8">Affiliate Terms</h1>
-          <p className="text-gray-400 mb-8">Join Lunaris Affiliate Program and receive a 25% commission on subscription payments for paying customers you refer.</p>
+          <p className="text-gray-400 mb-8">Join Lunaris Affiliate Program and receive a recurring commission on subscription payments for paying customers you refer.</p>
 
           <h2 className="text-3xl font-bold mt-8 mb-4">1. Pay-per-click (PPC) policy - Google Ads</h2>
           <p>The Affiliate is not allowed to use PPC Ads on Google Ads without prior written permission. Unfortunately, we have no way to verify that you are advertising on keywords other than our brand name, which is why we must prohibit the use of Google Ads. If you violate this rule, we will cancel all your commissions since the creation of your account.</p>
