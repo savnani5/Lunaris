@@ -701,8 +701,8 @@ export function ManualClip() {
               disabled={isUploading || !!uploadedVideo}
             /> */}
             <Button 
-              className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
-              // className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
+              // className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
+              className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !!videoLink}
             >
