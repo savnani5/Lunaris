@@ -338,17 +338,22 @@ export const faqData = [
   },
   {
     id: "2",
-    question: "Is Lunaris free to use?",
-    answer: "We offer 60 free credits (60 minutes of processing) to get you started. You can enroll in our starter or custom plan to get more credits and features."
+    question: "Can I add captions?",
+    answer: "Absolutely! In fact, Lunaris automatically adds captions for you with over 98% accuracy! You can also choose custom captions with our templates."
   },
   {
     id: "3",
-    question: "Can I add captions?",
-    answer: "Absolutely! In fact, Lunaris automatically adds captions for you with over 98% accuracy! You can also choose custom captions with our templates."
+    question: "How do I check my available credits?",
+    answer: "Your available credits are displayed in the top-right corner in green. Each credit equals one minute of video processing time."
   },
   {
     id: "4",
     question: "Can I cancel my subscription anytime?",
     answer: "Yes, you can cancel your subscription at any time. You'll continue to have access to your plan until the end of your current billing period."
+  },
+  {
+    id: "5",
+    question: "Do you have a refund policy?",
+    answer: "Unfortunately, we do not offer refunds. You can cancel your plan anytime and your plan will remain active until the end of the billing cycle."
   },
 ];

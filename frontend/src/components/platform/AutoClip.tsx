@@ -194,6 +194,19 @@ export function AutoClip() {
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Check credits and subscription first
+    if (userCredits <= 0) {
+      if (!user?.isSubscribed) {
+        setShowSubscriptionRequiredPopup(true);
+      } else {
+        setShowCreditPurchasePopup(true);
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -674,7 +687,7 @@ export function AutoClip() {
             title={
               <div className="text-n-1">
                 <p className="font-semibold mb-1">
-                  {user?.isSubscribed ? `${currentPlan} Plan` : "Promotional Credits"}
+                  {user?.isSubscribed ? `${currentPlan} Plan` : "Available Credits"}
                 </p>
                 <p className="text-sm text-n-3">1 credit = 1 minute of video processing</p>
               </div>
@@ -714,7 +727,17 @@ export function AutoClip() {
             <Button 
               // className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
               className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                if (userCredits <= 0) {
+                  if (!user?.isSubscribed) {
+                    setShowSubscriptionRequiredPopup(true);
+                  } else {
+                    setShowCreditPurchasePopup(true);
+                  }
+                  return;
+                }
+                fileInputRef.current?.click();
+              }}
               disabled={isUploading || !!videoLink}
             >
               {isUploading ? `${uploadProgress}%` : "Upload Video"}

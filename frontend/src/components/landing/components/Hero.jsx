@@ -63,14 +63,14 @@ const Hero = () => {
               Repurpose your content into viral clips with AI captions, smart reframing, and virality optimization - all in one platform.
             </p>
             <div className="flex gap-4 justify-center">
-              {!isSignedIn && (
+              {/* {!isSignedIn && (
                 <Link href="/sign-up">
                   <Button white>
                     <span className="hidden sm:inline">&nbsp;Get Free Credits&nbsp;</span>
                     <span className="sm:hidden">&nbsp;Free Credits&nbsp;</span>
                   </Button>
                 </Link>
-              )}
+              )} */}
               <Button white onClick={() => setShowDemo(true)}>
                 <span className="hidden sm:inline">&nbsp;Watch Demo&nbsp;</span>
                 <span className="sm:hidden">&nbsp;Demo&nbsp;</span>

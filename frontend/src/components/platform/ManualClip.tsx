@@ -160,6 +160,19 @@ export function ManualClip() {
   }, [videoLink]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Check credits and subscription first
+    if (userCredits <= 0) {
+      if (!user?.isSubscribed) {
+        setShowSubscriptionRequiredPopup(true);
+      } else {
+        setShowCreditPurchasePopup(true);
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+    
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -663,7 +676,7 @@ export function ManualClip() {
             title={
               <div className="text-n-1">
                 <p className="font-semibold mb-1">
-                  {user?.isSubscribed ? `${currentPlan} Plan` : "Promotional Credits"}
+                  {user?.isSubscribed ? `${currentPlan} Plan` : "Available Credits"}
                 </p>
                 <p className="text-sm text-n-3">1 credit = 1 minute of video processing</p>
               </div>
