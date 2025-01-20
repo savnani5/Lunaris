@@ -172,7 +172,7 @@ export function ManualClip() {
       }
       return;
     }
-    
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -705,6 +705,7 @@ export function ManualClip() {
       <main className="mt-6 space-y-6 max-w-4xl mx-auto">
         <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4">
           <h2 className="text-2xl font-semibold mb-2">Video Source</h2>
+          <span className="text-xs sm:text-sm text-n-3 whitespace-nowrap">(Please upload landscape videos for optimal results)</span>
           <div className="flex items-center w-full space-x-2 sm:space-x-4">
             {/* <Input
               placeholder="Drop a YouTube link"
