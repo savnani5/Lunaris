@@ -58,7 +58,6 @@ const aspectRatioOptions = [
   }
 ];
 
-const generateUniqueId = () => `clip-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
 export function ManualClip() {
   const router = useRouter(); 
@@ -66,7 +65,7 @@ export function ManualClip() {
   const [videoThumbnail, setVideoThumbnail] = useState("");
   const [processing, setProcessing] = useState(false);
   const [genre, setGenre] = useState("Auto");
-  const [videoQuality, setVideoQuality] = useState("1080p");
+  const [videoQuality, setVideoQuality] = useState("720p");
   const [videoType, setVideoType] = useState("landscape");
   const { user: clerkUser } = useUser();
   const [user, setUser] = useState<UserModel | null>(null);
@@ -98,6 +97,7 @@ export function ManualClip() {
   const [currentTime, setCurrentTime] = useState(0);
   const playerRef = useRef<ReactPlayer>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   const captionStyles = [
     { id: "no_captions", name: "No Captions", videoSrc: noCaptionVideo },
@@ -160,6 +160,19 @@ export function ManualClip() {
   }, [videoLink]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Check credits and subscription first
+    if (userCredits <= 0) {
+      if (!user?.isSubscribed) {
+        setShowSubscriptionRequiredPopup(true);
+      } else {
+        setShowCreditPurchasePopup(true);
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -354,8 +367,10 @@ export function ManualClip() {
         formData.append('genre', genre);
         formData.append('videoQuality', videoQuality);
         formData.append('videoType', videoType);
+        formData.append('videoDuration', videoDuration?.toString() || '0');
         formData.append('project_type', 'manual');
         
+      
         // Format clips data for backend processing
         const clipsForProcessing = clips.map((clip, index) => ({
           id: clip.id,
@@ -494,12 +509,15 @@ export function ManualClip() {
 
   const fetchUserProjects = async (userId: string) => {
     try {
+      setIsLoadingProjects(true);
       const userProjects = await getProjectsByUserId(userId);
       if (userProjects) {
         setProjects(userProjects);
       }
     } catch (error) {
       console.error('Error fetching user projects:', error);
+    } finally {
+      setIsLoadingProjects(false);
     }
   };
 
@@ -658,7 +676,7 @@ export function ManualClip() {
             title={
               <div className="text-n-1">
                 <p className="font-semibold mb-1">
-                  {user?.isSubscribed ? `${currentPlan} Plan` : "Promotional Credits"}
+                  {user?.isSubscribed ? `${currentPlan} Plan` : "Available Credits"}
                 </p>
                 <p className="text-sm text-n-3">1 credit = 1 minute of video processing</p>
               </div>
@@ -676,7 +694,7 @@ export function ManualClip() {
               <span className="text-green-500 font-semibold whitespace-nowrap">{formatCredits(userCredits)}</span>
             </div>
           </Tooltip>
-          <Button 
+          <Button
             className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 whitespace-nowrap"
             onClick={handleBuyCredits}
           >
@@ -687,15 +705,17 @@ export function ManualClip() {
       <main className="mt-6 space-y-6 max-w-4xl mx-auto">
         <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4">
           <h2 className="text-2xl font-semibold mb-2">Video Source</h2>
+          <span className="text-xs sm:text-sm text-n-3 whitespace-nowrap">(Please upload landscape videos for optimal results)</span>
           <div className="flex items-center w-full space-x-2 sm:space-x-4">
-            <Input
+            {/* <Input
               placeholder="Drop a YouTube link"
               className="flex-1 bg-n-6 text-n-1 border-n-5 focus:border-color-1"
               value={videoLink}
               onChange={handleVideoLinkChange}
               disabled={isUploading || !!uploadedVideo}
-            />
+            /> */}
             <Button 
+              // className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
               className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || !!videoLink}
@@ -717,7 +737,7 @@ export function ManualClip() {
           ) : (
             (videoLink || uploadedVideoUrl) && (
               <div className="mb-4">
-                <div className="flex items-center space-x-4 mb-4">
+                {/* <div className="flex items-center space-x-4 mb-4">
                   <button
                     className={`px-4 py-2 sm:py-3 rounded-lg text-sm sm:text-base ${
                       selectionMode === 'timeline' ? 'bg-color-1' : 'bg-n-6'
@@ -750,7 +770,7 @@ export function ManualClip() {
                       </button>
                     </span>
                   </Tooltip>
-                </div>
+                </div> */}
 
                 {selectionMode === 'timeline' ? (
                   <VideoClipEditor
@@ -861,7 +881,11 @@ export function ManualClip() {
         )}
       </main>
       <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-1 mt-8">Manual Clip Projects</h2>
-      {projects.length > 0 ? (
+      {isLoadingProjects ? (
+        <div className="flex justify-center items-center py-8">
+          <Spinner className="w-8 h-8 text-color-1" />
+        </div>
+      ) : projects.length > 0 ? (
         <div className="max-w-[1920px] mx-auto px-1 mt-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {projects

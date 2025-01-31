@@ -12,6 +12,7 @@ export interface User {
   planCredits: number; 
   nextRenewalDate: Date | null;
   subscriptionId: string | null;
+  referredBy?: string; // affiliate username
 }
 
 export class UserModel implements User {
@@ -28,7 +29,8 @@ export class UserModel implements User {
     public isSubscribed: boolean = false,
     public planCredits: number = 0,
     public nextRenewalDate: Date | null = null,
-    public subscriptionId: string | null = null
+    public subscriptionId: string | null = null,
+    public referredBy?: string,
   ) {}
 
   static fromObject(obj: any): UserModel {
@@ -45,7 +47,8 @@ export class UserModel implements User {
       obj.isSubscribed || false,
       obj.planCredits,
       obj.nextRenewalDate ? new Date(obj.nextRenewalDate) : null,
-      obj.subscriptionId
+      obj.subscriptionId,
+      obj.referredBy
     );
   }
 
@@ -63,7 +66,8 @@ export class UserModel implements User {
       isSubscribed: this.isSubscribed,
       planCredits: this.planCredits,
       nextRenewalDate: this.nextRenewalDate,
-      subscriptionId: this.subscriptionId
+      subscriptionId: this.subscriptionId,
+      referredBy: this.referredBy
     };
   }
 }

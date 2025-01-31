@@ -143,10 +143,11 @@ class Worker:
                 processing_timeframe=data.get('processing_timeframe'),
                 video_quality=data.get('video_quality'),
                 video_type=data.get('video_type'),
+                video_duration=data.get('video_duration'),
                 start_time=data.get('start_time'),
                 end_time=data.get('end_time'), 
-                clip_length=data.get('clip_length'),  # None for manual
-                keywords=data.get('keywords', ''),    # None for manual
+                clip_length=data.get('clip_length'),
+                keywords=data.get('keywords', ''),    
                 caption_style=data.get('caption_style'), 
                 add_watermark=data.get('add_watermark'),
                 update_status_callback=self.update_project_status,
@@ -156,11 +157,16 @@ class Worker:
                 clips=data.get('clips')  # Will be None for auto projects
             )
             
-            # Delete the message after successful processing
-            self.sqs.delete_message(
-                QueueUrl=self.sqs_queue_url,
-                ReceiptHandle=message['ReceiptHandle']
-            )
+            try:
+                self.sqs.delete_message(
+                    QueueUrl=self.sqs_queue_url,
+                    ReceiptHandle=message['ReceiptHandle']
+                )
+                logger.info(f"Successfully deleted message for project {data['project_id']}")
+            except Exception as delete_error:
+                logger.error(f"Failed to delete message: {delete_error}", exc_info=True)
+                # Re-raise to ensure we know if deletions are failing
+                raise delete_error
             
             return True
 
@@ -181,11 +187,16 @@ class Worker:
                 data['processing_timeframe']
             )
             
-            # Delete failed messages to prevent reprocessing
-            self.sqs.delete_message(
-                QueueUrl=self.sqs_queue_url,
-                ReceiptHandle=message['ReceiptHandle']
-            )
+            # Always try to delete failed messages
+            logger.info(f"Deleting failed message for project {data['project_id']}")
+            try:
+                self.sqs.delete_message(
+                    QueueUrl=self.sqs_queue_url,
+                    ReceiptHandle=message['ReceiptHandle']
+                )
+                logger.info(f"Successfully deleted failed message for project {data['project_id']}")
+            except Exception as delete_error:
+                logger.error(f"Failed to delete failed message: {delete_error}", exc_info=True)
             
             return False
 
@@ -194,15 +205,16 @@ class Worker:
         
         while self.running:
             try:
-                # Receive up to 4 messages
+                # Receive up to 4 messages with shorter visibility timeout
                 response = self.sqs.receive_message(
                     QueueUrl=self.sqs_queue_url,
                     MaxNumberOfMessages=4,
                     WaitTimeSeconds=20,
-                    VisibilityTimeout=3600
+                    VisibilityTimeout=300  # 5 minutes instead of 1 hour
                 )
 
                 if 'Messages' in response:
+                    logger.info(f"Received {len(response['Messages'])} messages")
                     for message in response['Messages']:
                         if not self.running:
                             break
@@ -215,11 +227,21 @@ class Worker:
                             self.active_tasks = [t for t in self.active_tasks if not t.done()]
                             self.active_tasks.append(future)
                     
-                    time.sleep(1)  # Small delay to prevent tight polling
+                time.sleep(1)  # Small delay to prevent tight polling
                             
             except Exception as e:
                 logger.error(f"Main loop error: {str(e)}", exc_info=True)
                 time.sleep(1)
+
+            # Clean up completed tasks periodically
+            with self.tasks_lock:
+                for future in self.active_tasks:
+                    if future.done():
+                        try:
+                            # Check if the task raised any exceptions
+                            future.result(timeout=0)
+                        except Exception as e:
+                            logger.error(f"Task failed with error: {e}")
 
         logger.info("Worker shutting down...")
 

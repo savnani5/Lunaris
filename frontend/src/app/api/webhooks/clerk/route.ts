@@ -25,13 +25,6 @@ export async function POST(req: Request) {
   const svix_timestamp = headerPayload.get("svix-timestamp");
   const svix_signature = headerPayload.get("svix-signature");
 
-  // Debug log headers
-  // console.log('Webhook headers:', {
-  //   'svix-id': svix_id,
-  //   'svix-timestamp': svix_timestamp,
-  //   'svix-signature': svix_signature,
-  // });
-
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
     console.error('Missing svix headers');
@@ -71,16 +64,23 @@ export async function POST(req: Request) {
   // CREATE
   if (eventType === "user.created") {
     try {
-      const { id, email_addresses, first_name, last_name } = evt.data;
+      const { 
+        id, 
+        email_addresses, 
+        first_name, 
+        last_name, 
+        unsafe_metadata 
+      } = evt.data;
 
       const userData = {
         clerk_id: id,
         email: email_addresses[0].email_address,
         firstName: first_name ?? '',
         lastName: last_name ?? '',
+        referredBy: unsafe_metadata?.referralSource?.toString() || undefined
       };
 
-    const newUser = await createUser(userData);
+      const newUser = await createUser(userData);
 
       if (!newUser) {
         console.error('Failed to create user in database');
@@ -92,14 +92,14 @@ export async function POST(req: Request) {
 
       // Set public metadata
       try {
-        await clerkClient().users.updateUserMetadata(id, {
+        await clerkClient.users.updateUserMetadata(id, {
           publicMetadata: {
             userId: newUser._id,
           },
         });
-      } catch (error) {
-        console.error("Error updating Clerk user metadata:", error);
-        // Continue execution even if Clerk update fails
+      } catch (metadataError) {
+        // Log but don't fail the whole operation
+        console.log("Clerk metadata update failed - this is non-critical");
       }
 
       return NextResponse.json({ 
@@ -118,7 +118,10 @@ export async function POST(req: Request) {
 
   // UPDATE
   if (eventType === "user.updated") {
-    const { id, email_addresses, first_name, last_name } = evt.data;
+    const { id, email_addresses, first_name, last_name, created_at } = evt.data;
+    const updateTimestamp = new Date().getTime();
+    const createTimestamp = new Date(created_at).getTime();
+    const isPostCreateUpdate = updateTimestamp - createTimestamp < 5000; // within 5 seconds
 
     const user = {
       clerk_id: id,
@@ -127,15 +130,21 @@ export async function POST(req: Request) {
       lastName: last_name || ''
     };
 
-    const updatedUser = await updateUser(id, user);
-
-    if (updatedUser === null) {
-      // console.log(`Failed to update or create user with clerk_id ${id}`);
-      console.error(`Failed to update or create user`);
-      // You might want to log this event or take other actions
+    try {
+      const updatedUser = await updateUser(id, user);
+      return NextResponse.json({ message: "OK", user: updatedUser });
+    } catch (error) {
+      if (isPostCreateUpdate) {
+        console.log("User update skipped - post-creation event");
+        return NextResponse.json({ message: "OK" });
+      }
+      
+      console.error("Error updating user:", error);
+      return NextResponse.json({ 
+        message: "Failed to update user", 
+        success: false 
+      }, { status: 500 });
     }
-
-    return NextResponse.json({ message: "OK", user: updatedUser });
   }
 
   // DELETE

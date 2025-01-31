@@ -22,7 +22,8 @@ export async function createClip(clipData: Omit<ClipModel, '_id' | 'created_at'>
       clipData.hook,
       clipData.flow,
       clipData.engagement,
-      clipData.trend
+      clipData.trend,
+      clipData.hashtags || []
     );
 
     const result = await db.collection('clip').insertOne({

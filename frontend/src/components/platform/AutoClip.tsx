@@ -59,7 +59,7 @@ export function AutoClip() {
   const [processing, setProcessing] = useState(false);
   const [clipLength, setClipLength] = useState("Auto (30s~60s)");
   const [genre, setGenre] = useState("Auto");
-  const [videoQuality, setVideoQuality] = useState("1080p");
+  const [videoQuality, setVideoQuality] = useState("720p");
   const [videoType, setVideoType] = useState("landscape");
   const [keywords, setKeywords] = useState("");
   const { user: clerkUser } = useUser();
@@ -86,6 +86,7 @@ export function AutoClip() {
   const [showCreditPurchasePopup, setShowCreditPurchasePopup] = useState(false);
   const [showSubscriptionRequiredPopup, setShowSubscriptionRequiredPopup] = useState(false);
   const [activeXHR, setActiveXHR] = useState<XMLHttpRequest | null>(null);
+  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
 
   const captionStyles = [
     { id: "no_captions", name: "No Captions", videoSrc: noCaptionVideo },
@@ -146,44 +147,77 @@ export function AutoClip() {
     }
   }, [videoLink]);
 
+  const fetchWithProgress = (url: string, options: RequestInit & { onUploadProgress?: (event: ProgressEvent) => void }): Promise<Response> => {
+    const { onUploadProgress, ...fetchOptions } = options;
+    
+    return new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      setActiveXHR(xhr);
+      
+      xhr.open(options.method || 'GET', url);
+      
+      // Set headers
+      if (options.headers) {
+        Object.entries(options.headers).forEach(([key, value]) => {
+          xhr.setRequestHeader(key, value as string);
+        });
+      }
+
+      // Add CORS headers
+      xhr.withCredentials = false; // Important for S3
+      
+      // Handle progress
+      if (onUploadProgress) {
+        xhr.upload.onprogress = onUploadProgress;
+      }
+
+      // Handle response
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(new Response(xhr.response, {
+            status: xhr.status,
+            statusText: xhr.statusText,
+          }));
+        } else {
+          reject(new Error(`HTTP ${xhr.status} - ${xhr.statusText}`));
+        }
+      };
+
+      xhr.onerror = () => {
+        console.error('XHR Error:', xhr.statusText);
+        reject(new Error('Network error'));
+      };
+      
+      // Send the request
+      xhr.send(options.body as XMLHttpRequestBodyInit);
+    });
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    // Check credits and subscription first
+    if (userCredits <= 0) {
+      if (!user?.isSubscribed) {
+        setShowSubscriptionRequiredPopup(true);
+      } else {
+        setShowCreditPurchasePopup(true);
+      }
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+      return;
+    }
+
     const file = event.target.files?.[0];
     if (!file) return;
 
-    setIsUploading(true);
-    setUploadedVideo(file);
+    // Create local URL immediately for preview
+    const localUrl = URL.createObjectURL(file);
     setVideoTitle(file.name);
-    setIsValidInput(false);
+    setIsValidInput(true);
+    setVideoLink("");
+    setUploadedVideo(file);
 
-    // Create a temporary URL for the video file and handle thumbnail/metadata
-    const videoURL = URL.createObjectURL(file);
-    const video = document.createElement('video');
-    video.preload = 'metadata';
-
-    video.onloadedmetadata = () => {
-      setVideoDuration(video.duration);
-    };
-
-    video.onloadeddata = () => {
-      console.log("Video data loaded, waiting to generate thumbnail...");
-      setTimeout(() => {
-        video.currentTime = 1; // Set to 1 second to avoid black frames
-      }, 1000);
-    };
-
-    video.onseeked = () => {
-      console.log("Video seeked, generating thumbnail...");
-      const canvas = document.createElement('canvas');
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      canvas.getContext('2d')?.drawImage(video, 0, 0, canvas.width, canvas.height);
-      const thumbnailUrl = canvas.toDataURL('image/jpeg');
-      setVideoThumbnail(thumbnailUrl);
-    };
-
-    video.src = videoURL;
-    video.load();
-
+    setIsUploading(true);
     try {
       // Get presigned URL
       const presignedUrlResponse = await fetch('/api/get-upload-url', {
@@ -201,18 +235,13 @@ export function AutoClip() {
 
       const { uploadUrl, fileKey, bucket } = await presignedUrlResponse.json();
 
-      // Create FormData and append file
-      const formData = new FormData();
-      formData.append('file', file);
-
-      // Use fetch instead of XMLHttpRequest for better error handling
+      // Use fetchWithProgress instead of regular fetch
       const uploadResponse = await fetchWithProgress(uploadUrl, {
         method: 'PUT',
         body: file,
         headers: {
           'Content-Type': file.type,
         },
-        // Track upload progress
         onUploadProgress: (progressEvent: any) => {
           if (progressEvent.lengthComputable) {
             const progress = Math.round((progressEvent.loaded / progressEvent.total) * 100);
@@ -233,58 +262,48 @@ export function AutoClip() {
         key: fileKey
       } as any));
 
-      setIsValidInput(true);
+      // Create a video element to get metadata
+      const video = document.createElement('video');
+      video.preload = 'metadata';
+      
+      await new Promise((resolve, reject) => {
+        video.onloadedmetadata = () => {
+          setVideoDuration(video.duration);
+          resolve(null);
+        };
+        video.onerror = reject;
+        video.src = localUrl;
+      });
+      
+      // Generate thumbnail
+      video.currentTime = 1;
+      await new Promise(resolve => {
+        video.onseeked = resolve;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const thumbnailUrl = canvas.toDataURL('image/jpeg');
+        setVideoThumbnail(thumbnailUrl);
+      }
+
+      video.remove();
+      URL.revokeObjectURL(localUrl);
+
     } catch (error) {
-      console.error('Error uploading file:', error);
-      // Clean up on error
+      console.error('Error processing video:', error);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
+      setIsValidInput(false);
     } finally {
       setIsUploading(false);
-      URL.revokeObjectURL(videoURL);
     }
-  };
-
-  // Helper function to track upload progress with fetch
-  const fetchWithProgress = (url: string, options: RequestInit & { onUploadProgress?: (event: ProgressEvent) => void }): Promise<Response> => {
-    const { onUploadProgress, ...fetchOptions } = options;
-    
-    return new Promise((resolve, reject) => {
-      const xhr = new XMLHttpRequest();
-      setActiveXHR(xhr); // Store the XHR instance
-      
-      xhr.open(options.method || 'GET', url);
-      
-      // Set headers
-      if (options.headers) {
-        Object.entries(options.headers).forEach(([key, value]) => {
-          xhr.setRequestHeader(key, value as string);
-        });
-      }
-
-      // Handle progress
-      if (onUploadProgress) {
-        xhr.upload.onprogress = onUploadProgress;
-      }
-
-      // Handle response
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve(new Response(xhr.response, {
-            status: xhr.status,
-            statusText: xhr.statusText,
-          }));
-        } else {
-          reject(new Error(`HTTP ${xhr.status} - ${xhr.statusText}`));
-        }
-      };
-
-      xhr.onerror = () => reject(new Error('Network error'));
-      
-      // Send the request
-      xhr.send(options.body as XMLHttpRequestBodyInit);
-    });
   };
 
   const handleProcessClick = async () => {
@@ -335,6 +354,7 @@ export function AutoClip() {
         formData.append('genre', genre);
         formData.append('videoQuality', videoQuality);
         formData.append('videoType', videoType);
+        formData.append('videoDuration', videoDuration?.toString() || '0');
         formData.append('startTime', startTime.toString());
         formData.append('endTime', endTime.toString());
         formData.append('clipLengthMin', clipLengthRange.min.toString());
@@ -516,12 +536,15 @@ export function AutoClip() {
 
   const fetchUserProjects = async (userId: string) => {
     try {
+      setIsLoadingProjects(true);
       const userProjects = await getProjectsByUserId(userId);
       if (userProjects) {
         setProjects(userProjects);
       }
     } catch (error) {
       console.error('Error fetching user projects:', error);
+    } finally {
+      setIsLoadingProjects(false);
     }
   };
 
@@ -664,7 +687,7 @@ export function AutoClip() {
             title={
               <div className="text-n-1">
                 <p className="font-semibold mb-1">
-                  {user?.isSubscribed ? `${currentPlan} Plan` : "Promotional Credits"}
+                  {user?.isSubscribed ? `${currentPlan} Plan` : "Available Credits"}
                 </p>
                 <p className="text-sm text-n-3">1 credit = 1 minute of video processing</p>
               </div>
@@ -693,17 +716,29 @@ export function AutoClip() {
       <main className="mt-6 space-y-6 max-w-4xl mx-auto"> {/* Reduced top margin and vertical spacing */}
         <div className="bg-n-7/70 rounded-2xl p-4 sm:p-6 space-y-4"> {/* Reduced padding and vertical spacing */}
           <h2 className="text-2xl font-semibold mb-2">Video Source</h2> {/* Added bottom margin */}
+          <span className="text-xs sm:text-sm text-n-3 whitespace-nowrap">(Please upload landscape videos for optimal results)</span>
           <div className="flex items-center w-full space-x-2 sm:space-x-4">
-            <Input
+            {/* <Input
               placeholder="Drop a YouTube link"
               className="flex-1 bg-n-6 text-n-1 border-n-5 focus:border-color-1"
               value={videoLink}
               onChange={handleVideoLinkChange}
               disabled={isUploading || !!uploadedVideo}
-            />
+            /> */}
             <Button 
+              // className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
               className="bg-color-1 hover:bg-color-1/80 text-n-1 transition-colors duration-200 text-xs sm:text-base whitespace-nowrap px-2 sm:px-4" 
-              onClick={() => fileInputRef.current?.click()}
+              onClick={() => {
+                if (userCredits <= 0) {
+                  if (!user?.isSubscribed) {
+                    setShowSubscriptionRequiredPopup(true);
+                  } else {
+                    setShowCreditPurchasePopup(true);
+                  }
+                  return;
+                }
+                fileInputRef.current?.click();
+              }}
               disabled={isUploading || !!videoLink}
             >
               {isUploading ? `${uploadProgress}%` : "Upload Video"}
@@ -921,7 +956,13 @@ export function AutoClip() {
         <Button 
           className="w-full bg-color-1 hover:bg-color-1/80 text-n-1 py-4 text-lg font-semibold rounded-full transition-colors duration-200" 
           onClick={handleProcessClick} 
-          disabled={processing || isUploading || !isValidInput}
+          disabled={
+            processing || 
+            isUploading || 
+            !isValidInput || 
+            (!videoLink && !uploadedVideo) ||
+            isLoadingVideoDetails
+          }
         >
           {processing ? "Processing..." : "Get viral clips"}
         </Button>
@@ -933,7 +974,11 @@ export function AutoClip() {
         )}
       </main>
       <h2 className="text-lg font-bold mb-4 max-w-[1920px] mx-auto px-1 mt-8">Auto Clip Projects</h2>
-      {projects.length > 0 ? (
+      {isLoadingProjects ? (
+        <div className="flex justify-center items-center py-8">
+          <Spinner className="w-8 h-8 text-color-1" />
+        </div>
+      ) : projects.length > 0 ? (
         <div className="max-w-[1920px] mx-auto px-1 mt-8">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
             {projects

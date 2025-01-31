@@ -59,6 +59,8 @@ const Header = () => {
                 key={item.id}
                 href={item.url}
                 onClick={handleClick}
+                target={item.url.startsWith('http') ? '_blank' : undefined}
+                rel={item.url.startsWith('http') ? 'noopener noreferrer' : undefined}
                 className={`block relative font-code text-2xl uppercase text-n-1 transition-colors hover:text-color-1 px-6 py-6 md:py-8 lg:-mr-0.25 lg:text-sm lg:font-semibold ${
                   item.url === pathname
                     ? "z-2 lg:text-n-1"

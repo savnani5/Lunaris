@@ -14,10 +14,10 @@ const Benefits = () => {
           title="All-in-one tool to generate viral clips using AI"
         />
 
-        <div className="flex flex-wrap gap-10 mb-10">
+        <div className="flex flex-wrap gap-10 mb-10 lg:grid lg:grid-cols-3 lg:grid-rows-2">
           {benefits.map((item) => (
             <div
-              className="block relative p-0.5 bg-no-repeat bg-[length:100%_100%] md:max-w-[24rem]"
+              className="block relative p-0.5 bg-no-repeat bg-[length:100%_100%] w-full md:max-w-[24rem] lg:max-w-none"
               key={item.id}
             >
               <div className="relative z-2 flex flex-col min-h-[22rem] p-[2.4rem] pointer-events-none">

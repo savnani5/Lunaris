@@ -63,8 +63,22 @@ class VideoProcessor:
         
         # Simplified timing estimates (seconds per minute of video)
         self.PROCESSING_ESTIMATE = {
-            'base_time': 90,  # Base processing time in seconds
-            'per_minute': 30   # Additional seconds per minute of video
+            '360p': {
+                'base_time': 90,    # Base processing time in seconds
+                'per_minute': 25    # Additional seconds per minute of video
+            },
+            '480p': {
+                'base_time': 90,
+                'per_minute': 35
+            },
+            '720p': {
+                'base_time': 90,
+                'per_minute': 45
+            },
+            '1080p': {
+                'base_time': 90,
+                'per_minute': 55
+            }
         }
         self.process_start_time = None
     
@@ -120,6 +134,7 @@ class VideoProcessor:
                         proxy_url = self.proxy_manager.get_proxy_url()
                         print(f"Attempting download with proxy: {proxy_url}")
                         
+
                         # Get video title if not provided
                         if not video_title:
                             yt_dlp_cmd = ["yt-dlp", source, "--get-title", "--proxy", proxy_url]
@@ -185,10 +200,10 @@ class VideoProcessor:
                                     # Calculate overall progress based on phase
                                     if is_audio_phase:
                                         # Map audio progress (0-100) to overall progress (10-15)
-                                        overall_progress = 10 + int((percent * 5) / 100)
+                                        overall_progress = 11 + int((percent * 5) / 100)
                                     else:
-                                        # Map video progress (0-100) to overall progress (0-10)
-                                        overall_progress = int((percent * 10) / 100)
+                                        # Map video progress (0-100) to overall progress (1-11)
+                                        overall_progress = 1 + int((percent * 10) / 100)
                                     
                                     # Keep track of maximum progress
                                     if percent > max_progress and not is_audio_phase:
@@ -213,6 +228,7 @@ class VideoProcessor:
                             raise Exception("Download process failed")
                     except Exception as e:
                         print(f"Download attempt {retry_count + 1} failed: {str(e)}")
+                        print(f"Full error: {repr(e)}")
                         self.proxy_manager.mark_failure(proxy_url)
                         retry_count += 1
                         if retry_count < max_retries:
@@ -387,6 +403,7 @@ class VideoProcessor:
                    - Target length: {clip_length['min']} to {clip_length['max']} seconds
                    - Must be self-contained and coherent
                    - Must have clear hooks and conclusions
+                   - Must have 4-5 relevant hashtags
                 
                 2. CRITICAL FORMATTING REQUIREMENTS:
                    - For each segment, provide TWO versions of the text:
@@ -464,9 +481,16 @@ class VideoProcessor:
                                                 "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
                                                 "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
                                                 "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
-                                                "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]}
+                                                "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                                "hashtags": {
+                                                    "type": "array",
+                                                    "items": {"type": "string"},
+                                                    "description": "4-5 relevant hashtags for the clip",
+                                                    "minItems": 4,
+                                                    "maxItems": 5
+                                                }
                                             },
-                                            "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                                            "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend", "hashtags"]
                                         }
                                     }
                                 },
@@ -528,7 +552,8 @@ class VideoProcessor:
                             'hook': segment['hook'],
                             'flow': segment['flow'],
                             'engagement': segment['engagement'],
-                            'trend': segment['trend']
+                            'trend': segment['trend'],
+                            'hashtags': segment['hashtags'],
                         })
 
                    
@@ -609,7 +634,8 @@ class VideoProcessor:
                 'hook': segment.get('hook'),
                 'flow': segment.get('flow'),
                 'engagement': segment.get('engagement'),
-                'trend': segment.get('trend')
+                'trend': segment.get('trend'),
+                'hashtags': segment.get('hashtags', [])
             }
             
             self.send_clip_data(clip_data)
@@ -1007,11 +1033,16 @@ class VideoProcessor:
 
         return frame
 
-    def calculate_total_estimate(self, video_duration, elapsed_time=0, progress=0, stage=""):
+    def calculate_total_estimate(self, video_duration, elapsed_time=0, progress=0, stage="", quality="720p"):
         """Calculate remaining time based on progress percentage and elapsed time"""
-        # Calculate initial total estimate
-        initial_estimate = int(self.PROCESSING_ESTIMATE['base_time'] + 
-                             (self.PROCESSING_ESTIMATE['per_minute'] * (video_duration / 60)))
+        # Standardize quality format and default to 720p if invalid
+        quality = quality.replace('p', '') + 'p'
+        if quality not in self.PROCESSING_ESTIMATE:
+            quality = '720p'
+        
+        # Calculate initial total estimate based on quality
+        initial_estimate = int(self.PROCESSING_ESTIMATE[quality]['base_time'] + 
+                             (self.PROCESSING_ESTIMATE[quality]['per_minute'] * (video_duration / 60)))
         
         # If progress hasn't started, return initial estimate
         if progress <= 0:
@@ -1044,7 +1075,7 @@ class VideoProcessor:
 
     def process_video(self, video_link, project_id=None, clerk_user_id=None, 
                      user_email=None, video_title=None, processing_timeframe=None, 
-                     video_quality="720p", video_type="portrait", start_time=None, end_time=None, 
+                     video_quality="720p", video_type="portrait", video_duration=None, start_time=None, end_time=None, 
                      clip_length=None, keywords="", caption_style="elon", add_watermark=False,
                      update_status_callback=None, s3_client=None, s3_bucket=None, project_type="auto", clips=None):
         try:
@@ -1057,12 +1088,18 @@ class VideoProcessor:
             def update_status_with_estimate(stage, progress):
                 if update_status_callback:
                     # Calculate video duration based on standardized clip format
-                    video_duration = (end_time - start_time if project_type == "auto" 
-                                    else sum(float(clip.get('duration', float(clip.get('end', 0)) - float(clip.get('start', 0))))
-                                          for clip in (clips or [])))
+                    # video_duration = (end_time - start_time if project_type == "auto" 
+                    #                 else sum(float(clip.get('duration', float(clip.get('end', 0)) - float(clip.get('start', 0))))
+                    #                       for clip in (clips or [])))
                     
                     elapsed_time = time.time() - self.process_start_time
-                    remaining_estimate = self.calculate_total_estimate(video_duration, elapsed_time, progress, stage)
+                    remaining_estimate = self.calculate_total_estimate(
+                        video_duration, 
+                        elapsed_time, 
+                        progress, 
+                        stage,
+                        video_quality
+                    )
                     
                     print(f"Stage: {stage}, Progress: {progress}%, Remaining: {remaining_estimate}s")
                     update_status_callback(
@@ -1088,12 +1125,12 @@ class VideoProcessor:
                     downloaded_audio_path = self.extract_audio(downloaded_video_path)
                     
                     if update_status_callback:
-                        update_status_with_estimate("transcribing", 15)
+                        update_status_with_estimate("transcribing", 20)
                     
                     transcript, word_timings = self.transcribe_audio(downloaded_audio_path)
                     
                     if update_status_callback:
-                        update_status_with_estimate("analyzing", 20)
+                        update_status_with_estimate("analyzing", 25)
                     
                     interesting_data = self.get_interesting_segments(transcript, word_timings, clip_length, keywords)
                     if not interesting_data:
@@ -1113,7 +1150,7 @@ class VideoProcessor:
                     )
                     
                     if update_status_callback:
-                        update_status_with_estimate("transcribing", 15)
+                        update_status_with_estimate("transcribing", 20)
                    
                         
                     segments_to_process = self.process_manual_clips(
@@ -1248,6 +1285,7 @@ class VideoProcessor:
                 - Flow grade (A+, A, A-, B+, B)
                 - Engagement grade (A+, A, A-, B+, B)
                 - Trend relevance grade (A+, A, A-, B+, B)
+                - Relevant hashtags for the clip (4-5)
                 
                 Use the process_metrics tool to return your analysis.
                 """
@@ -1269,9 +1307,16 @@ class VideoProcessor:
                                     "hook": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
                                     "flow": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
                                     "engagement": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
-                                    "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]}
+                                    "trend": {"type": "string", "enum": ["A+", "A", "A-", "B+", "B"]},
+                                    "hashtags": {
+                                        "type": "array",
+                                        "items": {"type": "string"},
+                                        "description": "4-5 relevant hashtags for the clip",
+                                        "minItems": 4,
+                                        "maxItems": 5
+                                    }
                                 },
-                                "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend"]
+                                "required": ["title", "text", "transcript", "score", "hook", "flow", "engagement", "trend", "hashtags"]
                             }
                         }],
                         tool_choice={"type": "tool", "name": "process_metrics"}
@@ -1319,7 +1364,8 @@ class VideoProcessor:
                 'hook': metrics['hook'],
                 'flow': metrics['flow'],
                 'engagement': metrics['engagement'],
-                'trend': metrics['trend']
+                'trend': metrics['trend'],
+                'hashtags': metrics['hashtags'],
             }
             
             segments_to_process.append(segment)
@@ -1384,4 +1430,4 @@ if __name__ == "__main__":
 
     # # Crop video to portrait with faces
     # # processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, s3_client=s3_client, s3_bucket=s3_bucket)
-    # processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, caption_style=caption_style, debug=True) 
+    processor.crop_and_add_subtitles(downloaded_video_path, interesting_data, output_video_type, caption_style=caption_style, debug=True) 

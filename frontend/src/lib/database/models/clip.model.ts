@@ -11,6 +11,7 @@ export interface Clip {
   flow: string;
   engagement: string;
   trend: string;
+  hashtags: string[];
   created_at: Date;
 }
 
@@ -26,6 +27,7 @@ export class ClipModel implements Clip {
     public flow: string,
     public engagement: string,
     public trend: string,
+    public hashtags: string[],
     public created_at: Date = new Date()
   ) {}
 
@@ -41,6 +43,7 @@ export class ClipModel implements Clip {
       obj.flow,
       obj.engagement,
       obj.trend,
+      obj.hashtags || [],
       new Date(obj.created_at)
     );
   }
@@ -57,6 +60,7 @@ export class ClipModel implements Clip {
       flow: this.flow,
       engagement: this.engagement,
       trend: this.trend,
+      hashtags: this.hashtags,
       created_at: this.created_at
     };
   }

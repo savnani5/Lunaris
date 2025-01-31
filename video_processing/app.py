@@ -168,6 +168,7 @@ class LunarisApp:
                 'video_title': request.form.get('videoTitle'),
                 'video_quality': request.form.get('videoQuality'),
                 'video_type': request.form.get('videoType').lower(),
+                'video_duration': float(request.form.get('videoDuration', 0)),
                 'caption_style': request.form.get('captionStyle', 'elon'),
             }
 
